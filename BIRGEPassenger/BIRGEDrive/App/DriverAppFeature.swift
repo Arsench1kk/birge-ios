@@ -48,6 +48,14 @@ struct DriverAppFeature {
         var activeRide: DriverActiveRide? = nil
         var earnings: DriverEarnings = .mock
         var path = StackState<Path.State>()
+
+        static func == (lhs: State, rhs: State) -> Bool {
+            lhs.isOnline == rhs.isOnline &&
+            lhs.currentOffer == rhs.currentOffer &&
+            lhs.activeRide == rhs.activeRide &&
+            lhs.earnings == rhs.earnings
+            // Note: intentionally skip path comparison
+        }
     }
 
     // MARK: - Path

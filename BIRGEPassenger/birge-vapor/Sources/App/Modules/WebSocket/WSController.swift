@@ -1,23 +1,17 @@
 import Vapor
 
-struct WSController: RouteCollection {
-    func boot(routes: RoutesBuilder) throws {
-        routes.webSocket("ws") { req, ws in
-            self.handle(req: req, ws: ws)
-        }
-    }
-
-    private func handle(req: Request, ws: WebSocket) {
+struct WSController {
+    func handleConnection(req: Request, ws: WebSocket) async throws {
         let payload: BIRGEJWTPayload
         do {
             payload = try req.jwt.verify(as: BIRGEJWTPayload.self)
             guard payload.type == .access else {
-                ws.close(promise: nil)
+                try await ws.close()
                 return
             }
         } catch {
             req.logger.warning("WebSocket authentication failed: \(error)")
-            ws.close(promise: nil)
+            try await ws.close()
             return
         }
 

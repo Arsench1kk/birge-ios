@@ -29,8 +29,8 @@ public func configure(_ app: Application) async throws {
 
     app.views.use(.leaf)
 
-    let jwtSecret = Environment.get("JWT_SECRET") ?? "dev_secret_change_in_prod"
-    await app.jwt.keys.add(hmac: jwtSecret, digestAlgorithm: .sha256)
+    let secret = Environment.get("JWT_SECRET") ?? "dev_secret_birge_2026"
+    try app.jwt.signers.use(.hs256(key: secret))
 
     app.migrations.add(CreateUsers())
     app.migrations.add(CreateDriverProfiles())

@@ -14,10 +14,13 @@ struct AuthService {
         let normalizedPhone = normalizePhone(phone)
         let code = String(format: "%06d", Int.random(in: 0...999999))
 
-        try await req.redis.setex(
+        try await req.redis.set(
             RedisKey("otp:\(normalizedPhone)"),
-            to: code,
-            expirationInSeconds: otpTTL
+            to: RESPValue(from: code)
+        )
+        try await req.redis.expire(
+            RedisKey("otp:\(normalizedPhone)"),
+            after: .seconds(300)
         )
 
         req.logger.info("OTP generated for \(normalizedPhone): \(code)")
@@ -111,10 +114,13 @@ struct AuthService {
         }
 
         let ttl = max(1, Int(payload.expiration.timeIntervalSinceNow))
-        try await req.redis.setex(
+        try await req.redis.set(
             RedisKey("blacklist:\(payload.jti)"),
-            to: "1",
-            expirationInSeconds: ttl
+            to: RESPValue(from: "1")
+        )
+        try await req.redis.expire(
+            RedisKey("blacklist:\(payload.jti)"),
+            after: .seconds(3600)
         )
     }
 
@@ -159,10 +165,13 @@ struct AuthService {
         let accessToken = try req.jwt.sign(accessPayload)
         let refreshToken = try req.jwt.sign(refreshPayload)
 
-        try await req.redis.setex(
+        try await req.redis.set(
             RedisKey("refresh:\(refreshPayload.jti)"),
-            to: userID,
-            expirationInSeconds: Int(refreshTokenTTL)
+            to: RESPValue(from: userID)
+        )
+        try await req.redis.expire(
+            RedisKey("refresh:\(refreshPayload.jti)"),
+            after: .seconds(Int64(refreshTokenTTL))
         )
 
         return AuthResponseDTO(
