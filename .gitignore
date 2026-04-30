@@ -1,25 +1,29 @@
-# Xcode build artifacts
+# Xcode
 build/
 DerivedData/
-*.ipa
-*.dSYM.zip
-*.dSYM
+*.xcuserstate
+*.xcbkptlist
+xcuserdata/
+*.hmap
+*.pcm
+*.d
+*.o
 
-# Xcode user settings (personal, not shared)
-*.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
-*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
-
-# Swift Package Manager
+# SwiftPM
 .build/
-.swiftpm/
-Packages/
-Package.resolved   # можно включить если хочешь фиксировать версии SPM
+*.resolved
 
 # macOS
 .DS_Store
 **/.DS_Store
 
-# CocoaPods (не используем, но на всякий случай)
-Pods/
-Podfile.lock
+# Env
+.env
+*.env.local
+
+# Vapor
+birge-vapor/.build/
+
+# IDE
+.idea/
+*.swp
