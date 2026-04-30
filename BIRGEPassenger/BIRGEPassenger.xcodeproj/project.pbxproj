@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		047530802FA30E4000AD5B35 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
 		AA000001AAAA000100000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
 /* End PBXBuildFile section */
 
@@ -42,6 +43,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				047530802FA30E4000AD5B35 /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
