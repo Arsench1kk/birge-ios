@@ -1,6 +1,9 @@
 # Xcode
 build/
 DerivedData/
+BIRGEPassenger/DerivedData*/
+BIRGEPassenger/.xcode-home/
+BIRGEPassenger/.cache/
 *.xcuserstate
 *.xcbkptlist
 xcuserdata/
@@ -11,6 +14,7 @@ xcuserdata/
 
 # SwiftPM
 .build/
+BIRGEPassenger/.swiftpm-cache/
 *.resolved
 
 # macOS

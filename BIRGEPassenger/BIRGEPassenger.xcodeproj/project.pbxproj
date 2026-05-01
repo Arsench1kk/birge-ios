@@ -8,16 +8,43 @@
 
 /* Begin PBXBuildFile section */
 		047530802FA30E4000AD5B35 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
+		AA000004AAAA000400000001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = AA000013AAAA001300000001 /* Dependencies */; };
+		AA000005AAAA000500000001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = AA000013AAAA001300000001 /* Dependencies */; };
+		AA000006AAAA000600000001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = AA000013AAAA001300000001 /* Dependencies */; };
+		AA000007AAAA000700000001 /* CasePathsCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA000014AAAA001400000001 /* CasePathsCore */; };
+		AA000008AAAA000800000001 /* CasePathsCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA000014AAAA001400000001 /* CasePathsCore */; };
+		AA000009AAAA000900000001 /* CasePathsCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA000014AAAA001400000001 /* CasePathsCore */; };
+		AA00000AAAAA000A00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
+		AA00000BAAAA000B00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
+		AA00000CAAAA000C00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
 		AA000001AAAA000100000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
+		AA000003AAAA000300000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		048333732FA5477B00A422DE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 04F296372F99196C0067DB5A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 04F2963E2F99196C0067DB5A;
+			remoteInfo = BIRGEPassenger;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0427344A2F9944B700941261 /* BIRGECore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = BIRGECore; sourceTree = "<group>"; };
+		0483336F2FA5477B00A422DE /* BIRGEPassengerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BIRGEPassengerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		048333DA2FA555C100A422DE /* BIRGEPassenger.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = BIRGEPassenger.xctestplan; sourceTree = "<group>"; };
 		04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BIRGEPassenger.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04F296512F991CEA0067DB5A /* BIRGEDrive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BIRGEDrive.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		048333702FA5477B00A422DE /* BIRGEPassengerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BIRGEPassengerTests;
+			sourceTree = "<group>";
+		};
 		04F296412F99196C0067DB5A /* BIRGEPassenger */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = BIRGEPassenger;
@@ -31,10 +58,24 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0483336C2FA5477B00A422DE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA000006AAAA000600000001 /* Dependencies in Frameworks */,
+				AA000009AAAA000900000001 /* CasePathsCore in Frameworks */,
+				AA00000CAAAA000C00000001 /* ConcurrencyExtras in Frameworks */,
+				AA000003AAAA000300000001 /* ComposableArchitecture in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		04F2963C2F99196C0067DB5A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA000004AAAA000400000001 /* Dependencies in Frameworks */,
+				AA000007AAAA000700000001 /* CasePathsCore in Frameworks */,
+				AA00000AAAAA000A00000001 /* ConcurrencyExtras in Frameworks */,
 				AA000001AAAA000100000001 /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -43,6 +84,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA000005AAAA000500000001 /* Dependencies in Frameworks */,
+				AA000008AAAA000800000001 /* CasePathsCore in Frameworks */,
+				AA00000BAAAA000B00000001 /* ConcurrencyExtras in Frameworks */,
 				047530802FA30E4000AD5B35 /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -50,12 +94,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		048333DB2FA5589B00A422DE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		04F296362F99196C0067DB5A = {
 			isa = PBXGroup;
 			children = (
+				048333DA2FA555C100A422DE /* BIRGEPassenger.xctestplan */,
 				0427344A2F9944B700941261 /* BIRGECore */,
 				04F296412F99196C0067DB5A /* BIRGEPassenger */,
 				04F296522F991CEA0067DB5A /* BIRGEDrive */,
+				048333702FA5477B00A422DE /* BIRGEPassengerTests */,
+				048333DB2FA5589B00A422DE /* Frameworks */,
 				04F296402F99196C0067DB5A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -65,6 +119,7 @@
 			children = (
 				04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */,
 				04F296512F991CEA0067DB5A /* BIRGEDrive.app */,
+				0483336F2FA5477B00A422DE /* BIRGEPassengerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -72,6 +127,33 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0483336E2FA5477B00A422DE /* BIRGEPassengerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 048333772FA5477C00A422DE /* Build configuration list for PBXNativeTarget "BIRGEPassengerTests" */;
+			buildPhases = (
+				0483336B2FA5477B00A422DE /* Sources */,
+				0483336C2FA5477B00A422DE /* Frameworks */,
+				0483336D2FA5477B00A422DE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				048333742FA5477B00A422DE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				048333702FA5477B00A422DE /* BIRGEPassengerTests */,
+			);
+			name = BIRGEPassengerTests;
+			packageProductDependencies = (
+				AA000002AAAA000200000001 /* ComposableArchitecture */,
+				AA000013AAAA001300000001 /* Dependencies */,
+				AA000014AAAA001400000001 /* CasePathsCore */,
+				AA000015AAAA001500000001 /* ConcurrencyExtras */,
+			);
+			productName = BIRGEPassengerTests;
+			productReference = 0483336F2FA5477B00A422DE /* BIRGEPassengerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		04F2963E2F99196C0067DB5A /* BIRGEPassenger */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 04F2964A2F99196E0067DB5A /* Build configuration list for PBXNativeTarget "BIRGEPassenger" */;
@@ -90,6 +172,9 @@
 			name = BIRGEPassenger;
 			packageProductDependencies = (
 				AA000002AAAA000200000001 /* ComposableArchitecture */,
+				AA000013AAAA001300000001 /* Dependencies */,
+				AA000014AAAA001400000001 /* CasePathsCore */,
+				AA000015AAAA001500000001 /* ConcurrencyExtras */,
 			);
 			productName = BIRGEPassenger;
 			productReference = 04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */;
@@ -113,6 +198,9 @@
 			name = BIRGEDrive;
 			packageProductDependencies = (
 				AA000002AAAA000200000001 /* ComposableArchitecture */,
+				AA000013AAAA001300000001 /* Dependencies */,
+				AA000014AAAA001400000001 /* CasePathsCore */,
+				AA000015AAAA001500000001 /* ConcurrencyExtras */,
 			);
 			productName = BIRGEDrive;
 			productReference = 04F296512F991CEA0067DB5A /* BIRGEDrive.app */;
@@ -128,6 +216,10 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					0483336E2FA5477B00A422DE = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 04F2963E2F99196C0067DB5A;
+					};
 					04F2963E2F99196C0067DB5A = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -147,6 +239,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				04F2965C2F991EC50067DB5A /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				AA000010AAAA001000000001 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
+				AA000011AAAA001100000001 /* XCRemoteSwiftPackageReference "swift-case-paths" */,
+				AA000012AAAA001200000001 /* XCRemoteSwiftPackageReference "swift-concurrency-extras" */,
 				04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -156,11 +251,19 @@
 			targets = (
 				04F2963E2F99196C0067DB5A /* BIRGEPassenger */,
 				04F296502F991CEA0067DB5A /* BIRGEDrive */,
+				0483336E2FA5477B00A422DE /* BIRGEPassengerTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0483336D2FA5477B00A422DE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		04F2963D2F99196C0067DB5A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -178,6 +281,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0483336B2FA5477B00A422DE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		04F2963B2F99196C0067DB5A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -194,7 +304,57 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		048333742FA5477B00A422DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 04F2963E2F99196C0067DB5A /* BIRGEPassenger */;
+			targetProxy = 048333732FA5477B00A422DE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		048333752FA5477C00A422DE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YT2W57F27G;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = arsen.abdukhalyk.BIRGEPassengerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BIRGEPassenger.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BIRGEPassenger";
+			};
+			name = Debug;
+		};
+		048333762FA5477C00A422DE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YT2W57F27G;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = arsen.abdukhalyk.BIRGEPassengerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BIRGEPassenger.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BIRGEPassenger";
+			};
+			name = Release;
+		};
 		04F296482F99196E0067DB5A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -447,6 +607,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		048333772FA5477C00A422DE /* Build configuration list for PBXNativeTarget "BIRGEPassengerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				048333752FA5477C00A422DE /* Debug */,
+				048333762FA5477C00A422DE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		04F2963A2F99196C0067DB5A /* Build configuration list for PBXProject "BIRGEPassenger" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -485,6 +654,30 @@
 				minimumVersion = 1.25.5;
 			};
 		};
+		AA000010AAAA001000000001 /* XCRemoteSwiftPackageReference "swift-dependencies" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-dependencies";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.12.0;
+			};
+		};
+		AA000011AAAA001100000001 /* XCRemoteSwiftPackageReference "swift-case-paths" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-case-paths";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.3;
+			};
+		};
+		AA000012AAAA001200000001 /* XCRemoteSwiftPackageReference "swift-concurrency-extras" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-concurrency-extras";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.2;
+			};
+		};
 		04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift";
@@ -500,6 +693,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 04F2965C2F991EC50067DB5A /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
 			productName = ComposableArchitecture;
+		};
+		AA000013AAAA001300000001 /* Dependencies */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000010AAAA001000000001 /* XCRemoteSwiftPackageReference "swift-dependencies" */;
+			productName = Dependencies;
+		};
+		AA000014AAAA001400000001 /* CasePathsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000011AAAA001100000001 /* XCRemoteSwiftPackageReference "swift-case-paths" */;
+			productName = CasePathsCore;
+		};
+		AA000015AAAA001500000001 /* ConcurrencyExtras */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000012AAAA001200000001 /* XCRemoteSwiftPackageReference "swift-concurrency-extras" */;
+			productName = ConcurrencyExtras;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

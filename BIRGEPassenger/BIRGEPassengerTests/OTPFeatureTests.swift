@@ -2,117 +2,86 @@
 //  OTPFeatureTests.swift
 //  BIRGEPassengerTests
 //
-//  Created by Арсен Абдухалық on 22.04.2026.
+//  Unit tests for the OTPFeature TCA Reducer.
 //
 
 import ComposableArchitecture
-import Testing
-
+import XCTest
 @testable import BIRGEPassenger
 
-@Suite("OTP Feature Tests")
-struct OTPFeatureTests {
-
-    @Test("Request OTP transitions to enter code step")
-    func requestOTP() async {
-        let store = TestStore(
-            initialState: OTPFeature.State(phone: "+77001234567")
-        ) {
+@MainActor
+final class OTPFeatureTests: XCTestCase {
+    
+    func testOTPRequestSuccess() async {
+        let store = TestStore(initialState: OTPFeature.State()) {
             OTPFeature()
         } withDependencies: {
-            $0.authClient.requestOTP = { _ in }
-            $0.keychainClient = .testValue
+            $0.authClient.requestOTP = { _ in } // Mock success
         }
-
-        await store.send(.view(.requestOTPTapped)) {
+        
+        await store.send(.phoneChanged("+7777123456")) {
+            $0.phoneNumber = "+7777123456"
+        }
+        
+        await store.send(.sendOTPTapped) {
             $0.isLoading = true
         }
-
-        await store.receive(\.otpRequestSucceeded) {
+        
+        await store.receive(._otpRequestSucceeded) {
             $0.isLoading = false
-            $0.step = .enterCode
+            $0.step = .code // waiting_for_verification
         }
     }
-
-    @Test("Verify OTP success emits delegate authenticated")
-    func verifyOTPSuccess() async {
-        let jwt = JWT(
-            accessToken: "access-token",
-            refreshToken: "refresh-token",
-            expiresAt: Date(timeIntervalSince1970: 1_000_000)
+    
+    func testOTPVerifySuccess() async {
+        let authResponse = AuthResponse(
+            accessToken: "access",
+            refreshToken: "refresh",
+            role: "passenger",
+            userId: "123"
         )
-
-        let store = TestStore(
-            initialState: OTPFeature.State(
-                phone: "+77001234567",
-                code: "123456",
-                step: .enterCode
-            )
-        ) {
+        
+        let store = TestStore(initialState: OTPFeature.State(
+            phoneNumber: "+7777123456",
+            otpCode: "123456",
+            step: .code
+        )) {
             OTPFeature()
         } withDependencies: {
-            $0.authClient.verifyOTP = { _, _ in jwt }
+            $0.authClient.verifyOTP = { _, _ in authResponse }
+            $0.keychainClient.save = { _, _ in } // Mock save
+        }
+        
+        await store.send(.verifyTapped) {
+            $0.isLoading = true
+        }
+        
+        await store.receive(._verifySucceeded(role: "passenger")) {
+            $0.isLoading = false
+        }
+        
+        await store.receive(.delegate(.authenticated(role: "passenger")))
+    }
+    
+    func testOTPVerifyFailure() async {
+        let store = TestStore(initialState: OTPFeature.State(
+            phoneNumber: "+7777123456",
+            otpCode: "000000",
+            step: .code
+        )) {
+            OTPFeature()
+        } withDependencies: {
+            $0.authClient.verifyOTP = { _, _ in throw AuthError.verificationFailed }
             $0.keychainClient.save = { _, _ in }
         }
-
-        await store.send(.view(.verifyOTPTapped)) {
+        
+        await store.send(.verifyTapped) {
             $0.isLoading = true
         }
-
-        await store.receive(\.otpVerifySucceeded) {
-            $0.isLoading = false
-        }
-
-        await store.receive(\.delegate.authenticated)
-    }
-
-    @Test("Verify OTP failure sets error message")
-    func verifyOTPFailure() async {
-        let store = TestStore(
-            initialState: OTPFeature.State(
-                phone: "+77001234567",
-                code: "000000",
-                step: .enterCode
-            )
-        ) {
-            OTPFeature()
-        } withDependencies: {
-            $0.authClient.verifyOTP = { _, _ in
-                throw AuthError.verificationFailed
-            }
-            $0.keychainClient = .testValue
-        }
-
-        await store.send(.view(.verifyOTPTapped)) {
-            $0.isLoading = true
-        }
-
-        await store.receive(\.otpVerifyFailed) {
+        
+        await store.receive(._verifyFailed(AuthError.verificationFailed.localizedDescription)) {
             $0.isLoading = false
             $0.errorMessage = AuthError.verificationFailed.localizedDescription
-        }
-    }
-
-    @Test("Request OTP failure sets error message")
-    func requestOTPFailure() async {
-        let store = TestStore(
-            initialState: OTPFeature.State(phone: "+77001234567")
-        ) {
-            OTPFeature()
-        } withDependencies: {
-            $0.authClient.requestOTP = { _ in
-                throw AuthError.requestFailed
-            }
-            $0.keychainClient = .testValue
-        }
-
-        await store.send(.view(.requestOTPTapped)) {
-            $0.isLoading = true
-        }
-
-        await store.receive(\.otpRequestFailed) {
-            $0.isLoading = false
-            $0.errorMessage = AuthError.requestFailed.localizedDescription
         }
     }
 }

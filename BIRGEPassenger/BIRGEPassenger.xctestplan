@@ -1,0 +1,30 @@
+{
+  "configurations" : [
+    {
+      "id" : "936E4802-0BB5-4C3D-8F49-CF006397591A",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:BIRGEPassenger.xcodeproj",
+      "identifier" : "04F2963E2F99196C0067DB5A",
+      "name" : "BIRGEPassenger"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:BIRGEPassenger.xcodeproj",
+        "identifier" : "0483336E2FA5477B00A422DE",
+        "name" : "BIRGEPassengerTests"
+      }
+    }
+  ],
+  "version" : 1
+}

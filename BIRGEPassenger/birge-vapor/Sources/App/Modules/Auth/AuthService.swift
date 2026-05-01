@@ -1,4 +1,5 @@
 import Fluent
+import Foundation
 import JWT
 import Redis
 import Vapor
@@ -24,6 +25,25 @@ struct AuthService {
         ).get()
 
         req.logger.info("OTP generated for \(normalizedPhone): \(code)")
+        
+        // E2E Test Logging: [YYYY-MM-DD HH:mm:ss] Phone: +7777123456 | OTP: 123456
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        let logEntry = "[\(timestamp)] Phone: \(normalizedPhone) | OTP: \(code)\n"
+        
+        let logPath = "/tmp/birge-otp.log"
+        if let data = logEntry.data(using: .utf8) {
+            let fileManager = FileManager.default
+            if !fileManager.fileExists(atPath: logPath) {
+                fileManager.createFile(atPath: logPath, contents: data)
+            } else if let fileHandle = FileHandle(forWritingAtPath: logPath) {
+                try? fileHandle.seekToEndOfFile()
+                fileHandle.write(data)
+                try? fileHandle.synchronize() // Flush immediately for E2E speed
+                try? fileHandle.close()
+            }
+        }
     }
 
     func verifyOTP(phone: String, code: String) async throws -> AuthResponseDTO {
