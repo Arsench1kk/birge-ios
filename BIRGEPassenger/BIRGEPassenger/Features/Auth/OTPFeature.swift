@@ -6,53 +6,6 @@
 import ComposableArchitecture
 import Foundation
 
-// MARK: - Mock Auth Client
-
-struct MockAuthClient: Sendable {
-    var requestOTP: @Sendable (String) async throws -> Void
-    var verifyOTP: @Sendable (String, String) async throws -> String
-}
-
-extension MockAuthClient: DependencyKey {
-    static let liveValue = MockAuthClient(
-        requestOTP: { _ in
-            try await Task.sleep(for: .milliseconds(1500))
-        },
-        verifyOTP: { _, code in
-            try await Task.sleep(for: .milliseconds(1500))
-            guard code.count == 6, code.allSatisfy(\.isNumber) else {
-                throw OTPError.invalidCode
-            }
-            return "mock_token_123"
-        }
-    )
-
-    static let previewValue = MockAuthClient(
-        requestOTP: { _ in
-            try await Task.sleep(for: .milliseconds(1500))
-        },
-        verifyOTP: { _, code in
-            try await Task.sleep(for: .milliseconds(1500))
-            guard code.count == 6, code.allSatisfy(\.isNumber) else {
-                throw OTPError.invalidCode
-            }
-            return "mock_token_123"
-        }
-    )
-
-    static let testValue = MockAuthClient(
-        requestOTP: { _ in },
-        verifyOTP: { _, _ in "mock_token_123" }
-    )
-}
-
-extension DependencyValues {
-    var mockAuthClient: MockAuthClient {
-        get { self[MockAuthClient.self] }
-        set { self[MockAuthClient.self] = newValue }
-    }
-}
-
 // MARK: - OTP Errors
 
 enum OTPError: LocalizedError, Sendable {
@@ -99,16 +52,17 @@ struct OTPFeature {
         // Internal
         case _otpRequestSucceeded
         case _otpRequestFailed(String)
-        case _verifySucceeded(String)
+        case _verifySucceeded(role: String)
         case _verifyFailed(String)
 
         @CasePathable
         enum Delegate: Sendable {
-            case authenticated
+            case authenticated(role: String)
         }
     }
 
-    @Dependency(\.mockAuthClient) var authClient
+    @Dependency(\.authClient) var authClient
+    @Dependency(\.keychainClient) var keychainClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -142,9 +96,12 @@ struct OTPFeature {
                 state.errorMessage = nil
                 let phone = state.phoneNumber
                 let code = state.otpCode
-                return .run { send in
-                    let token = try await authClient.verifyOTP(phone, code)
-                    await send(._verifySucceeded(token))
+                return .run { [keychainClient] send in
+                    let response = try await authClient.verifyOTP(phone, code)
+                    try keychainClient.save("birge_access_token", response.accessToken)
+                    try keychainClient.save("birge_refresh_token", response.refreshToken)
+                    try keychainClient.save("birge_user_id", response.userId)
+                    await send(._verifySucceeded(role: response.role))
                 } catch: { error, send in
                     await send(._verifyFailed(error.localizedDescription))
                 }
@@ -159,10 +116,9 @@ struct OTPFeature {
                 state.errorMessage = message
                 return .none
 
-            case let ._verifySucceeded(token):
+            case let ._verifySucceeded(role):
                 state.isLoading = false
-                UserDefaults.standard.set(token, forKey: "birge_auth_token")
-                return .send(.delegate(.authenticated))
+                return .send(.delegate(.authenticated(role: role)))
 
             case let ._verifyFailed(message):
                 state.isLoading = false
@@ -175,3 +131,4 @@ struct OTPFeature {
         }
     }
 }
+

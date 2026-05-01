@@ -8,6 +8,10 @@ func routes(_ app: Application) throws {
     // WebSocket
     app.webSocket("ws", "ride", ":rideId") { req, ws in
         let controller = WSController()
-        try await controller.handleConnection(req: req, ws: ws)
+        do {
+            try await controller.handleConnection(req: req, ws: ws)
+        } catch {
+            try? await ws.close()
+        }
     }
 }

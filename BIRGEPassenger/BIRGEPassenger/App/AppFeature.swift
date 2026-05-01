@@ -17,7 +17,7 @@ struct AppFeature {
         case authenticated(PassengerAppFeature.State)
 
         init() {
-            let token = UserDefaults.standard.string(forKey: "birge_auth_token")
+            let token = try? KeychainClient.liveValue.load("birge_access_token")
             if token != nil {
                 self = .authenticated(PassengerAppFeature.State())
             } else {
@@ -32,10 +32,12 @@ struct AppFeature {
         case passengerApp(PassengerAppFeature.Action)
     }
 
+    @Dependency(\.keychainClient) var keychainClient
+
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
-            case .otp(.delegate(.authenticated)):
+            case .otp(.delegate(.authenticated(_))):
                 state = .authenticated(PassengerAppFeature.State())
                 return .none
 
@@ -43,6 +45,9 @@ struct AppFeature {
                 return .none
 
             case .passengerApp(.delegate(.loggedOut)):
+                try? keychainClient.delete("birge_access_token")
+                try? keychainClient.delete("birge_refresh_token")
+                try? keychainClient.delete("birge_user_id")
                 state = .unauthenticated(OTPFeature.State())
                 return .none
 
@@ -58,3 +63,4 @@ struct AppFeature {
         }
     }
 }
+

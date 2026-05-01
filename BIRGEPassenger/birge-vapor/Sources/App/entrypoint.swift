@@ -6,10 +6,14 @@ enum Entrypoint {
         var environment = try Environment.detect()
         try LoggingSystem.bootstrap(from: &environment)
 
-        let app = Application(environment)
-        defer { app.shutdown() }
-
-        try await configure(app)
-        try app.run()
+        let app = try await Application.make(environment)
+        do {
+            try await configure(app)
+            try await app.execute()
+            try await app.asyncShutdown()
+        } catch {
+            try? await app.asyncShutdown()
+            throw error
+        }
     }
 }

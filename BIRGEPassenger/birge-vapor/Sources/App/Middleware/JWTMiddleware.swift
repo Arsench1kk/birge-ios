@@ -16,7 +16,7 @@ struct JWTMiddleware: AsyncMiddleware {
         let blacklisted = try await req.redis.get(
             RedisKey("blacklist:\(payload.jti)"),
             as: String.self
-        )
+        ).get()
         guard blacklisted == nil else {
             throw Abort(.unauthorized, reason: "Token revoked")
         }

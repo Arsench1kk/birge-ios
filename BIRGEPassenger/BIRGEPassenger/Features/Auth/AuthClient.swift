@@ -8,12 +8,13 @@
 import ComposableArchitecture
 import Foundation
 
-// MARK: - JWT Model
+// MARK: - Auth Response (matches Vapor AuthResponseDTO exactly)
 
-struct JWT: Equatable, Codable, Sendable {
+struct AuthResponse: Equatable, Decodable, Sendable {
     let accessToken: String
     let refreshToken: String
-    let expiresAt: Date
+    let role: String
+    let userId: String
 }
 
 // MARK: - Auth Errors
@@ -39,21 +40,20 @@ enum AuthError: LocalizedError, Sendable {
 
 struct AuthClient: Sendable {
     var requestOTP: @Sendable (String) async throws -> Void
-    var verifyOTP: @Sendable (String, String) async throws -> JWT
+    var verifyOTP: @Sendable (String, String) async throws -> AuthResponse
 }
 
 // MARK: - DependencyKey
 
 extension AuthClient: DependencyKey {
     static let liveValue: AuthClient = {
+        #if DEBUG
+        let baseURL = URL(string: "http://localhost:8080/api/v1")!
+        #else
         let baseURL = URL(string: "https://api.birge.kz/api/v1")!
+        #endif
 
-        let decoder: JSONDecoder = {
-            let d = JSONDecoder()
-            d.keyDecodingStrategy = .convertFromSnakeCase
-            d.dateDecodingStrategy = .iso8601
-            return d
-        }()
+        let decoder = JSONDecoder()
 
         return AuthClient(
             requestOTP: { phone in
@@ -88,7 +88,7 @@ extension AuthClient: DependencyKey {
                     throw AuthError.verificationFailed
                 }
 
-                return try decoder.decode(JWT.self, from: data)
+                return try decoder.decode(AuthResponse.self, from: data)
             }
         )
     }()
@@ -99,10 +99,11 @@ extension AuthClient: DependencyKey {
         },
         verifyOTP: { _, _ in
             try await Task.sleep(for: .milliseconds(500))
-            return JWT(
+            return AuthResponse(
                 accessToken: "test-access-token",
                 refreshToken: "test-refresh-token",
-                expiresAt: Date().addingTimeInterval(3600)
+                role: "passenger",
+                userId: "test-user-id"
             )
         }
     )

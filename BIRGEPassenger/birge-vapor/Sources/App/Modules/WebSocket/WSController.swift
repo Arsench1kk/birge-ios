@@ -20,7 +20,7 @@ struct WSController {
             await req.application.wsHub.connect(id: connectionID, socket: ws)
         }
 
-        ws.send("{\"type\":\"connected\",\"userId\":\"\(payload.userID)\"}")
+        try await ws.send("{\"type\":\"connected\",\"userId\":\"\(payload.userID)\"}")
 
         ws.onText { _, text in
             if text == "ping" {
