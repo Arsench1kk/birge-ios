@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		047530802FA30E4000AD5B35 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
+		AA000001AAAA000100000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
+		AA000003AAAA000300000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
 		AA000004AAAA000400000001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = AA000013AAAA001300000001 /* Dependencies */; };
 		AA000005AAAA000500000001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = AA000013AAAA001300000001 /* Dependencies */; };
 		AA000006AAAA000600000001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = AA000013AAAA001300000001 /* Dependencies */; };
@@ -17,8 +19,9 @@
 		AA00000AAAAA000A00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
 		AA00000BAAAA000B00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
 		AA00000CAAAA000C00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
-		AA000001AAAA000100000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
-		AA000003AAAA000300000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AAAA000200000001 /* ComposableArchitecture */; };
+		BB000001BBBB000100000001 /* BIRGECore in Frameworks */ = {isa = PBXBuildFile; productRef = BB000004BBBB000400000001 /* BIRGECore */; };
+		BB000002BBBB000200000001 /* BIRGECore in Frameworks */ = {isa = PBXBuildFile; productRef = BB000005BBBB000500000001 /* BIRGECore */; };
+		BB000003BBBB000300000001 /* BIRGECore in Frameworks */ = {isa = PBXBuildFile; productRef = BB000006BBBB000600000001 /* BIRGECore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,7 +37,7 @@
 /* Begin PBXFileReference section */
 		0427344A2F9944B700941261 /* BIRGECore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = BIRGECore; sourceTree = "<group>"; };
 		0483336F2FA5477B00A422DE /* BIRGEPassengerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BIRGEPassengerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		048333DA2FA555C100A422DE /* BIRGEPassenger.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = BIRGEPassenger.xctestplan; sourceTree = "<group>"; };
+		048333DA2FA555C100A422DE /* BIRGEPassenger.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = BIRGEPassenger.xctestplan; sourceTree = "<group>"; };
 		04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BIRGEPassenger.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04F296512F991CEA0067DB5A /* BIRGEDrive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BIRGEDrive.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -66,6 +69,7 @@
 				AA000009AAAA000900000001 /* CasePathsCore in Frameworks */,
 				AA00000CAAAA000C00000001 /* ConcurrencyExtras in Frameworks */,
 				AA000003AAAA000300000001 /* ComposableArchitecture in Frameworks */,
+				BB000001BBBB000100000001 /* BIRGECore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +81,7 @@
 				AA000007AAAA000700000001 /* CasePathsCore in Frameworks */,
 				AA00000AAAAA000A00000001 /* ConcurrencyExtras in Frameworks */,
 				AA000001AAAA000100000001 /* ComposableArchitecture in Frameworks */,
+				BB000002BBBB000200000001 /* BIRGECore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -88,6 +93,7 @@
 				AA000008AAAA000800000001 /* CasePathsCore in Frameworks */,
 				AA00000BAAAA000B00000001 /* ConcurrencyExtras in Frameworks */,
 				047530802FA30E4000AD5B35 /* ComposableArchitecture in Frameworks */,
+				BB000003BBBB000300000001 /* BIRGECore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +155,7 @@
 				AA000013AAAA001300000001 /* Dependencies */,
 				AA000014AAAA001400000001 /* CasePathsCore */,
 				AA000015AAAA001500000001 /* ConcurrencyExtras */,
+				BB000004BBBB000400000001 /* BIRGECore */,
 			);
 			productName = BIRGEPassengerTests;
 			productReference = 0483336F2FA5477B00A422DE /* BIRGEPassengerTests.xctest */;
@@ -175,6 +182,7 @@
 				AA000013AAAA001300000001 /* Dependencies */,
 				AA000014AAAA001400000001 /* CasePathsCore */,
 				AA000015AAAA001500000001 /* ConcurrencyExtras */,
+				BB000005BBBB000500000001 /* BIRGECore */,
 			);
 			productName = BIRGEPassenger;
 			productReference = 04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */;
@@ -201,6 +209,7 @@
 				AA000013AAAA001300000001 /* Dependencies */,
 				AA000014AAAA001400000001 /* CasePathsCore */,
 				AA000015AAAA001500000001 /* ConcurrencyExtras */,
+				BB000006BBBB000600000001 /* BIRGECore */,
 			);
 			productName = BIRGEDrive;
 			productReference = 04F296512F991CEA0067DB5A /* BIRGEDrive.app */;
@@ -654,6 +663,14 @@
 				minimumVersion = 1.25.5;
 			};
 		};
+		04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		AA000010AAAA001000000001 /* XCRemoteSwiftPackageReference "swift-dependencies" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-dependencies";
@@ -678,14 +695,6 @@
 				minimumVersion = 1.3.2;
 			};
 		};
-		04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/groue/GRDB.swift";
-			requirement = {
-				branch = master;
-				kind = branch;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -708,6 +717,18 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AA000012AAAA001200000001 /* XCRemoteSwiftPackageReference "swift-concurrency-extras" */;
 			productName = ConcurrencyExtras;
+		};
+		BB000004BBBB000400000001 /* BIRGECore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BIRGECore;
+		};
+		BB000005BBBB000500000001 /* BIRGECore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BIRGECore;
+		};
+		BB000006BBBB000600000001 /* BIRGECore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BIRGECore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

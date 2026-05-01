@@ -42,9 +42,9 @@ public actor LocationRepository {
     /// Insert a single location record.
     /// - Parameter record: The location record to insert.
     public func insert(_ record: LocationRecord) async throws {
-        var mutableRecord = record
         try await dbQueue.write { db in
-            try mutableRecord.insert(db)
+            var mutable = record
+            try mutable.insert(db)
         }
     }
 
@@ -56,8 +56,9 @@ public actor LocationRepository {
     /// - Parameter records: The location records to insert.
     public func insertBatch(_ records: [LocationRecord]) async throws {
         try await dbQueue.write { db in
-            for var record in records {
-                try record.insert(db)
+            for record in records {
+                var mutable = record
+                try mutable.insert(db)
             }
         }
     }
@@ -83,7 +84,7 @@ public actor LocationRepository {
     /// - Parameter ids: The primary key IDs of records to mark as synced.
     public func markSynced(_ ids: [Int64]) async throws {
         guard !ids.isEmpty else { return }
-        try await dbQueue.write { db in
+        _ = try await dbQueue.write { db in
             try LocationRecord
                 .filter(ids.contains(LocationRecord.Columns.id))
                 .updateAll(db, LocationRecord.Columns.synced.set(to: true))
