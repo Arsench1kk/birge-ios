@@ -19,6 +19,8 @@ struct PassengerAppView: View {
                 SearchingView(store: store)
             case .activeRide(let store):
                 ActiveRideView(store: store)
+            case .ride(let store):
+                RideMapView(store: store)
             case .rideComplete(let store):
                 RideCompleteView(store: store)
             case .profile(let store):

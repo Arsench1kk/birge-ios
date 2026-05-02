@@ -17,6 +17,7 @@ import ComposableArchitecture
         case rideRequest(RideRequestFeature)
         case searching(SearchingFeature)
         case activeRide(ActiveRideFeature)
+        case ride(RideFeature)
         case rideComplete(RideCompleteFeature)
         case profile(ProfileFeature)
     }
@@ -53,9 +54,11 @@ import ComposableArchitecture
                 state.path.append(.searching(SearchingFeature.State()))
                 return .none
 
-            // Searching → ActiveRide
+            // Searching → Ride (production flow)
             case .path(.element(_, action: .searching(.delegate(.driverFound)))):
-                state.path.append(.activeRide(ActiveRideFeature.State()))
+                // In production, the searching phase returns a ride ID from the backend
+                // For now, use a placeholder ID — real integration in IOS-017
+                state.path.append(.ride(RideFeature.State(rideId: "ride-\(UUID().uuidString.prefix(8))")))
                 return .none
 
             // Searching → Home (cancelled)
@@ -63,13 +66,23 @@ import ComposableArchitecture
                 state.path.removeAll()
                 return .none
 
-            // ActiveRide → RideComplete
+            // ActiveRide → RideComplete (legacy simulation flow)
             case .path(.element(_, action: .activeRide(.delegate(.rideCompleted)))):
                 state.path.append(.rideComplete(RideCompleteFeature.State()))
                 return .none
 
-            // ActiveRide → Home (cancelled)
+            // ActiveRide → Home (cancelled, legacy)
             case .path(.element(_, action: .activeRide(.delegate(.cancelled)))):
+                state.path.removeAll()
+                return .none
+
+            // Ride → RideComplete (production flow)
+            case .path(.element(_, action: .ride(.delegate(.completed)))):
+                state.path.append(.rideComplete(RideCompleteFeature.State()))
+                return .none
+
+            // Ride → Home (cancelled, production flow)
+            case .path(.element(_, action: .ride(.delegate(.cancelled)))):
                 state.path.removeAll()
                 return .none
 
