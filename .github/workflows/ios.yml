@@ -1,0 +1,49 @@
+name: iOS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-test:
+    name: Build and Test iOS
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16"
+
+      - name: Install SwiftLint
+        run: |
+          if ! command -v swiftlint >/dev/null 2>&1; then
+            brew install swiftlint
+          fi
+
+      - name: Run SwiftLint
+        working-directory: BIRGEPassenger
+        run: swiftlint lint
+
+      - name: Build BIRGEPassenger
+        working-directory: BIRGEPassenger
+        run: |
+          xcodebuild build \
+            -project BIRGEPassenger.xcodeproj \
+            -scheme BIRGEPassenger \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+
+      - name: Test BIRGEPassenger
+        working-directory: BIRGEPassenger
+        run: |
+          xcodebuild test \
+            -project BIRGEPassenger.xcodeproj \
+            -scheme BIRGEPassenger \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
