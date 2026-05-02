@@ -185,102 +185,6 @@ public struct CurrentUserResponse: Equatable, Sendable, Decodable {
     }
 }
 
-public struct CreateRideResponse: Equatable, Sendable, Decodable {
-    public let rideID: String
-    public let status: String
-    public let estimatedWaitSeconds: Int?
-
-    private enum CodingKeys: String, CodingKey {
-        case rideID = "ride_id"
-        case id
-        case status
-        case estimatedWaitSeconds = "estimated_wait_seconds"
-    }
-
-    public init(rideID: String, status: String, estimatedWaitSeconds: Int? = nil) {
-        self.rideID = rideID
-        self.status = status
-        self.estimatedWaitSeconds = estimatedWaitSeconds
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.rideID = try container.decodeFlexibleString(.rideID, .id)
-        self.status = try container.decode(String.self, forKey: .status)
-        self.estimatedWaitSeconds = try container.decodeIfPresent(Int.self, forKey: .estimatedWaitSeconds)
-    }
-}
-
-/// Response from `GET /rides/:id`.
-public struct RideResponse: Equatable, Sendable, Decodable {
-    public let rideId: String
-    public let status: String
-    public let driverName: String?
-    public let driverRating: Double?
-    public let driverVehicle: String?
-    public let driverPlate: String?
-    public let etaSeconds: Int?
-    public let verificationCode: String?
-    public let pickupLatitude: Double?
-    public let pickupLongitude: Double?
-
-    private enum CodingKeys: String, CodingKey {
-        case rideId = "ride_id"
-        case id
-        case status
-        case driverName = "driver_name"
-        case driverRating = "driver_rating"
-        case driverVehicle = "driver_vehicle"
-        case driverPlate = "driver_plate"
-        case etaSeconds = "eta_seconds"
-        case verificationCode = "verification_code"
-        case pickupLatitude = "pickup_latitude"
-        case pickupLongitude = "pickup_longitude"
-        case originLat
-        case originLng
-    }
-
-    public init(
-        rideId: String,
-        status: String,
-        driverName: String? = nil,
-        driverRating: Double? = nil,
-        driverVehicle: String? = nil,
-        driverPlate: String? = nil,
-        etaSeconds: Int? = nil,
-        verificationCode: String? = nil,
-        pickupLatitude: Double? = nil,
-        pickupLongitude: Double? = nil
-    ) {
-        self.rideId = rideId
-        self.status = status
-        self.driverName = driverName
-        self.driverRating = driverRating
-        self.driverVehicle = driverVehicle
-        self.driverPlate = driverPlate
-        self.etaSeconds = etaSeconds
-        self.verificationCode = verificationCode
-        self.pickupLatitude = pickupLatitude
-        self.pickupLongitude = pickupLongitude
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.rideId = try container.decodeFlexibleString(.rideId, .id)
-        self.status = try container.decode(String.self, forKey: .status)
-        self.driverName = try container.decodeIfPresent(String.self, forKey: .driverName)
-        self.driverRating = try container.decodeIfPresent(Double.self, forKey: .driverRating)
-        self.driverVehicle = try container.decodeIfPresent(String.self, forKey: .driverVehicle)
-        self.driverPlate = try container.decodeIfPresent(String.self, forKey: .driverPlate)
-        self.etaSeconds = try container.decodeIfPresent(Int.self, forKey: .etaSeconds)
-        self.verificationCode = try container.decodeIfPresent(String.self, forKey: .verificationCode)
-        self.pickupLatitude = try container.decodeIfPresent(Double.self, forKey: .pickupLatitude)
-            ?? container.decodeIfPresent(Double.self, forKey: .originLat)
-        self.pickupLongitude = try container.decodeIfPresent(Double.self, forKey: .pickupLongitude)
-            ?? container.decodeIfPresent(Double.self, forKey: .originLng)
-    }
-}
-
 public struct LocationBulkResponse: Equatable, Sendable, Decodable {
     public let message: String?
     public let count: Int?
@@ -289,12 +193,6 @@ public struct LocationBulkResponse: Equatable, Sendable, Decodable {
         self.message = message
         self.count = count
     }
-}
-
-private struct CreateRideRequest: Encodable {
-    let origin: LatLng
-    let destination: LatLng
-    let tier: Int
 }
 
 private struct CancelRideRequest: Encodable {
@@ -341,14 +239,14 @@ public struct APIClient: Sendable {
     public var verifyOTP: @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse
     public var refreshAccessToken: @Sendable () async throws -> String
     public var currentUser: @Sendable () async throws -> CurrentUserResponse
-    public var createRide: @Sendable (_ origin: LatLng, _ destination: LatLng, _ tier: Int) async throws -> CreateRideResponse
-    public var fetchRide: @Sendable (_ rideID: String) async throws -> RideResponse
+    public var createRide: @Sendable (_ request: CreateRideRequest) async throws -> RideDTO
+    public var fetchRide: @Sendable (_ rideID: String) async throws -> RideDTO
     public var cancelRide: @Sendable (_ rideID: String, _ reason: String) async throws -> Void
     public var uploadLocationsBulk: @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse
 
     public init(
-        fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideResponse = { _ in
-            RideResponse(rideId: "test", status: "requested")
+        fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideDTO = { _ in
+            RideDTO(status: "requested")
         },
         cancelRide: @escaping @Sendable (_ rideID: String, _ reason: String) async throws -> Void = { _, _ in },
         requestOTP: @escaping @Sendable (_ phone: String) async throws -> Void = { _ in },
@@ -359,8 +257,8 @@ public struct APIClient: Sendable {
         currentUser: @escaping @Sendable () async throws -> CurrentUserResponse = {
             CurrentUserResponse(id: "test-user-id", phone: "+77771234567", role: "passenger")
         },
-        createRide: @escaping @Sendable (_ origin: LatLng, _ destination: LatLng, _ tier: Int) async throws -> CreateRideResponse = { _, _, _ in
-            CreateRideResponse(rideID: "test-ride", status: "requested", estimatedWaitSeconds: 180)
+        createRide: @escaping @Sendable (_ request: CreateRideRequest) async throws -> RideDTO = { _ in
+            RideDTO(status: "requested")
         },
         uploadLocationsBulk: @escaping @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse = { _, records in
             LocationBulkResponse(message: "Locations synced", count: records.count)
@@ -394,7 +292,7 @@ extension APIClient: DependencyKey {
             cancelRide: { rideID, reason in
                 let _: EmptyResponse = try await transport.sendAuthenticated(
                     path: ["rides", rideID, "cancel"],
-                    method: "PATCH",
+                    method: "PUT",
                     body: CancelRideRequest(reason: reason),
                     responseType: EmptyResponse.self
                 )
@@ -430,12 +328,12 @@ extension APIClient: DependencyKey {
                     responseType: CurrentUserResponse.self
                 )
             },
-            createRide: { origin, destination, tier in
+            createRide: { request in
                 try await transport.sendAuthenticated(
                     path: ["rides"],
                     method: "POST",
-                    body: CreateRideRequest(origin: origin, destination: destination, tier: tier),
-                    responseType: CreateRideResponse.self
+                    body: request,
+                    responseType: RideDTO.self
                 )
             },
             uploadLocationsBulk: { rideID, records in
@@ -538,6 +436,10 @@ private actor LiveAPITransport {
 
     private func accessTokenForRequest() async throws -> String {
         if let token = try await tokenRefreshClient.currentAccessToken() {
+            return token
+        }
+        if let token = try KeychainCredentialStore.live.load(TokenRefreshClient.legacyAccessTokenKey) {
+            await AccessTokenStore.shared.setToken(token)
             return token
         }
         return try await tokenRefreshClient.refreshAccessToken()

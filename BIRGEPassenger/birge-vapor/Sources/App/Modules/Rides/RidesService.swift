@@ -4,34 +4,39 @@ import Vapor
 struct RidesService {
     let req: Request
 
-    func create(dto: CreateRideDTO) async throws -> RideResponseDTO {
+    func create(dto: CreateRideDTO) async throws -> RideDTO {
         guard try req.authenticatedUserRole == User.UserRole.passenger.rawValue else {
             throw Abort(.forbidden, reason: "Only passengers can request rides")
+        }
+
+        guard CreateRideDTO.allowedTiers.contains(dto.tier) else {
+            throw Abort(.badRequest, reason: "Unsupported ride tier")
         }
 
         let ride = Ride(
             passengerID: try req.authenticatedUserID,
             status: .requested,
-            originLat: dto.origin.lat,
-            originLng: dto.origin.lng,
-            destLat: dto.destination.lat,
-            destLng: dto.destination.lng
+            originLat: dto.originLat,
+            originLng: dto.originLng,
+            destLat: dto.destinationLat,
+            destLng: dto.destinationLng,
+            tier: dto.tier
         )
 
         try await ride.save(on: req.db)
-        return try RideResponseDTO(ride: ride)
+        return try RideDTO(ride: ride)
     }
 
-    func get(rideID: UUID) async throws -> RideResponseDTO {
+    func get(rideID: UUID) async throws -> RideDTO {
         guard let ride = try await Ride.find(rideID, on: req.db) else {
             throw Abort(.notFound, reason: "Ride not found")
         }
 
         try authorizeAccess(to: ride)
-        return try RideResponseDTO(ride: ride)
+        return try RideDTO(ride: ride)
     }
 
-    func cancel(rideID: UUID) async throws -> RideResponseDTO {
+    func cancel(rideID: UUID) async throws -> RideDTO {
         guard let ride = try await Ride.find(rideID, on: req.db) else {
             throw Abort(.notFound, reason: "Ride not found")
         }
@@ -47,7 +52,7 @@ struct RidesService {
             try await ride.save(on: req.db)
         }
 
-        return try RideResponseDTO(ride: ride)
+        return try RideDTO(ride: ride)
     }
 
     private func authorizeAccess(to ride: Ride) throws {

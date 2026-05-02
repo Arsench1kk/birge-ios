@@ -9,13 +9,17 @@ private enum SearchingCancelID {
 @Reducer struct SearchingFeature {
     @ObservableState
     struct State: Equatable {
-        var rideID: String
+        var rideId: String
         var statusText: String = "Ожидаем подтверждение водителя"
         var errorMessage: String?
         var isCancelling: Bool = false
 
         var wsURL: URL? {
-            URL(string: "wss://api.birge.kz/ws")
+            #if DEBUG
+            URL(string: "ws://localhost:8080/ws/ride/\(rideId)")
+            #else
+            URL(string: "wss://api.birge.kz/ws/ride/\(rideId)")
+            #endif
         }
     }
 
@@ -78,10 +82,10 @@ private enum SearchingCancelID {
             case .view(.cancelTapped):
                 state.isCancelling = true
                 state.errorMessage = nil
-                let rideID = state.rideID
+                let rideId = state.rideId
                 return .run { send in
                     do {
-                        try await apiClient.cancelRide(rideID, "passenger_cancelled")
+                        try await apiClient.cancelRide(rideId, "passenger_cancelled")
                         await send(.delegate(.cancelled))
                     } catch {
                         await send(.cancelFailed(error.localizedDescription))
@@ -91,10 +95,10 @@ private enum SearchingCancelID {
             case let .webSocketEventReceived(event):
                 switch event {
                 case .connected:
-                    let rideID = state.rideID
+                    let rideId = state.rideId
                     return .run { send in
                         do {
-                            let message = try await Self.subscribeMessage(rideID: rideID)
+                            let message = try await Self.subscribeMessage(rideId: rideId)
                             try await webSocketClient.send(.text(message))
                         } catch {
                             await send(.subscribeFailed(error.localizedDescription))
@@ -105,7 +109,7 @@ private enum SearchingCancelID {
                     guard let match = Self.driverMatch(from: json) else {
                         return .none
                     }
-                    return .send(.delegate(.driverFound(rideID: state.rideID, match)))
+                    return .send(.delegate(.driverFound(rideID: state.rideId, match)))
 
                 case .message(.data):
                     return .none
@@ -140,8 +144,8 @@ private enum SearchingCancelID {
         }
     }
 
-    private static func subscribeMessage(rideID: String) throws -> String {
-        let payload = SubscribeMessage(type: "subscribe", rideID: rideID)
+    private static func subscribeMessage(rideId: String) throws -> String {
+        let payload = SubscribeMessage(type: "subscribe", channel: "ride/\(rideId)", rideId: rideId)
         let data = try JSONEncoder().encode(payload)
         guard let text = String(data: data, encoding: .utf8) else {
             throw WebSocketError.encodingError("Could not encode subscribe message.")
@@ -181,11 +185,13 @@ private enum SearchingCancelID {
 
 private struct SubscribeMessage: Encodable {
     let type: String
-    let rideID: String
+    let channel: String
+    let rideId: String
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case rideID = "ride_id"
+        case channel
+        case rideId = "ride_id"
     }
 }
 

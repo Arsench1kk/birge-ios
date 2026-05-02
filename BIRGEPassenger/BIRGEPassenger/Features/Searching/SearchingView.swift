@@ -89,7 +89,7 @@ struct SearchingView: View {
 
 #Preview {
     SearchingView(
-        store: Store(initialState: SearchingFeature.State(rideID: "preview-ride")) {
+        store: Store(initialState: SearchingFeature.State(rideId: "preview-ride")) {
             SearchingFeature()
         }
     )

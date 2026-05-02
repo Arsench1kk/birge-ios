@@ -59,8 +59,8 @@ import Foundation
                 return .none
 
             // RideRequest → Searching
-            case .path(.element(_, action: .rideRequest(.delegate(.rideRequested(let rideID))))):
-                state.path.append(.searching(SearchingFeature.State(rideID: rideID)))
+            case .path(.element(_, action: .rideRequest(.delegate(.rideCreated(let rideId))))):
+                state.path.append(.searching(SearchingFeature.State(rideId: rideId)))
                 return .none
 
             // RideRequest → Home
