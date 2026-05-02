@@ -11,6 +11,8 @@ struct ProfileView: View {
     
     private enum Texts {
         static let loading = "Загружаем профиль"
+        static let retry = "Повторить"
+        static let profileUnavailable = "Не удалось загрузить профиль"
     }
     
     var body: some View {
@@ -26,6 +28,23 @@ struct ProfileView: View {
                 settingsRow(icon: "bell.fill", color: .orange, title: "Уведомления")
                 settingsRow(icon: "globe", color: .blue, title: "Язык")
                 settingsRow(icon: "questionmark.circle.fill", color: .gray, title: "Помощь")
+            }
+
+            if let errorMessage = store.errorMessage {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(Texts.profileUnavailable)
+                            .font(.headline)
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(BIRGEColors.textSecondary)
+                        Button(Texts.retry) {
+                            store.send(.onAppear)
+                        }
+                        .font(.subheadline.weight(.semibold))
+                    }
+                    .padding(.vertical, 6)
+                }
             }
             
             Section {
@@ -167,7 +186,7 @@ struct ProfileView: View {
 #Preview {
     NavigationStack {
         ProfileView(
-            store: Store(initialState: ProfileFeature.State(name: "Арсен", phone: "+7 777 123 4567", rating: 4.8, totalRides: 23)) {
+            store: Store(initialState: ProfileFeature.State()) {
                 ProfileFeature()
             }
         )

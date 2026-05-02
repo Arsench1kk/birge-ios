@@ -473,9 +473,9 @@ struct RideMapView: View {
             }
 
             Button {
-                send(.onDisappear)
+                send(.backToHomeTapped)
             } label: {
-                Text("Назад")
+                Text("На главную")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)

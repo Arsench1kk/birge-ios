@@ -169,6 +169,8 @@ final class RideFeatureTests: XCTestCase {
             $0.status = .cancelled
         }
 
+        await store.send(.view(.backToHomeTapped))
+
         await store.receive(.delegate(.cancelled))
 
         XCTAssertTrue(cancelCalled.value, "apiClient.cancelRide should have been called")

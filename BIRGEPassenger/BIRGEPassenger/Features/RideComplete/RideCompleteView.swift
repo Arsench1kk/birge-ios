@@ -4,9 +4,18 @@ import SwiftUI
 @ViewAction(for: RideCompleteFeature.self)
 struct RideCompleteView: View {
     @Bindable var store: StoreOf<RideCompleteFeature>
+    @State private var isReportSheetPresented = false
+    @State private var reportIssueText = ""
+    @State private var isReportSuccessVisible = false
 
     private enum Texts {
         static let commentPlaceholder = "Оставить комментарий..."
+        static let reportIssue = "Сообщить о проблеме"
+        static let reportTitle = "Опишите проблему"
+        static let reportPlaceholder = "Что случилось?"
+        static let submitReport = "Отправить"
+        static let cancelReport = "Отмена"
+        static let reportSuccess = "Спасибо, мы получили сообщение"
     }
 
     var body: some View {
@@ -123,6 +132,19 @@ struct RideCompleteView: View {
             }
         }
         .background(Color.white)
+        .overlay(alignment: .bottom) {
+            if isReportSuccessVisible {
+                Text(Texts.reportSuccess)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .frame(height: 44)
+                    .background(Color.black.opacity(0.86))
+                    .clipShape(Capsule())
+                    .padding(.bottom, 104)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
                 Button {
@@ -138,9 +160,9 @@ struct RideCompleteView: View {
                 }
                 
                 Button {
-                    // Secondary action placeholder
+                    isReportSheetPresented = true
                 } label: {
-                    Text("Сообщить о проблеме")
+                    Text(Texts.reportIssue)
                         .font(.system(size: 15))
                         .foregroundStyle(BIRGEColors.textSecondary)
                 }
@@ -152,7 +174,32 @@ struct RideCompleteView: View {
         .onAppear {
             send(.onAppear)
         }
+        .sheet(isPresented: $isReportSheetPresented) {
+            ReportIssueView(
+                text: $reportIssueText,
+                onCancel: {
+                    isReportSheetPresented = false
+                },
+                onSubmit: {
+                    reportIssueText = ""
+                    isReportSheetPresented = false
+                    showReportSuccess()
+                }
+            )
+        }
         .navigationBarBackButtonHidden(true)
+    }
+
+    private func showReportSuccess() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isReportSuccessVisible = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isReportSuccessVisible = false
+            }
+        }
     }
     
     @ViewBuilder
@@ -216,6 +263,67 @@ struct RideCompleteView: View {
                 send(.tagToggled(tag))
             }
             .animation(.spring(response: 0.3), value: store.selectedTags)
+    }
+}
+
+private struct ReportIssueView: View {
+    @Binding var text: String
+    let onCancel: () -> Void
+    let onSubmit: () -> Void
+
+    private enum Texts {
+        static let title = "Опишите проблему"
+        static let placeholder = "Что случилось?"
+        static let submit = "Отправить"
+        static let cancel = "Отмена"
+        static let counterLimit = 500
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 12) {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(
+                        text: Binding(
+                            get: { text },
+                            set: { text = String($0.prefix(Texts.counterLimit)) }
+                        )
+                    )
+                    .frame(minHeight: 140)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+
+                    if text.isEmpty {
+                        Text(Texts.placeholder)
+                            .font(.body)
+                            .foregroundStyle(BIRGEColors.textSecondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 16)
+                            .allowsHitTesting(false)
+                    }
+                }
+
+                Text("\(text.count)/\(Texts.counterLimit)")
+                    .font(.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+
+                Spacer()
+            }
+            .padding(16)
+            .navigationTitle(Texts.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Texts.cancel, action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(Texts.submit, action: onSubmit)
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
     }
 }
 

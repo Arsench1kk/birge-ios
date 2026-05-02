@@ -132,6 +132,8 @@ public struct CurrentUserResponse: Equatable, Sendable, Decodable {
     public let email: String?
     public let role: String
     public let name: String?
+    public let rating: Double?
+    public let totalRides: Int?
     public let createdAt: Date?
 
     public init(
@@ -140,6 +142,8 @@ public struct CurrentUserResponse: Equatable, Sendable, Decodable {
         email: String? = nil,
         role: String,
         name: String? = nil,
+        rating: Double? = nil,
+        totalRides: Int? = nil,
         createdAt: Date? = nil
     ) {
         self.id = id
@@ -147,7 +151,36 @@ public struct CurrentUserResponse: Equatable, Sendable, Decodable {
         self.email = email
         self.role = role
         self.name = name
+        self.rating = rating
+        self.totalRides = totalRides
         self.createdAt = createdAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case phone
+        case email
+        case role
+        case name
+        case rating
+        case totalRides
+        case totalRidesSnake = "total_rides"
+        case createdAt
+        case createdAtSnake = "created_at"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.phone = try container.decode(String.self, forKey: .phone)
+        self.email = try container.decodeIfPresent(String.self, forKey: .email)
+        self.role = try container.decode(String.self, forKey: .role)
+        self.name = try container.decodeIfPresent(String.self, forKey: .name)
+        self.rating = try container.decodeIfPresent(Double.self, forKey: .rating)
+        self.totalRides = try container.decodeIfPresent(Int.self, forKey: .totalRidesSnake)
+            ?? container.decodeIfPresent(Int.self, forKey: .totalRides)
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAtSnake)
+            ?? container.decodeIfPresent(Date.self, forKey: .createdAt)
     }
 }
 

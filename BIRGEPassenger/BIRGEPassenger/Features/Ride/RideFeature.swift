@@ -124,6 +124,7 @@ struct RideFeature {
             case onDisappear
             case cancelRideTapped(reason: String)
             case errorDismissed
+            case backToHomeTapped
         }
 
         @CasePathable
@@ -170,6 +171,18 @@ struct RideFeature {
 
             case .view(.errorDismissed):
                 return .send(.errorDismissed)
+
+            case .view(.backToHomeTapped):
+                return .merge(
+                    .cancel(id: RideCancelID.webSocket),
+                    .cancel(id: RideCancelID.tracking),
+                    .cancel(id: RideCancelID.passengerWaitTimer),
+                    .run { _ in
+                        await webSocketClient.disconnect()
+                        await locationClient.stopTracking()
+                    },
+                    .send(.delegate(.cancelled))
+                )
 
             // MARK: WebSocket Event Processing
 
@@ -300,8 +313,7 @@ struct RideFeature {
                 return .merge(
                     .cancel(id: RideCancelID.webSocket),
                     .cancel(id: RideCancelID.tracking),
-                    .cancel(id: RideCancelID.passengerWaitTimer),
-                    .send(.delegate(.cancelled))
+                    .cancel(id: RideCancelID.passengerWaitTimer)
                 )
 
             // MARK: Passenger Wait Countdown
@@ -449,15 +461,15 @@ struct RideFeature {
             )
 
         case .cancelled:
-            // Terminal state — cancel all side effects, notify parent
+            // Terminal state — keep the cancellation sheet visible until
+            // the user explicitly navigates home.
             return .merge(
                 .cancel(id: RideCancelID.webSocket),
                 .cancel(id: RideCancelID.tracking),
                 .cancel(id: RideCancelID.passengerWaitTimer),
                 .run { _ in
                     await locationClient.stopTracking()
-                },
-                .send(.delegate(.cancelled))
+                }
             )
 
         case .requested, .matched, .driverAccepted:
