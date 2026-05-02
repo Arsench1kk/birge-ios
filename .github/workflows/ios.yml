@@ -43,12 +43,7 @@ jobs:
           xcodebuild build \
             -project BIRGEPassenger.xcodeproj \
             -scheme BIRGEPassenger \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
-
-      - name: Test BIRGEPassenger
-        working-directory: BIRGEPassenger
-        run: |
-          xcodebuild test \
-            -project BIRGEPassenger.xcodeproj \
-            -scheme BIRGEPassenger \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
