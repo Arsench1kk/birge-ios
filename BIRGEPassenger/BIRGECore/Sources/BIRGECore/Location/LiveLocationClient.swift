@@ -213,10 +213,8 @@ actor LiveLocationActor {
         try await LocationSyncService.syncIfNeeded(
             rideID: rideID,
             repository: repo,
-            uploadBatch: { _ in
-                // TODO: Wire to real API client when POST /locations/bulk lands
-                // For now, this is a no-op in production — records stay unsynced
-                // until the endpoint is implemented
+            uploadBatch: { records in
+                _ = try await APIClient.liveValue.uploadLocationsBulk(rideID, records)
             }
         )
     }

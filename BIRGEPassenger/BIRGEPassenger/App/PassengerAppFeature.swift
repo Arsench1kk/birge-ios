@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 
 @Reducer struct PassengerAppFeature {
     @ObservableState

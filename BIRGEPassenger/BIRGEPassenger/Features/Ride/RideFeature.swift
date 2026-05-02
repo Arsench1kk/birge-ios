@@ -22,14 +22,12 @@ import Foundation
 
 // MARK: - Cancellation IDs
 
-/// Hashable identifier for WebSocket subscription lifecycle.
-private enum RideWebSocketID: Hashable {}
-
-/// Hashable identifier for GPS tracking lifecycle.
-private enum RideTrackingID: Hashable {}
-
-/// Hashable identifier for passenger wait countdown.
-private enum PassengerWaitTimerID: Hashable {}
+/// String identifiers avoid actor-isolated custom `Hashable` conformances in cancellable effects.
+private enum RideCancelID {
+    static let webSocket = "RideFeature.webSocket"
+    static let tracking = "RideFeature.tracking"
+    static let passengerWaitTimer = "RideFeature.passengerWaitTimer"
+}
 
 // MARK: - RideFeature
 
@@ -135,7 +133,7 @@ struct RideFeature {
 
     // MARK: - Body
 
-    var body: some ReducerOf<Self> {
+    var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
 
@@ -149,13 +147,13 @@ struct RideFeature {
                         await send(.webSocketEventReceived(event))
                     }
                 }
-                .cancellable(id: RideWebSocketID.self, cancelInFlight: true)
+                .cancellable(id: RideCancelID.webSocket, cancelInFlight: true)
 
             case .view(.onDisappear):
                 return .merge(
-                    .cancel(id: RideWebSocketID.self),
-                    .cancel(id: RideTrackingID.self),
-                    .cancel(id: PassengerWaitTimerID.self),
+                    .cancel(id: RideCancelID.webSocket),
+                    .cancel(id: RideCancelID.tracking),
+                    .cancel(id: RideCancelID.passengerWaitTimer),
                     .run { _ in
                         await webSocketClient.disconnect()
                         await locationClient.stopTracking()
@@ -283,9 +281,9 @@ struct RideFeature {
                 state.isLoading = false
                 state.status = .cancelled
                 return .merge(
-                    .cancel(id: RideWebSocketID.self),
-                    .cancel(id: RideTrackingID.self),
-                    .cancel(id: PassengerWaitTimerID.self),
+                    .cancel(id: RideCancelID.webSocket),
+                    .cancel(id: RideCancelID.tracking),
+                    .cancel(id: RideCancelID.passengerWaitTimer),
                     .send(.delegate(.cancelled))
                 )
 
@@ -293,7 +291,7 @@ struct RideFeature {
 
             case .waitCountdownTick:
                 guard state.status == .passengerWait else {
-                    return .cancel(id: PassengerWaitTimerID.self)
+                    return .cancel(id: RideCancelID.passengerWaitTimer)
                 }
                 if let remaining = state.waitCountdownSeconds, remaining > 0 {
                     state.waitCountdownSeconds = remaining - 1
@@ -397,7 +395,7 @@ struct RideFeature {
                     // Driver location comes via WebSocket, not passenger's GPS
                 }
             }
-            .cancellable(id: RideTrackingID.self)
+            .cancellable(id: RideCancelID.tracking)
 
         case .passengerWait:
             // Start 3-minute countdown timer
@@ -408,18 +406,18 @@ struct RideFeature {
                     await send(.waitCountdownTick)
                 }
             }
-            .cancellable(id: PassengerWaitTimerID.self)
+            .cancellable(id: RideCancelID.passengerWaitTimer)
 
         case .inProgress:
             // Cancel the wait countdown (if transitioning from passengerWait)
-            return .cancel(id: PassengerWaitTimerID.self)
+            return .cancel(id: RideCancelID.passengerWaitTimer)
 
         case .completed:
             // Terminal state — cancel all side effects, notify parent
             return .merge(
-                .cancel(id: RideWebSocketID.self),
-                .cancel(id: RideTrackingID.self),
-                .cancel(id: PassengerWaitTimerID.self),
+                .cancel(id: RideCancelID.webSocket),
+                .cancel(id: RideCancelID.tracking),
+                .cancel(id: RideCancelID.passengerWaitTimer),
                 .run { _ in
                     await locationClient.stopTracking()
                 },
@@ -429,9 +427,9 @@ struct RideFeature {
         case .cancelled:
             // Terminal state — cancel all side effects, notify parent
             return .merge(
-                .cancel(id: RideWebSocketID.self),
-                .cancel(id: RideTrackingID.self),
-                .cancel(id: PassengerWaitTimerID.self),
+                .cancel(id: RideCancelID.webSocket),
+                .cancel(id: RideCancelID.tracking),
+                .cancel(id: RideCancelID.passengerWaitTimer),
                 .run { _ in
                     await locationClient.stopTracking()
                 },

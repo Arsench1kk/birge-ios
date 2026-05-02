@@ -5,6 +5,7 @@
 //  Created by Арсен Абдухалық on 22.04.2026.
 //
 
+import BIRGECore
 import ComposableArchitecture
 import Foundation
 
@@ -15,6 +16,14 @@ struct AuthResponse: Equatable, Decodable, Sendable {
     let refreshToken: String
     let role: String
     let userId: String
+}
+
+struct CurrentUser: Equatable, Decodable, Sendable {
+    let id: String
+    let phone: String
+    let email: String?
+    let role: String
+    let name: String?
 }
 
 // MARK: - Auth Errors
@@ -41,57 +50,36 @@ enum AuthError: LocalizedError, Sendable {
 struct AuthClient: Sendable {
     var requestOTP: @Sendable (String) async throws -> Void
     var verifyOTP: @Sendable (String, String) async throws -> AuthResponse
+    var currentUser: @Sendable () async throws -> CurrentUser
 }
 
 // MARK: - DependencyKey
 
 extension AuthClient: DependencyKey {
-    static let liveValue: AuthClient = {
-        #if DEBUG
-        let baseURL = URL(string: "http://localhost:8080/api/v1")!
-        #else
-        let baseURL = URL(string: "https://api.birge.kz/api/v1")!
-        #endif
-
-        let decoder = JSONDecoder()
-
-        return AuthClient(
-            requestOTP: { phone in
-                var request = URLRequest(
-                    url: baseURL.appendingPathComponent("auth/otp/request")
-                )
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.httpBody = try JSONEncoder().encode(["phone": phone])
-
-                let (_, response) = try await URLSession.shared.data(for: request)
-                guard let http = response as? HTTPURLResponse,
-                      (200...299).contains(http.statusCode)
-                else {
-                    throw AuthError.requestFailed
-                }
-            },
-            verifyOTP: { phone, code in
-                var request = URLRequest(
-                    url: baseURL.appendingPathComponent("auth/otp/verify")
-                )
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-                let body: [String: String] = ["phone": phone, "code": code]
-                request.httpBody = try JSONEncoder().encode(body)
-
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let http = response as? HTTPURLResponse,
-                      (200...299).contains(http.statusCode)
-                else {
-                    throw AuthError.verificationFailed
-                }
-
-                return try decoder.decode(AuthResponse.self, from: data)
-            }
-        )
-    }()
+    static let liveValue = AuthClient(
+        requestOTP: { phone in
+            try await APIClient.liveValue.requestOTP(phone)
+        },
+        verifyOTP: { phone, code in
+            let response = try await APIClient.liveValue.verifyOTP(phone, code)
+            return AuthResponse(
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken,
+                role: response.role,
+                userId: response.userID
+            )
+        },
+        currentUser: {
+            let user = try await APIClient.liveValue.currentUser()
+            return CurrentUser(
+                id: user.id,
+                phone: user.phone,
+                email: user.email,
+                role: user.role,
+                name: user.name
+            )
+        }
+    )
 
     static let testValue = AuthClient(
         requestOTP: { _ in
@@ -104,6 +92,15 @@ extension AuthClient: DependencyKey {
                 refreshToken: "test-refresh-token",
                 role: "passenger",
                 userId: "test-user-id"
+            )
+        },
+        currentUser: {
+            CurrentUser(
+                id: "test-user-id",
+                phone: "+77771234567",
+                email: nil,
+                role: "passenger",
+                name: "Test User"
             )
         }
     )

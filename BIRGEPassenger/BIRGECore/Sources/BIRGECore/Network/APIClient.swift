@@ -2,25 +2,183 @@
 //  APIClient.swift
 //  BIRGECore
 //
-//  Stub TCA dependency for REST API calls.
-//  IOS-016 — RideFeature State Machine
-//
-//  This is a STUB — liveValue uses XCTUnimplemented closures.
-//  The real URLSession-backed implementation comes in IOS-017.
-//
-//  Only the endpoints needed by RideFeature are defined here:
-//  - GET  /rides/:id       → fetchRide
-//  - POST /rides/:id/cancel → cancelRide
+//  URLSession-backed Phase 1 API client.
 //
 
 import ComposableArchitecture
 import Foundation
 
-// MARK: - Ride Response
+// MARK: - API Error
+
+public struct BIRGEAPIError: Error, Decodable, Equatable, Sendable, LocalizedError {
+    public let errorCode: String
+    public let message: String
+    public let requestID: String?
+
+    public var errorDescription: String? {
+        message.isEmpty ? errorCode : message
+    }
+
+    public init(errorCode: String, message: String, requestID: String? = nil) {
+        self.errorCode = errorCode
+        self.message = message
+        self.requestID = requestID
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case errorCode = "error_code"
+        case message
+        case requestID = "request_id"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.errorCode = try container.decode(String.self, forKey: .errorCode)
+        self.message = try container.decodeIfPresent(String.self, forKey: .message) ?? errorCode
+        self.requestID = try container.decodeIfPresent(String.self, forKey: .requestID)
+    }
+
+    static func invalidBaseURL() -> BIRGEAPIError {
+        BIRGEAPIError(errorCode: "INVALID_BASE_URL", message: "Invalid API base URL.")
+    }
+
+    static func invalidResponse() -> BIRGEAPIError {
+        BIRGEAPIError(errorCode: "INVALID_RESPONSE", message: "Invalid server response.")
+    }
+
+    static func missingAccessToken() -> BIRGEAPIError {
+        BIRGEAPIError(errorCode: "MISSING_ACCESS_TOKEN", message: "No access token is available.")
+    }
+
+    static func missingRefreshToken() -> BIRGEAPIError {
+        BIRGEAPIError(errorCode: "MISSING_REFRESH_TOKEN", message: "No refresh token is available.")
+    }
+}
+
+// MARK: - Shared DTOs
+
+public struct LatLng: Codable, Equatable, Sendable {
+    public let latitude: Double
+    public let longitude: Double
+
+    public init(latitude: Double, longitude: Double) {
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case latitude
+        case longitude
+        case lat
+        case lng
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let latitude = try container.decodeIfPresent(Double.self, forKey: .latitude),
+           let longitude = try container.decodeIfPresent(Double.self, forKey: .longitude) {
+            self.latitude = latitude
+            self.longitude = longitude
+        } else {
+            self.latitude = try container.decode(Double.self, forKey: .lat)
+            self.longitude = try container.decode(Double.self, forKey: .lng)
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(latitude, forKey: .latitude)
+        try container.encode(longitude, forKey: .longitude)
+        try container.encode(latitude, forKey: .lat)
+        try container.encode(longitude, forKey: .lng)
+    }
+}
+
+public struct APIAuthResponse: Equatable, Sendable, Decodable {
+    public let accessToken: String
+    public let refreshToken: String
+    public let role: String
+    public let userID: String
+
+    private enum CodingKeys: String, CodingKey {
+        case accessToken
+        case refreshToken
+        case userID
+        case accessTokenSnake = "access_token"
+        case refreshTokenSnake = "refresh_token"
+        case userIDSnake = "user_id"
+        case role
+    }
+
+    public init(accessToken: String, refreshToken: String, role: String, userID: String) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.role = role
+        self.userID = userID
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.accessToken = try container.decodeFlexibleString(.accessTokenSnake, .accessToken)
+        self.refreshToken = try container.decodeFlexibleString(.refreshTokenSnake, .refreshToken)
+        self.userID = try container.decodeFlexibleString(.userIDSnake, .userID)
+        self.role = try container.decode(String.self, forKey: .role)
+    }
+}
+
+public struct CurrentUserResponse: Equatable, Sendable, Decodable {
+    public let id: String
+    public let phone: String
+    public let email: String?
+    public let role: String
+    public let name: String?
+    public let createdAt: Date?
+
+    public init(
+        id: String,
+        phone: String,
+        email: String? = nil,
+        role: String,
+        name: String? = nil,
+        createdAt: Date? = nil
+    ) {
+        self.id = id
+        self.phone = phone
+        self.email = email
+        self.role = role
+        self.name = name
+        self.createdAt = createdAt
+    }
+}
+
+public struct CreateRideResponse: Equatable, Sendable, Decodable {
+    public let rideID: String
+    public let status: String
+    public let estimatedWaitSeconds: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case rideID = "ride_id"
+        case id
+        case status
+        case estimatedWaitSeconds = "estimated_wait_seconds"
+    }
+
+    public init(rideID: String, status: String, estimatedWaitSeconds: Int? = nil) {
+        self.rideID = rideID
+        self.status = status
+        self.estimatedWaitSeconds = estimatedWaitSeconds
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.rideID = try container.decodeFlexibleString(.rideID, .id)
+        self.status = try container.decode(String.self, forKey: .status)
+        self.estimatedWaitSeconds = try container.decodeIfPresent(Int.self, forKey: .estimatedWaitSeconds)
+    }
+}
 
 /// Response from `GET /rides/:id`.
-/// Contains the current server-side state of a ride.
-public struct RideResponse: Equatable, Sendable {
+public struct RideResponse: Equatable, Sendable, Decodable {
     public let rideId: String
     public let status: String
     public let driverName: String?
@@ -31,6 +189,22 @@ public struct RideResponse: Equatable, Sendable {
     public let verificationCode: String?
     public let pickupLatitude: Double?
     public let pickupLongitude: Double?
+
+    private enum CodingKeys: String, CodingKey {
+        case rideId = "ride_id"
+        case id
+        case status
+        case driverName = "driver_name"
+        case driverRating = "driver_rating"
+        case driverVehicle = "driver_vehicle"
+        case driverPlate = "driver_plate"
+        case etaSeconds = "eta_seconds"
+        case verificationCode = "verification_code"
+        case pickupLatitude = "pickup_latitude"
+        case pickupLongitude = "pickup_longitude"
+        case originLat
+        case originLng
+    }
 
     public init(
         rideId: String,
@@ -55,76 +229,373 @@ public struct RideResponse: Equatable, Sendable {
         self.pickupLatitude = pickupLatitude
         self.pickupLongitude = pickupLongitude
     }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.rideId = try container.decodeFlexibleString(.rideId, .id)
+        self.status = try container.decode(String.self, forKey: .status)
+        self.driverName = try container.decodeIfPresent(String.self, forKey: .driverName)
+        self.driverRating = try container.decodeIfPresent(Double.self, forKey: .driverRating)
+        self.driverVehicle = try container.decodeIfPresent(String.self, forKey: .driverVehicle)
+        self.driverPlate = try container.decodeIfPresent(String.self, forKey: .driverPlate)
+        self.etaSeconds = try container.decodeIfPresent(Int.self, forKey: .etaSeconds)
+        self.verificationCode = try container.decodeIfPresent(String.self, forKey: .verificationCode)
+        self.pickupLatitude = try container.decodeIfPresent(Double.self, forKey: .pickupLatitude)
+            ?? container.decodeIfPresent(Double.self, forKey: .originLat)
+        self.pickupLongitude = try container.decodeIfPresent(Double.self, forKey: .pickupLongitude)
+            ?? container.decodeIfPresent(Double.self, forKey: .originLng)
+    }
+}
+
+public struct LocationBulkResponse: Equatable, Sendable, Decodable {
+    public let message: String?
+    public let count: Int?
+
+    public init(message: String? = nil, count: Int? = nil) {
+        self.message = message
+        self.count = count
+    }
+}
+
+private struct CreateRideRequest: Encodable {
+    let origin: LatLng
+    let destination: LatLng
+    let tier: Int
+}
+
+private struct CancelRideRequest: Encodable {
+    let reason: String
+}
+
+private struct OTPRequest: Encodable {
+    let phone: String
+}
+
+private struct OTPVerifyRequest: Encodable {
+    let phone: String
+    let code: String
+}
+
+private struct LocationBulkRequest: Encodable {
+    let rideID: String
+    let records: [LocationRecordRequest]
+
+    private enum CodingKeys: String, CodingKey {
+        case rideID = "ride_id"
+        case records
+    }
+}
+
+private struct LocationRecordRequest: Encodable {
+    let latitude: Double
+    let longitude: Double
+    let timestamp: Double
+    let accuracy: Double?
+
+    init(_ record: LocationRecord) {
+        self.latitude = record.latitude
+        self.longitude = record.longitude
+        self.timestamp = record.timestamp
+        self.accuracy = record.accuracy
+    }
 }
 
 // MARK: - API Client
 
-/// TCA dependency for REST API calls.
-///
-/// Usage in a Reducer:
-/// ```swift
-/// @Dependency(\.apiClient) var apiClient
-/// ```
-///
-/// Never instantiate directly — always inject via `@Dependency`.
 public struct APIClient: Sendable {
-    /// Fetch the current state of a ride from the server.
-    /// Used on WebSocket reconnect to recover missed state transitions.
-    ///
-    /// `GET /api/v1/rides/:id`
+    public var requestOTP: @Sendable (_ phone: String) async throws -> Void
+    public var verifyOTP: @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse
+    public var refreshAccessToken: @Sendable () async throws -> String
+    public var currentUser: @Sendable () async throws -> CurrentUserResponse
+    public var createRide: @Sendable (_ origin: LatLng, _ destination: LatLng, _ tier: Int) async throws -> CreateRideResponse
     public var fetchRide: @Sendable (_ rideID: String) async throws -> RideResponse
-
-    /// Cancel an active ride with a reason.
-    ///
-    /// `POST /api/v1/rides/:id/cancel`
     public var cancelRide: @Sendable (_ rideID: String, _ reason: String) async throws -> Void
+    public var uploadLocationsBulk: @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse
 
     public init(
-        fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideResponse,
-        cancelRide: @escaping @Sendable (_ rideID: String, _ reason: String) async throws -> Void
+        fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideResponse = { _ in
+            RideResponse(rideId: "test", status: "requested")
+        },
+        cancelRide: @escaping @Sendable (_ rideID: String, _ reason: String) async throws -> Void = { _, _ in },
+        requestOTP: @escaping @Sendable (_ phone: String) async throws -> Void = { _ in },
+        verifyOTP: @escaping @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse = { _, _ in
+            APIAuthResponse(accessToken: "test-access-token", refreshToken: "test-refresh-token", role: "passenger", userID: "test-user-id")
+        },
+        refreshAccessToken: @escaping @Sendable () async throws -> String = { "test-access-token" },
+        currentUser: @escaping @Sendable () async throws -> CurrentUserResponse = {
+            CurrentUserResponse(id: "test-user-id", phone: "+77771234567", role: "passenger")
+        },
+        createRide: @escaping @Sendable (_ origin: LatLng, _ destination: LatLng, _ tier: Int) async throws -> CreateRideResponse = { _, _, _ in
+            CreateRideResponse(rideID: "test-ride", status: "requested", estimatedWaitSeconds: 180)
+        },
+        uploadLocationsBulk: @escaping @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse = { _, records in
+            LocationBulkResponse(message: "Locations synced", count: records.count)
+        }
     ) {
+        self.requestOTP = requestOTP
+        self.verifyOTP = verifyOTP
+        self.refreshAccessToken = refreshAccessToken
+        self.currentUser = currentUser
+        self.createRide = createRide
         self.fetchRide = fetchRide
         self.cancelRide = cancelRide
+        self.uploadLocationsBulk = uploadLocationsBulk
     }
 }
 
 // MARK: - DependencyKey
 
 extension APIClient: DependencyKey {
-    /// Stub live value — will be replaced with real URLSession
-    /// implementation in IOS-017.
     public static var liveValue: APIClient {
-        APIClient(
-            fetchRide: { _ in
-                fatalError("[APIClient] liveValue.fetchRide not implemented — see IOS-017")
+        let transport = LiveAPITransport(tokenRefreshClient: .liveValue)
+        return APIClient(
+            fetchRide: { rideID in
+                try await transport.sendAuthenticated(
+                    path: ["rides", rideID],
+                    method: "GET",
+                    responseType: RideResponse.self
+                )
             },
-            cancelRide: { _, _ in
-                fatalError("[APIClient] liveValue.cancelRide not implemented — see IOS-017")
+            cancelRide: { rideID, reason in
+                let _: EmptyResponse = try await transport.sendAuthenticated(
+                    path: ["rides", rideID, "cancel"],
+                    method: "PATCH",
+                    body: CancelRideRequest(reason: reason),
+                    responseType: EmptyResponse.self
+                )
+            },
+            requestOTP: { phone in
+                let _: EmptyResponse = try await transport.sendUnauthenticated(
+                    path: ["auth", "otp", "request"],
+                    method: "POST",
+                    body: OTPRequest(phone: phone),
+                    responseType: EmptyResponse.self
+                )
+            },
+            verifyOTP: { phone, code in
+                let response: APIAuthResponse = try await transport.sendUnauthenticated(
+                    path: ["auth", "otp", "verify"],
+                    method: "POST",
+                    body: OTPVerifyRequest(phone: phone, code: code),
+                    responseType: APIAuthResponse.self
+                )
+                try await TokenRefreshClient.liveValue.storeTokens(
+                    response.accessToken,
+                    response.refreshToken
+                )
+                return response
+            },
+            refreshAccessToken: {
+                try await TokenRefreshClient.liveValue.refreshAccessToken()
+            },
+            currentUser: {
+                try await transport.sendAuthenticated(
+                    path: ["auth", "me"],
+                    method: "GET",
+                    responseType: CurrentUserResponse.self
+                )
+            },
+            createRide: { origin, destination, tier in
+                try await transport.sendAuthenticated(
+                    path: ["rides"],
+                    method: "POST",
+                    body: CreateRideRequest(origin: origin, destination: destination, tier: tier),
+                    responseType: CreateRideResponse.self
+                )
+            },
+            uploadLocationsBulk: { rideID, records in
+                try await transport.sendAuthenticated(
+                    path: ["locations", "bulk"],
+                    method: "POST",
+                    body: LocationBulkRequest(
+                        rideID: rideID,
+                        records: records.map(LocationRecordRequest.init)
+                    ),
+                    responseType: LocationBulkResponse.self
+                )
             }
         )
     }
 
-    /// Controllable mock for unit tests.
     public static var testValue: APIClient {
-        APIClient(
-            fetchRide: { _ in
-                RideResponse(rideId: "test", status: "requested")
-            },
-            cancelRide: { _, _ in }
-        )
+        APIClient()
     }
 }
 
 // MARK: - DependencyValues
 
 extension DependencyValues {
-    /// Access the `APIClient` dependency in a Reducer.
-    ///
-    /// ```swift
-    /// @Dependency(\.apiClient) var apiClient
-    /// ```
     public var apiClient: APIClient {
         get { self[APIClient.self] }
         set { self[APIClient.self] = newValue }
+    }
+}
+
+// MARK: - Live Transport
+
+private actor LiveAPITransport {
+    private let tokenRefreshClient: TokenRefreshClient
+    private let encoder: JSONEncoder
+    private let decoder: JSONDecoder
+
+    init(tokenRefreshClient: TokenRefreshClient) {
+        self.tokenRefreshClient = tokenRefreshClient
+        self.encoder = JSONEncoder()
+        self.decoder = JSONDecoder()
+        self.decoder.dateDecodingStrategy = .iso8601
+    }
+
+    func sendUnauthenticated<Response: Decodable & Sendable>(
+        path: [String],
+        method: String,
+        responseType: Response.Type
+    ) async throws -> Response {
+        try await send(path: path, method: method, bodyData: nil, bearerToken: nil, responseType: responseType)
+    }
+
+    func sendUnauthenticated<Body: Encodable & Sendable, Response: Decodable & Sendable>(
+        path: [String],
+        method: String,
+        body: Body,
+        responseType: Response.Type
+    ) async throws -> Response {
+        let bodyData = try encoder.encode(body)
+        return try await send(path: path, method: method, bodyData: bodyData, bearerToken: nil, responseType: responseType)
+    }
+
+    func sendAuthenticated<Response: Decodable & Sendable>(
+        path: [String],
+        method: String,
+        responseType: Response.Type
+    ) async throws -> Response {
+        try await sendAuthenticated(path: path, method: method, bodyData: nil, responseType: responseType)
+    }
+
+    func sendAuthenticated<Body: Encodable & Sendable, Response: Decodable & Sendable>(
+        path: [String],
+        method: String,
+        body: Body,
+        responseType: Response.Type
+    ) async throws -> Response {
+        let bodyData = try encoder.encode(body)
+        return try await sendAuthenticated(path: path, method: method, bodyData: bodyData, responseType: responseType)
+    }
+
+    private func sendAuthenticated<Response: Decodable & Sendable>(
+        path: [String],
+        method: String,
+        bodyData: Data?,
+        responseType: Response.Type
+    ) async throws -> Response {
+        let accessToken = try await accessTokenForRequest()
+        do {
+            return try await send(path: path, method: method, bodyData: bodyData, bearerToken: accessToken, responseType: responseType)
+        } catch let error as HTTPStatusError where error.statusCode == 401 {
+            let refreshedToken = try await tokenRefreshClient.refreshAccessToken()
+            do {
+                return try await send(path: path, method: method, bodyData: bodyData, bearerToken: refreshedToken, responseType: responseType)
+            } catch let retryError as HTTPStatusError where retryError.statusCode == 401 {
+                try? await tokenRefreshClient.clearTokens()
+                throw BIRGEAPIError(errorCode: "UNAUTHORIZED", message: "Authentication expired.")
+            }
+        }
+    }
+
+    private func accessTokenForRequest() async throws -> String {
+        if let token = try await tokenRefreshClient.currentAccessToken() {
+            return token
+        }
+        return try await tokenRefreshClient.refreshAccessToken()
+    }
+
+    private func send<Response: Decodable & Sendable>(
+        path: [String],
+        method: String,
+        bodyData: Data?,
+        bearerToken: String?,
+        responseType: Response.Type
+    ) async throws -> Response {
+        var request = URLRequest(url: try url(path: path))
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let bodyData {
+            request.httpBody = bodyData
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        if let bearerToken {
+            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw BIRGEAPIError.invalidResponse()
+        }
+
+        guard (200...299).contains(http.statusCode) else {
+            if http.statusCode == 401 {
+                throw HTTPStatusError(statusCode: http.statusCode)
+            }
+            throw decodeAPIError(from: data, statusCode: http.statusCode)
+        }
+
+        let responseData = data.isEmpty ? Data("{}".utf8) : data
+        return try decoder.decode(Response.self, from: responseData)
+    }
+
+    private func decodeAPIError(from data: Data, statusCode: Int) -> BIRGEAPIError {
+        if let error = try? decoder.decode(BIRGEAPIError.self, from: data) {
+            return error
+        }
+        return BIRGEAPIError(
+            errorCode: "HTTP_\(statusCode)",
+            message: HTTPURLResponse.localizedString(forStatusCode: statusCode)
+        )
+    }
+
+    private func url(path: [String]) throws -> URL {
+        guard var url = URL(string: Self.baseURLString) else {
+            throw BIRGEAPIError.invalidBaseURL()
+        }
+        for component in path {
+            url.appendPathComponent(component)
+        }
+        return url
+    }
+
+    private static var baseURLString: String {
+        #if DEBUG
+        "http://localhost:8080/api/v1"
+        #else
+        "https://api.birge.kz/api/v1"
+        #endif
+    }
+}
+
+private struct EmptyResponse: Decodable, Sendable {
+    init() {}
+
+    init(from decoder: any Decoder) throws {
+        self.init()
+    }
+}
+
+private struct HTTPStatusError: Error, Sendable {
+    let statusCode: Int
+}
+
+private extension KeyedDecodingContainer {
+    func decodeFlexibleString(_ keys: Key...) throws -> String {
+        for key in keys {
+            if let value = try decodeIfPresent(String.self, forKey: key) {
+                return value
+            }
+        }
+        throw DecodingError.keyNotFound(
+            keys[0],
+            DecodingError.Context(
+                codingPath: codingPath,
+                debugDescription: "Expected one of keys: \(keys.map(\.stringValue).joined(separator: ", "))"
+            )
+        )
     }
 }
