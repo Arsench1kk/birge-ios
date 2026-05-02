@@ -40,7 +40,7 @@
 		0483336F2FA5477B00A422DE /* BIRGEPassengerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BIRGEPassengerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		048333DA2FA555C100A422DE /* BIRGEPassenger.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = BIRGEPassenger.xctestplan; sourceTree = "<group>"; };
 		04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BIRGEPassenger.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		04F296512F991CEA0067DB5A /* BIRGEDrive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BIRGEDrive.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		04F296512F991CEA0067DB5A /* BIRGEDriver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BIRGEDriver.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -54,9 +54,9 @@
 			path = BIRGEPassenger;
 			sourceTree = "<group>";
 		};
-		04F296522F991CEA0067DB5A /* BIRGEDrive */ = {
+		04F296522F991CEA0067DB5A /* BIRGEDriver */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BIRGEDrive;
+			path = BIRGEDriver;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -115,7 +115,7 @@
 				048333DA2FA555C100A422DE /* BIRGEPassenger.xctestplan */,
 				0427344A2F9944B700941261 /* BIRGECore */,
 				04F296412F99196C0067DB5A /* BIRGEPassenger */,
-				04F296522F991CEA0067DB5A /* BIRGEDrive */,
+				04F296522F991CEA0067DB5A /* BIRGEDriver */,
 				048333702FA5477B00A422DE /* BIRGEPassengerTests */,
 				048333DB2FA5589B00A422DE /* Frameworks */,
 				04F296402F99196C0067DB5A /* Products */,
@@ -126,7 +126,7 @@
 			isa = PBXGroup;
 			children = (
 				04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */,
-				04F296512F991CEA0067DB5A /* BIRGEDrive.app */,
+				04F296512F991CEA0067DB5A /* BIRGEDriver.app */,
 				0483336F2FA5477B00A422DE /* BIRGEPassengerTests.xctest */,
 			);
 			name = Products;
@@ -191,9 +191,9 @@
 			productReference = 04F2963F2F99196C0067DB5A /* BIRGEPassenger.app */;
 			productType = "com.apple.product-type.application";
 		};
-		04F296502F991CEA0067DB5A /* BIRGEDrive */ = {
+		04F296502F991CEA0067DB5A /* BIRGEDriver */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 04F296592F991CEC0067DB5A /* Build configuration list for PBXNativeTarget "BIRGEDrive" */;
+			buildConfigurationList = 04F296592F991CEC0067DB5A /* Build configuration list for PBXNativeTarget "BIRGEDriver" */;
 			buildPhases = (
 				04F2964D2F991CEA0067DB5A /* Sources */,
 				04F2964E2F991CEA0067DB5A /* Frameworks */,
@@ -204,9 +204,9 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				04F296522F991CEA0067DB5A /* BIRGEDrive */,
+				04F296522F991CEA0067DB5A /* BIRGEDriver */,
 			);
-			name = BIRGEDrive;
+			name = BIRGEDriver;
 			packageProductDependencies = (
 				AA000002AAAA000200000001 /* ComposableArchitecture */,
 				AA000013AAAA001300000001 /* Dependencies */,
@@ -214,8 +214,8 @@
 				AA000015AAAA001500000001 /* ConcurrencyExtras */,
 				BB000006BBBB000600000001 /* BIRGECore */,
 			);
-			productName = BIRGEDrive;
-			productReference = 04F296512F991CEA0067DB5A /* BIRGEDrive.app */;
+			productName = BIRGEDriver;
+			productReference = 04F296512F991CEA0067DB5A /* BIRGEDriver.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -262,7 +262,7 @@
 			projectRoot = "";
 			targets = (
 				04F2963E2F99196C0067DB5A /* BIRGEPassenger */,
-				04F296502F991CEA0067DB5A /* BIRGEDrive */,
+				04F296502F991CEA0067DB5A /* BIRGEDriver */,
 				0483336E2FA5477B00A422DE /* BIRGEPassengerTests */,
 			);
 		};
@@ -575,7 +575,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = arsen.abdukhalyk.BIRGEDrive;
+				PRODUCT_BUNDLE_IDENTIFIER = arsen.abdukhalyk.BIRGEDriver;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -608,7 +608,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = arsen.abdukhalyk.BIRGEDrive;
+				PRODUCT_BUNDLE_IDENTIFIER = arsen.abdukhalyk.BIRGEDriver;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -650,7 +650,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		04F296592F991CEC0067DB5A /* Build configuration list for PBXNativeTarget "BIRGEDrive" */ = {
+		04F296592F991CEC0067DB5A /* Build configuration list for PBXNativeTarget "BIRGEDriver" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				04F2965A2F991CEC0067DB5A /* Debug */,
