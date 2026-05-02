@@ -27,6 +27,7 @@ struct DriverAppFeature {
 
         enum RideStatus: Equatable, Sendable {
             case pickingUp
+            case passengerWait
             case inProgress
         }
     }
@@ -130,7 +131,7 @@ struct DriverAppFeature {
                 }
 
             case .arrivedAtPickup:
-                state.activeRide?.status = .inProgress
+                state.activeRide?.status = .passengerWait
                 return .none
 
             case .startRide:

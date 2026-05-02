@@ -23,6 +23,11 @@ import SwiftUI
 struct RideMapView: View {
     @Bindable var store: StoreOf<RideFeature>
 
+    private enum Texts {
+        static let loading = "Обновляем поездку"
+        static let connectionLost = "Нет соединения — восстанавливаем..."
+    }
+
     @State private var position: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 43.2220, longitude: 76.8512),
@@ -39,11 +44,37 @@ struct RideMapView: View {
             statusPill
                 .padding(.top, 60)
                 .animation(.spring(response: 0.5), value: store.status)
+
+            if store.isConnectionLost {
+                connectionLostBanner
+                    .padding(.top, 8)
+                    .padding(.horizontal, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
+            if store.isLoading {
+                loadingIndicator
+                    .padding(.top, 116)
+                    .padding(.trailing, 16)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .transition(.opacity)
+            }
         }
         .safeAreaInset(edge: .bottom) {
-            bottomSheet
-                .animation(.spring(response: 0.5), value: store.status)
+            VStack(spacing: 10) {
+                if let error = store.error {
+                    errorToast(error)
+                        .padding(.horizontal, 16)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                bottomSheet
+                    .animation(.spring(response: 0.5), value: store.status)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: store.isLoading)
+        .animation(.easeInOut(duration: 0.2), value: store.error)
+        .animation(.easeInOut(duration: 0.2), value: store.isConnectionLost)
         .onAppear {
             send(.onAppear)
         }
@@ -59,6 +90,60 @@ struct RideMapView: View {
             }
         }
         .navigationBarHidden(true)
+    }
+
+    private var loadingIndicator: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .scaleEffect(0.85)
+            Text(Texts.loading)
+                .font(.caption.weight(.medium))
+        }
+        .foregroundStyle(BIRGEColors.textSecondary)
+        .padding(.horizontal, 12)
+        .frame(height: 38)
+        .background(.regularMaterial)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+    }
+
+    private var connectionLostBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 14, weight: .semibold))
+            Text(Texts.connectionLost)
+                .font(.subheadline.weight(.semibold))
+            Spacer()
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .frame(height: 44)
+        .background(Color.red)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+    }
+
+    private func errorToast(_ message: String) -> some View {
+        Button {
+            send(.errorDismissed)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.yellow)
+                Text(message)
+                    .font(.subheadline)
+                    .multilineTextAlignment(.leading)
+                Spacer()
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.black.opacity(0.86))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Map Layer

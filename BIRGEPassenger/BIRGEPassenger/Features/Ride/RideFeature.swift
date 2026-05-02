@@ -80,6 +80,12 @@ struct RideFeature {
         /// Error message for user-facing display.
         var error: String?
 
+        /// True after the WebSocket exhausts reconnect attempts.
+        var isConnectionLost: Bool = false
+
+        /// Consecutive WebSocket disconnect/error events seen by the reducer.
+        var webSocketReconnectAttempts: Int = 0
+
         /// WebSocket URL for the ride connection.
         var wsURL: URL {
             // In production this would use the real base URL
@@ -104,6 +110,7 @@ struct RideFeature {
         case rideLoadedFromServer(RideResponse)
         case cancelConfirmed
         case errorOccurred(String)
+        case errorDismissed
         case webSocketConnected
         case webSocketDisconnected
         case waitCountdownTick
@@ -116,6 +123,7 @@ struct RideFeature {
             case onAppear
             case onDisappear
             case cancelRideTapped(reason: String)
+            case errorDismissed
         }
 
         @CasePathable
@@ -160,6 +168,9 @@ struct RideFeature {
                     }
                 )
 
+            case .view(.errorDismissed):
+                return .send(.errorDismissed)
+
             // MARK: WebSocket Event Processing
 
             case let .webSocketEventReceived(event):
@@ -194,6 +205,8 @@ struct RideFeature {
             // MARK: WebSocket Connection Events
 
             case .webSocketConnected:
+                state.isConnectionLost = false
+                state.webSocketReconnectAttempts = 0
                 // On reconnect, re-fetch ride state to recover missed transitions
                 let rideId = state.rideId
                 return .run { send in
@@ -206,6 +219,10 @@ struct RideFeature {
                 }
 
             case .webSocketDisconnected:
+                state.webSocketReconnectAttempts += 1
+                if state.webSocketReconnectAttempts >= 5 {
+                    state.isConnectionLost = true
+                }
                 // Recover missed transitions while the socket reconnects.
                 let rideId = state.rideId
                 return .run { send in
@@ -303,6 +320,13 @@ struct RideFeature {
             case let .errorOccurred(message):
                 state.isLoading = false
                 state.error = message
+                if message.contains("maxRetriesExceeded") {
+                    state.isConnectionLost = true
+                }
+                return .none
+
+            case .errorDismissed:
+                state.error = nil
                 return .none
 
             // MARK: Delegate

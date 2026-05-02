@@ -17,7 +17,10 @@ import Foundation
     enum Path {
         case rideRequest(RideRequestFeature)
         case searching(SearchingFeature)
+        case corridor(CorridorFeature)
+        #if DEBUG
         case activeRide(ActiveRideFeature)
+        #endif
         case ride(RideFeature)
         case rideComplete(RideCompleteFeature)
         case profile(ProfileFeature)
@@ -44,6 +47,11 @@ import Foundation
             case .home(.delegate(.openRideRequest)):
                 state.path.append(.rideRequest(RideRequestFeature.State()))
                 return .none
+
+            // Home → Corridor placeholder
+            case .home(.delegate(.openCorridor(let corridor))):
+                state.path.append(.corridor(CorridorFeature.State(corridor: corridor)))
+                return .none
             
             // Home → Profile
             case .home(.delegate(.openProfile)):
@@ -51,15 +59,26 @@ import Foundation
                 return .none
 
             // RideRequest → Searching
-            case .path(.element(_, action: .rideRequest(.delegate(.rideRequested)))):
-                state.path.append(.searching(SearchingFeature.State()))
+            case .path(.element(_, action: .rideRequest(.delegate(.rideRequested(let rideID))))):
+                state.path.append(.searching(SearchingFeature.State(rideID: rideID)))
+                return .none
+
+            // RideRequest → Home
+            case .path(.element(_, action: .rideRequest(.delegate(.back)))):
+                state.path.removeLast()
                 return .none
 
             // Searching → Ride (production flow)
-            case .path(.element(_, action: .searching(.delegate(.driverFound)))):
-                // In production, the searching phase returns a ride ID from the backend
-                // For now, use a placeholder ID — real integration in IOS-017
-                state.path.append(.ride(RideFeature.State(rideId: "ride-\(UUID().uuidString.prefix(8))")))
+            case .path(.element(_, action: .searching(.delegate(.driverFound(let rideID, let match))))):
+                state.path.append(.ride(RideFeature.State(
+                    rideId: rideID,
+                    status: .matched,
+                    etaSeconds: match.etaSeconds,
+                    driverName: match.driverName,
+                    driverRating: match.driverRating,
+                    driverVehicle: match.driverVehicle,
+                    driverPlate: match.driverPlate
+                )))
                 return .none
 
             // Searching → Home (cancelled)
@@ -67,6 +86,7 @@ import Foundation
                 state.path.removeAll()
                 return .none
 
+            #if DEBUG
             // ActiveRide → RideComplete (legacy simulation flow)
             case .path(.element(_, action: .activeRide(.delegate(.rideCompleted)))):
                 state.path.append(.rideComplete(RideCompleteFeature.State()))
@@ -76,6 +96,7 @@ import Foundation
             case .path(.element(_, action: .activeRide(.delegate(.cancelled)))):
                 state.path.removeAll()
                 return .none
+            #endif
 
             // Ride → RideComplete (production flow)
             case .path(.element(_, action: .ride(.delegate(.completed)))):
@@ -101,5 +122,19 @@ import Foundation
             }
         }
         .forEach(\.path, action: \.path)
+    }
+}
+
+@Reducer
+struct CorridorFeature {
+    @ObservableState
+    struct State: Equatable {
+        var corridor: CorridorOption
+    }
+
+    enum Action: Sendable {}
+
+    var body: some Reducer<State, Action> {
+        EmptyReducer()
     }
 }

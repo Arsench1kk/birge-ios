@@ -9,6 +9,15 @@ import SwiftUI
 struct DriverAppView: View {
     @Bindable var store: StoreOf<DriverAppFeature>
 
+    private enum Texts {
+        static let pickingUpStatus = "Едем за пассажиром"
+        static let passengerWaitStatus = "Ожидаем пассажира"
+        static let inProgressStatus = "Поездка началась"
+        static let arrivedAtPickup = "Прибыл к пассажиру"
+        static let startRide = "Начать поездку"
+        static let completeRide = "Завершить поездку"
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             // Background
@@ -343,9 +352,9 @@ struct DriverAppView: View {
             // Status bar
             HStack {
                 Circle()
-                    .fill(ride.status == .pickingUp ? Color.orange : Color.green)
+                    .fill(statusColor(for: ride.status))
                     .frame(width: 10, height: 10)
-                Text(ride.status == .pickingUp ? "Едем за пассажиром" : "Поездка началась")
+                Text(statusText(for: ride.status))
                     .font(.headline)
                 Spacer()
             }
@@ -362,20 +371,23 @@ struct DriverAppView: View {
 
             // Action button
             Button {
-                if ride.status == .pickingUp {
+                switch ride.status {
+                case .pickingUp:
                     store.send(.arrivedAtPickup)
-                } else {
+                case .passengerWait:
+                    store.send(.startRide)
+                case .inProgress:
                     store.send(.completeRide)
                 }
             } label: {
-                Text(ride.status == .pickingUp ? "Прибыл" : "Завершить поездку")
+                Text(actionText(for: ride.status))
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 14)
-                            .fill(ride.status == .pickingUp ? Color.orange : Color.green)
+                            .fill(statusColor(for: ride.status))
                     )
             }
         }
@@ -385,6 +397,37 @@ struct DriverAppView: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: .black.opacity(0.1), radius: 16, x: 0, y: -4)
         )
+    }
+
+    private func statusText(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return Texts.pickingUpStatus
+        case .passengerWait:
+            return Texts.passengerWaitStatus
+        case .inProgress:
+            return Texts.inProgressStatus
+        }
+    }
+
+    private func actionText(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return Texts.arrivedAtPickup
+        case .passengerWait:
+            return Texts.startRide
+        case .inProgress:
+            return Texts.completeRide
+        }
+    }
+
+    private func statusColor(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> Color {
+        switch status {
+        case .pickingUp, .passengerWait:
+            return .orange
+        case .inProgress:
+            return .green
+        }
     }
 
     // MARK: - End Shift Button

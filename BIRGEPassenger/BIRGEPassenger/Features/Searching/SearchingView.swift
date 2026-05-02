@@ -67,40 +67,50 @@ struct SearchingView: View {
                 .padding(.bottom, 32)
                 
                 // STATUS TEXT
-                Text("Ищем водителя" + String(repeating: ".", count: store.dotsCount))
+                Text("Ищем водителя")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(.white)
-                    // Added fixed width to avoid layout jittering when dots are appended
                     .frame(width: 250, alignment: .center)
                 
-                Text("Обычно это занимает менее минуты")
+                Text(store.statusText)
                     .font(.system(size: 15))
                     .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
                     .padding(.top, 4)
-                
-                // TIMER
-                Text(String(format: "%d:%02d", store.secondsElapsed / 60, store.secondsElapsed % 60))
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.4))
-                    .padding(.top, 8)
+
+                if let errorMessage = store.errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.red.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 12)
+                }
             }
         }
         .safeAreaInset(edge: .bottom) {
             Button {
                 send(.cancelTapped)
             } label: {
-                Text("Отменить поиск")
-                    .font(.system(size: 17))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color.clear)
-                    .cornerRadius(14)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.white, lineWidth: 1)
-                    )
+                HStack(spacing: 10) {
+                    if store.isCancelling {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                    Text(store.isCancelling ? "Отменяем..." : "Отменить поиск")
+                        .font(.system(size: 17))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(Color.clear)
+                .cornerRadius(14)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.white, lineWidth: 1)
+                )
             }
+            .disabled(store.isCancelling)
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
@@ -114,7 +124,7 @@ struct SearchingView: View {
 
 #Preview {
     SearchingView(
-        store: Store(initialState: SearchingFeature.State()) {
+        store: Store(initialState: SearchingFeature.State(rideID: "preview-ride")) {
             SearchingFeature()
         }
     )

@@ -5,6 +5,10 @@ import SwiftUI
 struct RideCompleteView: View {
     @Bindable var store: StoreOf<RideCompleteFeature>
 
+    private enum Texts {
+        static let commentPlaceholder = "Оставить комментарий..."
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
@@ -95,6 +99,21 @@ struct RideCompleteView: View {
                         .frame(height: 120) // Provide adequate height for wrapping layout
                         .padding(.top, 16)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
+
+                        TextField(
+                            Texts.commentPlaceholder,
+                            text: Binding(
+                                get: { store.comment },
+                                set: { send(.commentChanged($0)) }
+                            ),
+                            axis: .vertical
+                        )
+                        .textFieldStyle(.plain)
+                        .lineLimit(2...4)
+                        .padding(14)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                 }
                 .padding(.top, 32)

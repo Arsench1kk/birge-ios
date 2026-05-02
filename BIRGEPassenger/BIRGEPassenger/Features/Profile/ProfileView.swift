@@ -9,6 +9,10 @@ import SwiftUI
 struct ProfileView: View {
     let store: StoreOf<ProfileFeature>
     
+    private enum Texts {
+        static let loading = "Загружаем профиль"
+    }
+    
     var body: some View {
         List {
             headerSection
@@ -37,12 +41,36 @@ struct ProfileView: View {
                 }
             }
         }
+        .disabled(store.isLoading)
+        .overlay {
+            if store.isLoading {
+                loadingOverlay
+            }
+        }
         .navigationTitle("Профиль")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .navigationBarBackButtonHidden(false)
         .onAppear {
             store.send(.onAppear)
+        }
+    }
+
+    private var loadingOverlay: some View {
+        ZStack {
+            Color.white.opacity(0.72)
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                ProgressView()
+                Text(Texts.loading)
+                    .font(.subheadline)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+            }
+            .padding(20)
+            .background(Color.white)
+            .cornerRadius(14)
+            .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
         }
     }
     

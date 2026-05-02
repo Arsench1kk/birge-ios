@@ -7,6 +7,24 @@ struct RideRequestView: View {
     
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                Button {
+                    send(.backTapped)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                        Text("Назад")
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(BIRGEColors.blue)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 16)
+
             // ADDRESS SECTION
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
@@ -72,6 +90,15 @@ struct RideRequestView: View {
                 .font(.caption)
                 .foregroundStyle(BIRGEColors.textSecondary)
                 .padding(.bottom, 16)
+
+            if let errorMessage = store.errorMessage {
+                Text(errorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+            }
             
             Spacer()
         }
@@ -80,19 +107,27 @@ struct RideRequestView: View {
             Button {
                 send(.findDriverTapped)
             } label: {
-                Text("Найти водителя · \(store.fare)₸")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(BIRGEColors.blue)
-                    .cornerRadius(16)
+                HStack(spacing: 10) {
+                    if store.isLoading {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                    Text(store.isLoading ? "Создаём поездку..." : "Найти водителя · \(store.fare)₸")
+                        .font(.system(size: 17, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(store.isLoading ? BIRGEColors.blue.opacity(0.65) : BIRGEColors.blue)
+                .cornerRadius(16)
             }
+            .disabled(store.isLoading)
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
         .navigationTitle("Новая поездка")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
     }
     
     @ViewBuilder
