@@ -1,0 +1,32 @@
+disabled_rules:
+  - trailing_whitespace
+  - large_tuple
+  - nesting
+  - type_body_length
+  - file_length
+  - identifier_name
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+
+function_body_length:
+  warning: 80
+  error: 200
+
+trailing_comma:
+  severity: warning
+
+line_length:
+  warning: 160
+  error: 200
+
+cyclomatic_complexity:
+  warning: 20
+  error: 30
+
+excluded:
+  - .build
+  - Pods
+  - BIRGEPassengerTests
+  - birge-vapor
