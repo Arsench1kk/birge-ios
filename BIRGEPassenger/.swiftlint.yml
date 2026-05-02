@@ -1,0 +1,20 @@
+disabled_rules:
+  - trailing_whitespace
+  - large_tuple
+  - nesting
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+
+function_body_length:
+  warning: 80
+  error: 150
+
+trailing_comma:
+  severity: warning
+
+excluded:
+  - .build
+  - Pods
+  - BIRGEPassengerTests

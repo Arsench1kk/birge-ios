@@ -30,7 +30,7 @@ jobs:
 
       - name: Run SwiftLint
         working-directory: BIRGEPassenger
-        run: swiftlint lint
+        run: swiftlint lint --reporter github-actions-logging
 
       - name: Build BIRGEPassenger
         working-directory: BIRGEPassenger
