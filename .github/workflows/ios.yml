@@ -32,6 +32,11 @@ jobs:
         working-directory: BIRGEPassenger
         run: swiftlint lint --reporter github-actions-logging
 
+      - name: Download iOS Platform
+        run: |
+          sudo xcode-select -switch /Applications/Xcode_16.4.app
+          xcodebuild -downloadPlatform iOS
+
       - name: Build BIRGEPassenger
         working-directory: BIRGEPassenger
         run: |
