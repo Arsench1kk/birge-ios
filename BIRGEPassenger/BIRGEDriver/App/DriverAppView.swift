@@ -1,6 +1,6 @@
 //
 //  DriverAppView.swift
-//  BIRGEDrive
+//  BIRGEDriver
 //
 
 import ComposableArchitecture

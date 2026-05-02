@@ -1,6 +1,6 @@
 //
 //  EarningsView.swift
-//  BIRGEDrive
+//  BIRGEDriver
 //
 
 import ComposableArchitecture

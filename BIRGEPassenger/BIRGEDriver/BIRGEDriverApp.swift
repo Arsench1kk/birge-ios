@@ -1,13 +1,13 @@
 //
-//  BIRGEDriveApp.swift
-//  BIRGEDrive
+//  BIRGEDriverApp.swift
+//  BIRGEDriver
 //
 
 import ComposableArchitecture
 import SwiftUI
 
 @main
-struct BIRGEDriveApp: App {
+struct BIRGEDriverApp: App {
     @State var store = Store(
         initialState: DriverAppFeature.State()
     ) {
