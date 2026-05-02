@@ -43,8 +43,7 @@ public actor LocationRepository {
     /// - Parameter record: The location record to insert.
     public func insert(_ record: LocationRecord) async throws {
         try await dbQueue.write { db in
-            var mutable = record
-            try mutable.insert(db)
+            try record.insert(db)
         }
     }
 
@@ -57,8 +56,7 @@ public actor LocationRepository {
     public func insertBatch(_ records: [LocationRecord]) async throws {
         try await dbQueue.write { db in
             for record in records {
-                var mutable = record
-                try mutable.insert(db)
+                try record.insert(db)
             }
         }
     }

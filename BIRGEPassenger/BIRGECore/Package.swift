@@ -20,6 +20,14 @@ let package = Package(
             url: "https://github.com/pointfreeco/swift-composable-architecture",
             from: "1.25.0"
         ),
+        .package(
+            url: "https://github.com/pointfreeco/swift-concurrency-extras",
+            from: "1.2.0"
+        ),
+        .package(
+            url: "https://github.com/pointfreeco/swift-dependencies",
+            from: "1.4.0"
+        ),
     ],
     targets: [
         .target(
@@ -29,6 +37,14 @@ let package = Package(
                 .product(
                     name: "ComposableArchitecture",
                     package: "swift-composable-architecture"
+                ),
+                .product(
+                    name: "ConcurrencyExtras",
+                    package: "swift-concurrency-extras"
+                ),
+                .product(
+                    name: "Dependencies",
+                    package: "swift-dependencies"
                 ),
             ]
         ),
