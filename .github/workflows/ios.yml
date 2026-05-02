@@ -38,7 +38,7 @@ jobs:
           xcodebuild build \
             -project BIRGEPassenger.xcodeproj \
             -scheme BIRGEPassenger \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
 
       - name: Test BIRGEPassenger
         working-directory: BIRGEPassenger
@@ -46,4 +46,4 @@ jobs:
           xcodebuild test \
             -project BIRGEPassenger.xcodeproj \
             -scheme BIRGEPassenger \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
