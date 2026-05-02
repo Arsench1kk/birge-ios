@@ -4,6 +4,7 @@ import SwiftUI
 @ViewAction(for: RideCompleteFeature.self)
 struct RideCompleteView: View {
     @Bindable var store: StoreOf<RideCompleteFeature>
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isReportSheetPresented = false
     @State private var reportIssueText = ""
     @State private var isReportSuccessVisible = false
@@ -29,38 +30,38 @@ struct RideCompleteView: View {
                             .frame(width: 80, height: 80)
                             .scaleEffect(store.isCheckmarkVisible ? 1.0 : 0.3)
                             .opacity(store.isCheckmarkVisible ? 1.0 : 0)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.6), value: store.isCheckmarkVisible)
+                            .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.6), value: store.isCheckmarkVisible)
                         
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(.white)
+                            .font(BIRGEFonts.heroNumber)
+                            .foregroundStyle(BIRGEColors.textOnBrand)
                             .scaleEffect(store.isCheckmarkVisible ? 1.0 : 0.3)
                             .opacity(store.isCheckmarkVisible ? 1.0 : 0)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.1), value: store.isCheckmarkVisible)
+                            .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.6).delay(0.1), value: store.isCheckmarkVisible)
                     }
-                    .padding(.top, 48)
+                    .padding(.top, BIRGELayout.xxxl)
                     
                     Text("Поездка завершена!")
-                        .font(.system(size: 22, weight: .bold))
-                        .padding(.top, 16)
+                        .font(BIRGEFonts.title)
+                        .padding(.top, BIRGELayout.s)
                     
                     Text("Спасибо, что выбрали BIRGE")
-                        .font(.system(size: 15))
+                        .font(BIRGEFonts.body)
                         .foregroundStyle(BIRGEColors.textSecondary)
-                        .padding(.top, 4)
+                        .padding(.top, BIRGELayout.xxxs)
                 }
                 
                 // RIDE SUMMARY CARD
                 VStack(spacing: 0) {
                     HStack {
                         Text("Алатау → Есентай")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(BIRGEFonts.bodyMedium)
                         Spacer()
                     }
-                    .padding(.bottom, 12)
+                    .padding(.bottom, BIRGELayout.xs)
                     
                     Divider()
-                        .padding(.bottom, 12)
+                        .padding(.bottom, BIRGELayout.xs)
                     
                     summaryRow(label: "Стоимость", value: "1 850₸", icon: "🔵")
                     summaryRow(label: "Время в пути", value: "34 мин")
@@ -68,45 +69,54 @@ struct RideCompleteView: View {
                     summaryRow(label: "Водитель", value: "Азамат К.", icon: "⭐")
                     
                     Divider()
-                        .padding(.vertical, 12)
+                        .padding(.vertical, BIRGELayout.xs)
                     
                     HStack {
                         Text("🟡 Оплачено через Kaspi Pay")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(BIRGEFonts.captionBold)
                         Spacer()
                     }
                 }
-                .padding(16)
-                .background(Color.white)
-                .cornerRadius(16)
+                .padding(BIRGELayout.s)
+                .birgeCard()
                 .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-                .padding(.horizontal, 16)
-                .padding(.top, 32)
+                .padding(.horizontal, BIRGELayout.s)
+                .padding(.top, BIRGELayout.xl)
                 
                 // RATING SECTION
-                VStack(spacing: 16) {
+                VStack(spacing: BIRGELayout.s) {
                     Text("Оцените поездку с Азаматом К.")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(BIRGEFonts.sectionTitle)
                     
-                    HStack(spacing: 8) {
+                    HStack(spacing: BIRGELayout.xxs) {
                         ForEach(1...5, id: \.self) { star in
-                            Image(systemName: star <= store.rating ? "star.fill" : "star")
-                                .foregroundStyle(star <= store.rating ? Color.yellow : Color.gray.opacity(0.3))
-                                .font(.system(size: 36))
-                                .onTapGesture {
-                                    send(.ratingSelected(star))
+                            Button {
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
+                                    _ = send(.ratingSelected(star))
                                 }
-                                .scaleEffect(star <= store.rating ? 1.15 : 1.0)
-                                .animation(.spring(response: 0.3), value: store.rating)
+                            } label: {
+                                Image(systemName: star <= store.rating ? "star.fill" : "star")
+                                    .foregroundStyle(star <= store.rating ? Color.yellow : BIRGEColors.textTertiary.opacity(0.42))
+                                    .font(BIRGEFonts.heroNumber)
+                                    .frame(width: BIRGELayout.minTapTarget, height: BIRGELayout.minTapTarget)
+                                    .scaleEffect(star <= store.rating ? 1.08 : 1.0)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(star == 1 ? "1 звезда" : "\(star) звёзд")
+                            .accessibilityAddTraits(star <= store.rating ? AccessibilityTraits.isSelected : AccessibilityTraits())
                         }
                     }
                     
                     if store.rating > 0 {
-                        GeometryReader { geometry in
-                            tagRows(store.tags, width: geometry.size.width)
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: 132), spacing: BIRGELayout.xxs)],
+                            spacing: BIRGELayout.xxs
+                        ) {
+                            ForEach(store.tags, id: \.self) { tag in
+                                tagChip(tag)
+                            }
                         }
-                        .frame(height: 120) // Provide adequate height for wrapping layout
-                        .padding(.top, 16)
+                        .padding(.top, BIRGELayout.s)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
 
                         TextField(
@@ -119,57 +129,44 @@ struct RideCompleteView: View {
                         )
                         .textFieldStyle(.plain)
                         .lineLimit(2...4)
-                        .padding(14)
+                        .padding(BIRGELayout.xs)
                         .background(Color(.systemGray6))
-                        .cornerRadius(12)
+                        .cornerRadius(BIRGELayout.radiusS)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                 }
-                .padding(.top, 32)
-                .padding(.horizontal, 16)
+                .padding(.top, BIRGELayout.xl)
+                .padding(.horizontal, BIRGELayout.s)
                 
-                Spacer(minLength: 40)
+                Spacer(minLength: BIRGELayout.xxl)
             }
         }
-        .background(Color.white)
+        .background(BIRGEColors.background)
         .overlay(alignment: .bottom) {
             if isReportSuccessVisible {
-                Text(Texts.reportSuccess)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .frame(height: 44)
-                    .background(Color.black.opacity(0.86))
-                    .clipShape(Capsule())
+                BIRGEToast(message: Texts.reportSuccess, style: .success)
                     .padding(.bottom, 104)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 12) {
-                Button {
+            VStack(spacing: BIRGELayout.xs) {
+                BIRGEPrimaryButton(title: "Готово") {
                     send(.doneTapped)
-                } label: {
-                    Text("Готово")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(BIRGEColors.blue)
-                        .cornerRadius(16)
                 }
                 
                 Button {
                     isReportSheetPresented = true
                 } label: {
                     Text(Texts.reportIssue)
-                        .font(.system(size: 15))
+                        .font(BIRGEFonts.body)
                         .foregroundStyle(BIRGEColors.textSecondary)
                 }
+                .birgeTapTarget()
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
-            .background(Color.white)
+            .padding(.horizontal, BIRGELayout.s)
+            .padding(.bottom, BIRGELayout.s)
+            .background(BIRGEColors.background)
         }
         .onAppear {
             send(.onAppear)
@@ -206,63 +203,42 @@ struct RideCompleteView: View {
     private func summaryRow(label: String, value: String, icon: String? = nil) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 15))
+                .font(label == "Стоимость" ? BIRGEFonts.sectionTitle : BIRGEFonts.subtext)
                 .foregroundStyle(BIRGEColors.textSecondary)
             Spacer()
-            HStack(spacing: 4) {
+            HStack(spacing: BIRGELayout.xxxs) {
                 Text(value)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(label == "Стоимость" ? BIRGEFonts.heroNumber : BIRGEFonts.subtext)
+                    .foregroundStyle(label == "Стоимость" ? BIRGEColors.textPrimary : BIRGEColors.textSecondary)
                 if let icon = icon {
                     Text(icon)
-                        .font(.system(size: 15))
+                        .font(BIRGEFonts.subtext)
                 }
             }
         }
-        .padding(.bottom, 8)
-    }
-    
-    private func tagRows(_ tags: [String], width: CGFloat) -> some View {
-        var rows: [[String]] = [[]]
-        var currentWidth: CGFloat = 0
-        
-        for tag in tags {
-            // Approximate width: each character ~9pt + 28pt padding
-            let tagWidth = CGFloat(tag.count * 9 + 28)
-            if currentWidth + tagWidth > width {
-                rows.append([tag])
-                currentWidth = tagWidth
-            } else {
-                rows[rows.count - 1].append(tag)
-                currentWidth += tagWidth + 8
-            }
-        }
-        
-        return VStack(alignment: .center, spacing: 8) {
-            ForEach(rows.indices, id: \.self) { i in
-                HStack(spacing: 8) {
-                    ForEach(rows[i], id: \.self) { tag in
-                        tagChip(tag)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
+        .padding(.bottom, BIRGELayout.xxs)
     }
     
     @ViewBuilder
     private func tagChip(_ tag: String) -> some View {
         let isSelected = store.selectedTags.contains(tag)
-        Text(tag)
-            .font(.subheadline)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(isSelected ? BIRGEColors.blue : Color(.systemGray6))
-            .foregroundStyle(isSelected ? Color.white : Color.primary)
-            .cornerRadius(20)
-            .onTapGesture {
-                send(.tagToggled(tag))
+        Button {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
+                _ = send(.tagToggled(tag))
             }
-            .animation(.spring(response: 0.3), value: store.selectedTags)
+        } label: {
+            Text(tag)
+                .font(BIRGEFonts.subtext)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, BIRGELayout.xs)
+                .padding(.vertical, BIRGELayout.xxs)
+                .background(isSelected ? BIRGEColors.brandPrimary : BIRGEColors.surfacePrimary)
+                .foregroundStyle(isSelected ? BIRGEColors.textOnBrand : BIRGEColors.textPrimary)
+                .cornerRadius(BIRGELayout.radiusFull)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? AccessibilityTraits.isSelected : AccessibilityTraits())
     }
 }
 
@@ -281,7 +257,7 @@ private struct ReportIssueView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: BIRGELayout.xs) {
                 ZStack(alignment: .topLeading) {
                     TextEditor(
                         text: Binding(
@@ -290,28 +266,28 @@ private struct ReportIssueView: View {
                         )
                     )
                     .frame(minHeight: 140)
-                    .padding(8)
+                    .padding(BIRGELayout.xxs)
                     .background(Color(.systemGray6))
-                    .cornerRadius(12)
+                    .cornerRadius(BIRGELayout.radiusS)
 
                     if text.isEmpty {
                         Text(Texts.placeholder)
-                            .font(.body)
+                            .font(BIRGEFonts.body)
                             .foregroundStyle(BIRGEColors.textSecondary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 16)
+                            .padding(.horizontal, BIRGELayout.xs)
+                            .padding(.vertical, BIRGELayout.s)
                             .allowsHitTesting(false)
                     }
                 }
 
                 Text("\(text.count)/\(Texts.counterLimit)")
-                    .font(.caption)
+                    .font(BIRGEFonts.caption)
                     .foregroundStyle(BIRGEColors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
 
                 Spacer()
             }
-            .padding(16)
+            .padding(BIRGELayout.s)
             .navigationTitle(Texts.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

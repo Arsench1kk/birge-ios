@@ -22,6 +22,7 @@ import SwiftUI
 @ViewAction(for: RideFeature.self)
 struct RideMapView: View {
     @Bindable var store: StoreOf<RideFeature>
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Texts {
         static let loading = "Обновляем поездку"
@@ -43,19 +44,19 @@ struct RideMapView: View {
             // LAYER 2 — Status pill
             statusPill
                 .padding(.top, 60)
-                .animation(.spring(response: 0.5), value: store.status)
+                .animation(reduceMotion ? nil : .spring(response: 0.5), value: store.status)
 
             if store.isConnectionLost {
                 connectionLostBanner
                     .padding(.top, 8)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, BIRGELayout.s)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             if store.isLoading {
                 loadingIndicator
                     .padding(.top, 116)
-                    .padding(.trailing, 16)
+                    .padding(.trailing, BIRGELayout.s)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .transition(.opacity)
             }
@@ -64,23 +65,23 @@ struct RideMapView: View {
             VStack(spacing: 10) {
                 if let error = store.error {
                     errorToast(error)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, BIRGELayout.s)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 bottomSheet
-                    .animation(.spring(response: 0.5), value: store.status)
+                    .animation(reduceMotion ? nil : .spring(response: 0.5), value: store.status)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: store.isLoading)
-        .animation(.easeInOut(duration: 0.2), value: store.error)
-        .animation(.easeInOut(duration: 0.2), value: store.isConnectionLost)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: store.isLoading)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: store.error)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: store.isConnectionLost)
         .onAppear {
             send(.onAppear)
         }
         .onChange(of: store.driverLocation) { _, newLocation in
             guard let coord = newLocation else { return }
-            withAnimation(.easeInOut(duration: 1.0)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
                 position = .region(
                     MKCoordinateRegion(
                         center: coord.clCoordinate,
@@ -93,14 +94,14 @@ struct RideMapView: View {
     }
 
     private var loadingIndicator: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: BIRGELayout.xxs) {
             ProgressView()
                 .scaleEffect(0.85)
             Text(Texts.loading)
-                .font(.caption.weight(.medium))
+                .font(BIRGEFonts.captionBold)
         }
         .foregroundStyle(BIRGEColors.textSecondary)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, BIRGELayout.xs)
         .frame(height: 38)
         .background(.regularMaterial)
         .clipShape(Capsule())
@@ -108,40 +109,15 @@ struct RideMapView: View {
     }
 
     private var connectionLostBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 14, weight: .semibold))
-            Text(Texts.connectionLost)
-                .font(.subheadline.weight(.semibold))
-            Spacer()
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
-        .frame(height: 44)
-        .background(Color.red)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        BIRGEToast(message: Texts.connectionLost, style: .warning)
+            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
     }
 
     private func errorToast(_ message: String) -> some View {
         Button {
             send(.errorDismissed)
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.yellow)
-                Text(message)
-                    .font(.subheadline)
-                    .multilineTextAlignment(.leading)
-                Spacer()
-                Image(systemName: "xmark")
-                    .font(.caption.weight(.bold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Color.black.opacity(0.86))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            BIRGEToast(message: message, style: .error)
         }
         .buttonStyle(.plain)
     }
@@ -156,14 +132,14 @@ struct RideMapView: View {
                 Annotation("", coordinate: driverCoord.clCoordinate) {
                     ZStack {
                         Circle()
-                            .fill(BIRGEColors.blue)
-                            .frame(width: 44, height: 44)
-                            .shadow(color: BIRGEColors.blue.opacity(0.4), radius: 8, y: 4)
+                            .fill(BIRGEColors.brandPrimary)
+                            .frame(width: BIRGELayout.minTapTarget, height: BIRGELayout.minTapTarget)
+                            .shadow(color: BIRGEColors.brandPrimary.opacity(0.4), radius: 8, y: 4)
                         Image(systemName: "car.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white)
+                            .font(BIRGEFonts.sectionTitle)
+                            .foregroundStyle(BIRGEColors.textOnBrand)
                     }
-                    .animation(.linear(duration: 1), value: driverCoord)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: driverCoord)
                 }
             }
 
@@ -176,7 +152,7 @@ struct RideMapView: View {
                             .frame(width: 24, height: 24)
                             .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
                         Circle()
-                            .fill(BIRGEColors.blue)
+                            .fill(BIRGEColors.brandPrimary)
                             .frame(width: 16, height: 16)
                     }
                 }
@@ -202,11 +178,13 @@ struct RideMapView: View {
                 }
                 Text(config.emoji)
                 Text(config.text)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(BIRGEFonts.captionBold)
+                    .lineLimit(2)
             }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 20)
+            .foregroundStyle(BIRGEColors.textOnBrand)
+            .padding(.horizontal, BIRGELayout.m)
             .frame(height: 40)
+            .frame(maxWidth: 200)
             .background(
                 Capsule()
                     .fill(config.color)
@@ -220,22 +198,22 @@ struct RideMapView: View {
     ) -> (emoji: String, text: String, color: Color, showSpinner: Bool) {
         switch status {
         case .requested:
-            return ("", "Ищем водителя...", BIRGEColors.blue, true)
+            return ("", "Ищем водителя...", BIRGEColors.brandPrimary, true)
         case .matched, .driverAccepted:
-            return ("✅", "Водитель принял заказ", .green, false)
+            return ("✅", "Водитель принял заказ", BIRGEColors.success, false)
         case .driverArriving:
             let eta = store.etaSeconds.map { "\($0) сек" } ?? "..."
-            return ("🕐", "Водитель едет · \(eta)", BIRGEColors.blue, false)
+            return ("🕐", "Водитель едет · \(eta)", BIRGEColors.brandPrimary, false)
         case .passengerWait:
             let code = store.verificationCode ?? "----"
-            return ("🚗", "Код: \(code)", .orange, false)
+            return ("🚗", "Код: \(code)", BIRGEColors.warning, false)
         case .inProgress:
             let eta = store.etaSeconds.map { "\($0) сек" } ?? "..."
-            return ("🟢", "Вы едете · \(eta)", .green, false)
+            return ("🟢", "Вы едете · \(eta)", BIRGEColors.success, false)
         case .completed:
             return ("", "", .clear, false)
         case .cancelled:
-            return ("❌", "Поездка отменена", .red, false)
+            return ("❌", "Поездка отменена", BIRGEColors.danger, false)
         }
     }
 
@@ -245,11 +223,9 @@ struct RideMapView: View {
     private var bottomSheet: some View {
         VStack(spacing: 0) {
             // Drag indicator
-            Capsule()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 36, height: 4)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
+            BIRGESheetHandle()
+                .padding(.top, BIRGELayout.xxs)
+                .padding(.bottom, BIRGELayout.xs)
 
             switch store.status {
             case .requested:
@@ -269,11 +245,11 @@ struct RideMapView: View {
             }
         }
         .background(
-            Color.white
+            BIRGEColors.background
                 .clipShape(
                     .rect(
-                        topLeadingRadius: 24,
-                        topTrailingRadius: 24
+                        topLeadingRadius: BIRGELayout.radiusL,
+                        topTrailingRadius: BIRGELayout.radiusL
                     )
                 )
                 .shadow(color: .black.opacity(0.08), radius: 12, y: -4)
@@ -284,7 +260,7 @@ struct RideMapView: View {
 
     @ViewBuilder
     private var searchingSheet: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: BIRGELayout.s) {
             ProgressView()
                 .scaleEffect(1.2)
 
@@ -292,34 +268,34 @@ struct RideMapView: View {
                 .font(.headline)
 
             Text("Обычно это занимает 1–3 минуты")
-                .font(.subheadline)
+                .font(BIRGEFonts.subtext)
                 .foregroundStyle(BIRGEColors.textSecondary)
 
             cancelButton
         }
-        .padding(20)
+        .padding(BIRGELayout.m)
     }
 
     // MARK: - Sheet: Driver Accepted
 
     @ViewBuilder
     private var driverAcceptedSheet: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: BIRGELayout.s) {
             driverInfoRow
 
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
-                    .font(.system(size: 20))
+                    .foregroundColor(BIRGEColors.success)
+                    .font(BIRGEFonts.sectionTitle)
                 Text("Водитель принял ваш заказ")
                     .font(.subheadline)
                 Spacer()
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, BIRGELayout.m)
 
             cancelButton
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, BIRGELayout.xs)
     }
 
     // MARK: - Sheet: Driver Arriving
@@ -328,16 +304,16 @@ struct RideMapView: View {
     private var driverArrivingSheet: some View {
         VStack(spacing: 0) {
             driverInfoRow
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, BIRGELayout.m)
+                .padding(.vertical, BIRGELayout.s)
 
             Divider()
 
             // ETA row
             HStack(spacing: 10) {
                 Image(systemName: "mappin.circle.fill")
-                    .foregroundColor(BIRGEColors.blue)
-                    .font(.system(size: 20))
+                    .foregroundColor(BIRGEColors.brandPrimary)
+                    .font(BIRGEFonts.sectionTitle)
 
                 if let eta = store.etaSeconds {
                     let minutes = eta / 60
@@ -350,11 +326,11 @@ struct RideMapView: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, BIRGELayout.m)
+            .padding(.vertical, BIRGELayout.xs)
 
             cancelButton
-                .padding(.bottom, 16)
+                .padding(.bottom, BIRGELayout.s)
         }
     }
 
@@ -362,9 +338,9 @@ struct RideMapView: View {
 
     @ViewBuilder
     private var passengerWaitSheet: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: BIRGELayout.s) {
             driverInfoRow
-                .padding(.horizontal, 20)
+                .padding(.horizontal, BIRGELayout.m)
 
             Divider()
 
@@ -375,14 +351,16 @@ struct RideMapView: View {
                     .foregroundStyle(BIRGEColors.textSecondary)
 
                 Text(store.verificationCode ?? "----")
-                    .font(.system(size: 32, weight: .bold, design: .monospaced))
-                    .foregroundStyle(BIRGEColors.blue)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .font(BIRGEFonts.verifyCode)
+                    .foregroundStyle(BIRGEColors.brandPrimary)
+                    .padding(.horizontal, BIRGELayout.l)
+                    .padding(.vertical, BIRGELayout.xs)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(BIRGEColors.blue.opacity(0.08))
+                        RoundedRectangle(cornerRadius: BIRGELayout.radiusS)
+                            .fill(BIRGEColors.brandPrimary.opacity(0.08))
                     )
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Код посадки: \(store.verificationCode ?? "----")")
             }
 
             // Countdown
@@ -393,22 +371,22 @@ struct RideMapView: View {
                     Image(systemName: "timer")
                         .foregroundColor(.orange)
                     Text("Ожидание: \(minutes):\(String(format: "%02d", seconds))")
-                        .font(.subheadline)
-                        .foregroundStyle(.orange)
+                        .font(BIRGEFonts.subtext)
+                        .foregroundStyle(BIRGEColors.warning)
                 }
             }
 
             cancelButton
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, BIRGELayout.xs)
     }
 
     // MARK: - Sheet: In Progress
 
     @ViewBuilder
     private var inProgressSheet: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .top, spacing: 14) {
+        VStack(spacing: BIRGELayout.s) {
+            HStack(alignment: .top, spacing: BIRGELayout.xs) {
                 driverAvatar
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -431,9 +409,8 @@ struct RideMapView: View {
                 if let eta = store.etaSeconds {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("~\(eta / 60) мин")
-                            .font(.title3)
-                            .bold()
-                            .foregroundColor(BIRGEColors.blue)
+                            .font(BIRGEFonts.sectionTitle)
+                            .foregroundColor(BIRGEColors.brandPrimary)
                         Text("до прибытия")
                             .font(.caption)
                             .foregroundColor(BIRGEColors.textSecondary)
@@ -443,24 +420,24 @@ struct RideMapView: View {
 
             HStack(spacing: 10) {
                 Image(systemName: "mappin.circle.fill")
-                    .foregroundColor(BIRGEColors.blue)
-                    .font(.system(size: 20))
+                    .foregroundColor(BIRGEColors.brandPrimary)
+                    .font(BIRGEFonts.sectionTitle)
                 Text("Вы едете к пункту назначения")
                     .font(.subheadline)
                 Spacer()
             }
         }
-        .padding(20)
+        .padding(BIRGELayout.m)
     }
 
     // MARK: - Sheet: Cancelled
 
     @ViewBuilder
     private var cancelledSheet: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: BIRGELayout.s) {
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 40))
-                .foregroundColor(.red)
+                .font(BIRGEFonts.heroNumber)
+                .foregroundColor(BIRGEColors.danger)
 
             Text("Поездка отменена")
                 .font(.headline)
@@ -472,26 +449,18 @@ struct RideMapView: View {
                     .multilineTextAlignment(.center)
             }
 
-            Button {
+            BIRGEPrimaryButton(title: "На главную") {
                 send(.backToHomeTapped)
-            } label: {
-                Text("На главную")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(BIRGEColors.blue)
-                    .cornerRadius(12)
             }
         }
-        .padding(20)
+        .padding(BIRGELayout.m)
     }
 
     // MARK: - Reusable Components
 
     @ViewBuilder
     private var driverInfoRow: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: BIRGELayout.xs) {
             driverAvatar
 
             VStack(alignment: .leading, spacing: 4) {
@@ -517,11 +486,11 @@ struct RideMapView: View {
 
                 if let plate = store.driverPlate {
                     Text(plate)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .font(BIRGEFonts.captionBold)
+                        .padding(.horizontal, BIRGELayout.xxs)
+                        .padding(.vertical, BIRGELayout.xxxs)
                         .background(Color(.systemGray6))
-                        .cornerRadius(6)
+                        .cornerRadius(BIRGELayout.radiusXS)
                 }
             }
 
@@ -535,14 +504,14 @@ struct RideMapView: View {
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [BIRGEColors.blue, BIRGEColors.blue.opacity(0.7)],
+                        colors: [BIRGEColors.brandPrimary, BIRGEColors.brandPrimary.opacity(0.7)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 52, height: 52)
             Text("👨‍💼")
-                .font(.system(size: 24))
+                .font(BIRGEFonts.title)
         }
     }
 

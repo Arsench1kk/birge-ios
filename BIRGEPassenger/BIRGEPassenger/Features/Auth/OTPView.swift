@@ -8,18 +8,14 @@ import SwiftUI
 
 struct OTPView: View {
     @Bindable var store: StoreOf<OTPFeature>
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var isCodeFieldFocused: Bool
+    @State private var resendSecondsRemaining = 60
+    @State private var resendTimerTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [
-                    Color(red: 0.05, green: 0.05, blue: 0.12),
-                    Color(red: 0.08, green: 0.06, blue: 0.18),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            BIRGEColors.brandPrimary
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -28,10 +24,10 @@ struct OTPView: View {
                 // Logo / Brand
                 brandHeader
 
-                Spacer().frame(height: 48)
+                Spacer().frame(height: BIRGELayout.xxxl)
 
                 // Content card
-                VStack(spacing: 24) {
+                VStack(spacing: BIRGELayout.l) {
                     switch store.step {
                     case .phone:
                         phoneInputSection
@@ -56,20 +52,20 @@ struct OTPView: View {
                             )
                     }
                 }
-                .padding(24)
+                .padding(BIRGELayout.l)
                 .background(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
                         .fill(.ultraThinMaterial)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 24)
+                            RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
                                 .stroke(
-                                    Color.white.opacity(0.08),
+                                    BIRGEColors.textOnBrand.opacity(0.14),
                                     lineWidth: 1
                                 )
                         )
                 )
-                .padding(.horizontal, 20)
-                .animation(.easeInOut(duration: 0.35), value: store.step)
+                .padding(.horizontal, BIRGELayout.m)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.35), value: store.step)
 
                 Spacer()
                 Spacer()
@@ -82,8 +78,8 @@ struct OTPView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     Spacer()
                 }
-                .animation(.spring(duration: 0.4), value: store.errorMessage)
-                .padding(.top, 60)
+                .animation(reduceMotion ? nil : .spring(duration: 0.4), value: store.errorMessage)
+                .padding(.top, BIRGELayout.xxxl + BIRGELayout.xs)
             }
 
             // Loading overlay
@@ -92,6 +88,9 @@ struct OTPView: View {
             }
         }
         .navigationBarHidden(true)
+        .onDisappear {
+            resendTimerTask?.cancel()
+        }
     }
 }
 
@@ -100,184 +99,196 @@ struct OTPView: View {
 private extension OTPView {
 
     var brandHeader: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: BIRGELayout.xs) {
             Image(systemName: "car.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.35, green: 0.8, blue: 0.55),
-                            Color(red: 0.2, green: 0.65, blue: 0.9),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .font(BIRGEFonts.verifyCode)
+                .foregroundStyle(BIRGEColors.textOnBrand)
 
             Text("BIRGE")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .font(BIRGEFonts.heroNumber)
+                .foregroundStyle(BIRGEColors.textOnBrand)
 
             Text("Поехали вместе")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.5))
+                .font(BIRGEFonts.subtext)
+                .foregroundStyle(BIRGEColors.textOnBrand.opacity(0.72))
         }
     }
 
     var phoneInputSection: some View {
-        VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: BIRGELayout.m) {
+            VStack(alignment: .leading, spacing: BIRGELayout.xxs) {
                 Text("Номер телефона")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .font(BIRGEFonts.subtext)
+                    .foregroundStyle(BIRGEColors.textOnBrand.opacity(0.78))
 
-                HStack(spacing: 12) {
+                HStack(spacing: BIRGELayout.xs) {
                     Text("+7")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        .font(BIRGEFonts.sectionTitle)
+                        .foregroundStyle(BIRGEColors.textOnBrand)
+                        .padding(.horizontal, BIRGELayout.xs)
+                        .padding(.vertical, BIRGELayout.xs)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.08))
+                            RoundedRectangle(cornerRadius: BIRGELayout.radiusS)
+                                .fill(BIRGEColors.surfacePrimary.opacity(0.22))
                         )
 
                     TextField("700 123 45 67", text: phoneBinding)
                         .keyboardType(.phonePad)
-                        .font(.title3.weight(.medium))
-                        .foregroundStyle(.white)
-                        .tint(Color(red: 0.35, green: 0.8, blue: 0.55))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                        .font(BIRGEFonts.sectionTitle)
+                        .foregroundStyle(BIRGEColors.textOnBrand)
+                        .tint(BIRGEColors.textOnBrand)
+                        .padding(.horizontal, BIRGELayout.s)
+                        .padding(.vertical, BIRGELayout.xs)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.06))
+                            RoundedRectangle(cornerRadius: BIRGELayout.radiusS)
+                                .fill(BIRGEColors.surfacePrimary.opacity(0.18))
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            RoundedRectangle(cornerRadius: BIRGELayout.radiusS)
                                 .stroke(
-                                    Color.white.opacity(0.1),
+                                    BIRGEColors.textOnBrand.opacity(0.14),
                                     lineWidth: 1
                                 )
                         )
                 }
             }
 
-            actionButton(
-                title: "Получить код",
-                isEnabled: store.phoneNumber.count >= 10
-            ) {
+            BIRGEPrimaryButton(title: "Получить код", isLoading: store.isLoading) {
                 store.send(.sendOTPTapped)
             }
+            .disabled(store.phoneNumber.count < 10 || store.isLoading)
+            .opacity(store.phoneNumber.count >= 10 ? 1 : 0.55)
         }
     }
 
     var codeInputSection: some View {
-        VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: BIRGELayout.m) {
+            VStack(alignment: .leading, spacing: BIRGELayout.xxs) {
                 Text("Код подтверждения")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .font(BIRGEFonts.subtext)
+                    .foregroundStyle(BIRGEColors.textOnBrand.opacity(0.78))
 
                 Text("Код отправлен на +7 \(store.phoneNumber)")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.4))
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textOnBrand.opacity(0.62))
 
-                TextField("000000", text: codeBinding)
-                    .keyboardType(.numberPad)
-                    .font(.system(size: 32, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .tint(Color(red: 0.35, green: 0.8, blue: 0.55))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(0.06))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(
-                                Color.white.opacity(0.1),
-                                lineWidth: 1
-                            )
-                    )
+                otpBoxes
+                    .padding(.top, BIRGELayout.xs)
+
+                resendRow
+                    .padding(.top, BIRGELayout.xxs)
             }
 
-            actionButton(
-                title: "Войти",
-                isEnabled: store.otpCode.count == 6
-            ) {
+            BIRGEPrimaryButton(title: "Войти", isLoading: store.isLoading) {
                 store.send(.verifyTapped)
             }
+            .disabled(store.otpCode.count != 6 || store.isLoading)
+            .opacity(store.otpCode.count == 6 ? 1 : 0.55)
+        }
+        .onAppear {
+            isCodeFieldFocused = true
+            startResendTimer()
+        }
+        .onChange(of: store.step) { _, step in
+            guard step == .code else { return }
+            isCodeFieldFocused = true
+            startResendTimer()
         }
     }
 
-    func actionButton(
-        title: String,
-        isEnabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(
-                            isEnabled
-                                ? LinearGradient(
-                                    colors: [
-                                        Color(red: 0.3, green: 0.75, blue: 0.5),
-                                        Color(red: 0.2, green: 0.6, blue: 0.85),
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                                : LinearGradient(
-                                    colors: [
-                                        Color.gray.opacity(0.3),
-                                        Color.gray.opacity(0.3),
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                        )
-                )
+    var otpBoxes: some View {
+        ZStack {
+            TextField("", text: codeBinding)
+                .keyboardType(.numberPad)
+                .textContentType(.oneTimeCode)
+                .focused($isCodeFieldFocused)
+                .frame(width: 1, height: 1)
+                .opacity(0.01)
+                .accessibilityHidden(true)
+
+            HStack(spacing: BIRGELayout.xxs) {
+                ForEach(0..<6, id: \.self) { index in
+                    otpBox(at: index)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isCodeFieldFocused = true
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Код подтверждения: \(store.otpCode)")
         }
-        .disabled(!isEnabled)
+    }
+
+    func otpBox(at index: Int) -> some View {
+        let characters = Array(store.otpCode.prefix(6))
+        let hasError = store.errorMessage != nil
+        let isFocused = isCodeFieldFocused && index == min(store.otpCode.count, 5)
+        let value = index < characters.count ? String(characters[index]) : ""
+
+        return Text(value)
+            .font(BIRGEFonts.otpDigit)
+            .foregroundStyle(BIRGEColors.textPrimary)
+            .frame(width: 56, height: 64)
+            .background(
+                RoundedRectangle(cornerRadius: BIRGELayout.radiusS)
+                    .fill(hasError ? BIRGEColors.danger.opacity(0.14) : BIRGEColors.surfacePrimary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: BIRGELayout.radiusS)
+                    .stroke(
+                        hasError ? BIRGEColors.danger : (isFocused ? BIRGEColors.brandPrimary : BIRGEColors.textTertiary.opacity(0.28)),
+                        lineWidth: hasError || isFocused ? 2 : 1
+                    )
+            )
+    }
+
+    var resendRow: some View {
+        Group {
+            if resendSecondsRemaining > 0 {
+                Text("Повторить через 0:\(String(format: "%02d", resendSecondsRemaining))")
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textOnBrand.opacity(0.68))
+            } else {
+                Button("Повторить код") {
+                    store.send(.sendOTPTapped)
+                    startResendTimer()
+                }
+                .font(BIRGEFonts.captionBold)
+                .foregroundStyle(BIRGEColors.textOnBrand)
+                .birgeTapTarget()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    func startResendTimer() {
+        resendTimerTask?.cancel()
+        resendSecondsRemaining = 60
+        resendTimerTask = Task { @MainActor in
+            while resendSecondsRemaining > 0 {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                resendSecondsRemaining -= 1
+            }
+        }
     }
 
     func errorBanner(message: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.white)
-            Text(message)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-            Spacer()
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.red.opacity(0.85))
-        )
-        .padding(.horizontal, 20)
+        BIRGEToast(message: message, style: .error)
+            .padding(.horizontal, BIRGELayout.m)
     }
 
     var loadingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            BIRGEColors.overlay
                 .ignoresSafeArea()
             ProgressView()
-                .tint(.white)
+                .tint(BIRGEColors.textOnBrand)
                 .scaleEffect(1.5)
-                .padding(32)
+                .padding(BIRGELayout.xl)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: BIRGELayout.radiusM)
                         .fill(.ultraThinMaterial)
                 )
         }
@@ -295,7 +306,7 @@ private extension OTPView {
     var codeBinding: Binding<String> {
         Binding(
             get: { store.otpCode },
-            set: { store.send(.otpChanged($0)) }
+            set: { store.send(.otpChanged(String($0.filter(\.isNumber).prefix(6)))) }
         )
     }
 }

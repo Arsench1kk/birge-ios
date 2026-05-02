@@ -4,94 +4,124 @@
 //
 
 import ComposableArchitecture
+import Charts
 import SwiftUI
 
 struct EarningsView: View {
     let store: StoreOf<EarningsFeature>
 
+    private struct WeeklyPoint: Identifiable {
+        let id = UUID()
+        let day: String
+        let amount: Int
+    }
+
+    private var weeklyData: [WeeklyPoint] {
+        [
+            WeeklyPoint(day: "Пн", amount: max(0, store.weekTenge / 7 - 1200)),
+            WeeklyPoint(day: "Вт", amount: max(0, store.weekTenge / 7 + 800)),
+            WeeklyPoint(day: "Ср", amount: max(0, store.weekTenge / 7 - 400)),
+            WeeklyPoint(day: "Чт", amount: max(0, store.weekTenge / 7 + 1600)),
+            WeeklyPoint(day: "Пт", amount: max(0, store.weekTenge / 7 + 2200)),
+            WeeklyPoint(day: "Сб", amount: max(0, store.weekTenge / 7 - 700)),
+            WeeklyPoint(day: "Вс", amount: max(0, store.weekTenge / 7 - 2300)),
+        ]
+    }
+
     var body: some View {
         List {
-            // Stats cards section
             Section {
-                statsGrid
+                todayHeroCard
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
-                    .padding(.vertical, 8)
+                    .padding(.vertical, BIRGELayout.xxs)
             }
 
-            // Today's rides
+            Section("Неделя") {
+                weeklyChart
+            }
+
             Section("Поездки сегодня") {
-                ForEach(store.mockRides) { ride in
-                    rideRow(ride)
+                if store.mockRides.isEmpty {
+                    ContentUnavailableView(
+                        "Поездок пока нет",
+                        systemImage: "car.fill",
+                        description: Text("Здесь появятся ваши поездки за сегодня.")
+                    )
+                } else {
+                    ForEach(store.mockRides) { ride in
+                        rideRow(ride)
+                    }
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(BIRGEColors.surfaceGrouped)
         .navigationTitle("Заработок")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .onAppear { store.send(.onAppear) }
     }
 
-    private var statsGrid: some View {
-        HStack(spacing: 12) {
-            statCard(
-                title: "Сегодня",
-                value: "\(store.todayTenge)₸",
-                subtitle: "\(store.todayRides) поездок",
-                icon: "sun.max.fill",
-                color: .orange
-            )
-            statCard(
-                title: "За неделю",
-                value: "\(store.weekTenge)₸",
-                subtitle: "Текущая неделя",
-                icon: "calendar",
-                color: .blue
-            )
-        }
-        .padding(.horizontal, 4)
-    }
-
-    private func statCard(title: String, value: String, subtitle: String, icon: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                    .font(.subheadline)
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+    private var todayHeroCard: some View {
+        VStack(alignment: .leading, spacing: BIRGELayout.xs) {
+            HStack {
+                Label("Сегодня", systemImage: "sun.max.fill")
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.warning)
+                Spacer()
+                Text("\(store.todayRides) поездок")
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
             }
 
-            Text(value)
-                .font(.title2.weight(.bold))
+            Text("\(store.todayTenge)₸")
+                .font(BIRGEFonts.heroNumber)
+                .foregroundStyle(BIRGEColors.textPrimary)
 
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text("За неделю: \(store.weekTenge)₸")
+                .font(BIRGEFonts.subtext)
+                .foregroundStyle(BIRGEColors.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(.systemBackground))
-        .cornerRadius(14)
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .padding(BIRGELayout.m)
+        .birgeCard()
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+
+    private var weeklyChart: some View {
+        Chart {
+            ForEach(weeklyData) { point in
+                BarMark(
+                    x: .value("День", point.day),
+                    y: .value("₸", point.amount)
+                )
+                .foregroundStyle(BIRGEColors.brandPrimary)
+            }
+        }
+        .frame(height: 180)
+        .chartYAxis {
+            AxisMarks(position: .leading)
+        }
+        .padding(.vertical, BIRGELayout.xs)
     }
 
     private func rideRow(_ ride: RideRecord) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: BIRGELayout.xs) {
+            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
                 Text(ride.route)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(BIRGEFonts.bodyMedium)
+                    .lineLimit(2)
                 Text(ride.time)
-                    .font(.caption)
+                    .font(BIRGEFonts.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Text("\(ride.fare)₸")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Color(.systemGreen))
+                .font(BIRGEFonts.bodyMedium)
+                .foregroundStyle(BIRGEColors.success)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, BIRGELayout.xxxs)
     }
 }
 

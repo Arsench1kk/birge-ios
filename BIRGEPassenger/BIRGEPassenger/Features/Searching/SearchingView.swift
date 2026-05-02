@@ -4,121 +4,86 @@ import SwiftUI
 @ViewAction(for: SearchingFeature.self)
 struct SearchingView: View {
     @Bindable var store: StoreOf<SearchingFeature>
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAnimating = false
     
     var body: some View {
         ZStack {
             // Background
-            LinearGradient(
-                colors: [Color(hex: "0F172A"), Color(hex: "1E3A5F")],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            BIRGEColors.brandPrimary
             .ignoresSafeArea()
             
             // Center Content
             VStack(spacing: 0) {
                 // RADAR ANIMATION
                 ZStack {
+                    if reduceMotion {
+                        ProgressView()
+                            .tint(BIRGEColors.textOnBrand)
+                            .scaleEffect(1.4)
+                    } else {
+                        radarRing(size: 180, opacity: 0.15, delay: 0.6)
+                        radarRing(size: 130, opacity: 0.35, delay: 0.3)
+                        radarRing(size: 80, opacity: 0.6, delay: 0)
+                    }
+
                     Circle()
-                        .fill(Color.blue.opacity(0.15))
-                        .frame(width: 180, height: 180)
-                        .scaleEffect(isAnimating ? 1.8 : 1.0)
-                        .opacity(isAnimating ? 0 : 1)
-                        .animation(
-                            .easeOut(duration: 1.5)
-                            .repeatForever(autoreverses: false)
-                            .delay(0.6),
-                            value: isAnimating
-                        )
-                    
-                    Circle()
-                        .fill(Color.blue.opacity(0.35))
-                        .frame(width: 130, height: 130)
-                        .scaleEffect(isAnimating ? 1.8 : 1.0)
-                        .opacity(isAnimating ? 0 : 1)
-                        .animation(
-                            .easeOut(duration: 1.5)
-                            .repeatForever(autoreverses: false)
-                            .delay(0.3),
-                            value: isAnimating
-                        )
-                    
-                    Circle()
-                        .fill(Color.blue.opacity(0.6))
-                        .frame(width: 80, height: 80)
-                        .scaleEffect(isAnimating ? 1.8 : 1.0)
-                        .opacity(isAnimating ? 0 : 1)
-                        .animation(
-                            .easeOut(duration: 1.5)
-                            .repeatForever(autoreverses: false),
-                            value: isAnimating
-                        )
-                    
-                    Circle()
-                        .fill(Color.white)
+                        .fill(BIRGEColors.surfacePrimary)
                         .frame(width: 60, height: 60)
                         .overlay(
                             Image(systemName: "car.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(Color.blue)
+                                .font(BIRGEFonts.title)
+                                .foregroundStyle(BIRGEColors.brandPrimary)
                         )
                 }
-                .padding(.bottom, 32)
+                .padding(.bottom, BIRGELayout.xl)
                 
                 // STATUS TEXT
                 Text("Ищем водителя")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(BIRGEFonts.title)
+                    .foregroundStyle(BIRGEColors.textOnBrand)
                     .frame(width: 250, alignment: .center)
                 
                 Text(store.statusText)
-                    .font(.system(size: 15))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .font(BIRGEFonts.body)
+                    .foregroundStyle(BIRGEColors.textOnBrand.opacity(0.72))
                     .multilineTextAlignment(.center)
-                    .padding(.top, 4)
+                    .padding(.top, BIRGELayout.xxxs)
 
                 if let errorMessage = store.errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.red.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 12)
+                    BIRGEToast(message: errorMessage, style: .error)
+                        .padding(.horizontal, BIRGELayout.l)
+                        .padding(.top, BIRGELayout.xs)
                 }
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
+            BIRGESecondaryButton(title: store.isCancelling ? "Отменяем..." : "Отменить поиск", isLoading: store.isCancelling) {
                 send(.cancelTapped)
-            } label: {
-                HStack(spacing: 10) {
-                    if store.isCancelling {
-                        ProgressView()
-                            .tint(.white)
-                    }
-                    Text(store.isCancelling ? "Отменяем..." : "Отменить поиск")
-                        .font(.system(size: 17))
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(Color.clear)
-                .cornerRadius(14)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white, lineWidth: 1)
-                )
             }
             .disabled(store.isCancelling)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            .padding(.horizontal, BIRGELayout.s)
+            .padding(.bottom, BIRGELayout.s)
         }
         .onAppear {
             isAnimating = true
             send(.onAppear)
         }
         .navigationBarHidden(true)
+    }
+
+    private func radarRing(size: CGFloat, opacity: Double, delay: Double) -> some View {
+        Circle()
+            .fill(BIRGEColors.textOnBrand.opacity(opacity))
+            .frame(width: size, height: size)
+            .scaleEffect(isAnimating ? 1.8 : 1.0)
+            .opacity(isAnimating ? 0 : 1)
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 1.5)
+                    .repeatForever(autoreverses: false)
+                    .delay(delay),
+                value: isAnimating
+            )
     }
 }
 

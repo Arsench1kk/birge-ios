@@ -20,10 +20,11 @@ struct HomeView: View {
                 Annotation("", coordinate: CLLocationCoordinate2D(latitude: store.driverLat, longitude: store.driverLng)) {
                     ZStack {
                         Circle()
-                            .fill(BIRGEColors.blue)
-                            .frame(width: 32, height: 32)
-                        Text("🚗")
-                            .font(.system(size: 16))
+                            .fill(BIRGEColors.brandPrimary)
+                            .frame(width: BIRGELayout.xl, height: BIRGELayout.xl)
+                        Image(systemName: "car.fill")
+                            .font(BIRGEFonts.captionBold)
+                            .foregroundStyle(BIRGEColors.textOnBrand)
                     }
                 }
             }
@@ -33,9 +34,9 @@ struct HomeView: View {
             
             // Top Overlay
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: BIRGELayout.xxs) {
                     Text("Доброе утро 👋")
-                        .font(.caption)
+                        .font(BIRGEFonts.caption)
                         .foregroundStyle(BIRGEColors.textSecondary)
                     
                     Button {
@@ -43,17 +44,18 @@ struct HomeView: View {
                     } label: {
                         HStack {
                             Text("🔍  Куда едем?")
+                                .font(BIRGEFonts.body)
                                 .foregroundStyle(BIRGEColors.textSecondary)
                             Spacer()
                         }
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(16)
+                        .padding(BIRGELayout.s)
+                        .background(BIRGEColors.background)
+                        .cornerRadius(BIRGELayout.radiusM)
                         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.horizontal, BIRGELayout.s)
+                .padding(.top, BIRGELayout.s)
                 
                 Spacer()
                 
@@ -63,14 +65,15 @@ struct HomeView: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(BIRGEColors.blue)
-                            .frame(width: 44, height: 44)
+                            .fill(BIRGEColors.brandPrimary)
+                            .frame(width: BIRGELayout.minTapTarget, height: BIRGELayout.minTapTarget)
                         Image(systemName: "person.fill")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(BIRGEColors.textOnBrand)
                     }
                 }
-                .padding(.trailing, 16)
-                .padding(.top, 16)
+                .accessibilityLabel("Профиль")
+                .padding(.trailing, BIRGELayout.s)
+                .padding(.top, BIRGELayout.s)
             }
             
         }
@@ -82,55 +85,53 @@ struct HomeView: View {
     
     var bottomSheet: some View {
         VStack(spacing: 0) {
-            // Drag indicator
-            Capsule()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 36, height: 4)
-                .padding(.top, 8)
-                .padding(.bottom, 16)
+            BIRGESheetHandle()
+                .padding(.top, BIRGELayout.xxs)
+                .padding(.bottom, BIRGELayout.s)
             
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: BIRGELayout.s) {
                 Text("Мои коридоры")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(BIRGEFonts.sectionTitle)
                 
                 if store.corridors.isEmpty {
-                    VStack(spacing: 12) {
+                    VStack(spacing: BIRGELayout.xs) {
                         Image(systemName: "map.circle")
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray)
+                            .font(BIRGEFonts.heroNumber)
+                            .foregroundColor(BIRGEColors.textTertiary)
                         Text("Коридоры загружаются...")
-                            .foregroundColor(.gray)
-                            .font(.system(size: 15))
+                            .foregroundColor(BIRGEColors.textSecondary)
+                            .font(BIRGEFonts.body)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 40)
+                    .padding(.vertical, BIRGELayout.xxl)
                 } else {
                     ForEach(store.corridors) { corridor in
                         Button {
                             send(.corridorTapped(corridor))
                         } label: {
-                            HStack(spacing: 12) {
+                            HStack(spacing: BIRGELayout.xs) {
                                 Rectangle()
-                                    .fill(BIRGEColors.blue)
-                                    .frame(width: 3)
+                                    .fill(BIRGEColors.brandPrimary)
+                                    .frame(width: 3, height: 40)
                                 
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
                                     Text(corridor.name)
-                                        .font(.system(size: 15, weight: .bold))
+                                        .font(BIRGEFonts.bodyMedium)
                                         .foregroundStyle(.primary)
+                                        .lineLimit(1)
                                     Text(corridor.departure)
-                                        .font(.caption)
+                                        .font(BIRGEFonts.caption)
                                         .foregroundStyle(BIRGEColors.textSecondary)
                                 }
                                 
                                 Spacer()
                                 
-                                VStack(alignment: .trailing, spacing: 4) {
+                                VStack(alignment: .trailing, spacing: BIRGELayout.xxxs) {
                                     Text("\(corridor.price)₸")
-                                        .font(.system(size: 15, weight: .bold))
-                                        .foregroundStyle(BIRGEColors.blue)
+                                        .font(BIRGEFonts.bodyMedium)
+                                        .foregroundStyle(BIRGEColors.brandPrimary)
                                     Text("\(corridor.seatsLeft) места")
-                                        .font(.caption)
+                                        .font(BIRGEFonts.caption)
                                         .foregroundStyle(BIRGEColors.textSecondary)
                                 }
                                 
@@ -138,27 +139,26 @@ struct HomeView: View {
                                     .font(.caption)
                                     .foregroundStyle(BIRGEColors.textSecondary)
                             }
-                            .padding(.vertical, 8)
-                            .padding(.trailing, 12)
-                            .background(BIRGEColors.surfaceSecondary)
-                            .cornerRadius(12)
+                            .padding(.horizontal, BIRGELayout.xs)
+                            .frame(height: 80)
+                            .birgeCard()
                         }
                     }
                 }
                 
                 Divider()
-                    .padding(.vertical, 8)
+                    .padding(.vertical, BIRGELayout.xxs)
                 
                 Button {
                     send(.callTaxiTapped)
                 } label: {
-                    HStack(spacing: 16) {
+                    HStack(spacing: BIRGELayout.s) {
                         Image(systemName: "car.fill")
-                            .foregroundStyle(BIRGEColors.blue)
-                            .font(.system(size: 20))
+                            .foregroundStyle(BIRGEColors.brandPrimary)
+                            .font(BIRGEFonts.sectionTitle)
                         
                         Text("Стандарт  ·  ~4 мин  ·  от 900₸")
-                            .font(.system(size: 15))
+                            .font(BIRGEFonts.body)
                             .foregroundStyle(.primary)
                         
                         Spacer()
@@ -167,18 +167,19 @@ struct HomeView: View {
                             .font(.caption)
                             .foregroundStyle(BIRGEColors.textSecondary)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, BIRGELayout.xxs)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 32)
+            .padding(.horizontal, BIRGELayout.m)
+            .padding(.bottom, BIRGELayout.xl)
         }
+        .frame(maxHeight: 220)
         .background(
-            Color.white
+            BIRGEColors.background
                 .clipShape(
                     .rect(
-                        topLeadingRadius: 24,
-                        topTrailingRadius: 24
+                        topLeadingRadius: BIRGELayout.radiusL,
+                        topTrailingRadius: BIRGELayout.radiusL
                     )
                 )
                 .shadow(color: .black.opacity(0.05), radius: 10, y: -5)

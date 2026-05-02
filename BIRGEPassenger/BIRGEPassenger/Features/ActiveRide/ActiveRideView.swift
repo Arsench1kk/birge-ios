@@ -5,6 +5,7 @@ import SwiftUI
 @ViewAction(for: ActiveRideFeature.self)
 struct ActiveRideView: View {
     @Bindable var store: StoreOf<ActiveRideFeature>
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var position: MapCameraPosition = .region(
         MKCoordinateRegion(
@@ -27,14 +28,14 @@ struct ActiveRideView: View {
                 ) {
                     ZStack {
                         Circle()
-                            .fill(BIRGEColors.blue)
-                            .frame(width: 44, height: 44)
-                            .shadow(color: BIRGEColors.blue.opacity(0.4), radius: 8, y: 4)
+                            .fill(BIRGEColors.brandPrimary)
+                            .frame(width: BIRGELayout.minTapTarget, height: BIRGELayout.minTapTarget)
+                            .shadow(color: BIRGEColors.brandPrimary.opacity(0.4), radius: 8, y: 4)
                         Image(systemName: "car.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white)
+                            .font(BIRGEFonts.sectionTitle)
+                            .foregroundStyle(BIRGEColors.textOnBrand)
                     }
-                    .animation(.linear(duration: 1), value: store.driverLat)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: store.driverLat)
                 }
 
                 // Passenger annotation
@@ -47,7 +48,7 @@ struct ActiveRideView: View {
                             .fill(.white)
                             .frame(width: 20, height: 20)
                         Circle()
-                            .fill(BIRGEColors.blue)
+                            .fill(BIRGEColors.brandPrimary)
                             .frame(width: 16, height: 16)
                     }
                 }
@@ -59,11 +60,11 @@ struct ActiveRideView: View {
             // LAYER 2 — Status pill
             statusPill
                 .padding(.top, 60)
-                .animation(.spring(response: 0.5), value: store.status)
+                .animation(reduceMotion ? nil : .spring(response: 0.5), value: store.status)
         }
         .safeAreaInset(edge: .bottom) {
             bottomSheet
-                .animation(.spring(response: 0.5), value: store.status)
+                .animation(reduceMotion ? nil : .spring(response: 0.5), value: store.status)
         }
         .onAppear {
             send(.onAppear)
@@ -76,31 +77,22 @@ struct ActiveRideView: View {
     @ViewBuilder
     private var statusPill: some View {
         let config = pillConfig(for: store.status)
-        HStack(spacing: 6) {
-            Text(config.emoji)
-            Text(config.text)
-                .font(.system(size: 14, weight: .semibold))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 20)
-        .frame(height: 36)
-        .background(
-            Capsule()
-                .fill(config.color)
-                .shadow(color: config.color.opacity(0.3), radius: 8, y: 4)
-        )
+        BIRGEStatusPill(label: "\(config.emoji) \(config.text)", color: config.color)
+            .lineLimit(2)
+            .frame(maxWidth: 200)
+            .shadow(color: config.color.opacity(0.3), radius: 8, y: 4)
     }
 
     private func pillConfig(for status: RideStatus) -> (emoji: String, text: String, color: Color) {
         switch status {
         case .driverArriving:
-            return ("🕐", "Водитель едет · \(store.etaMinutes) мин", BIRGEColors.blue)
+            return ("🕐", "Водитель едет · \(store.etaMinutes) мин", BIRGEColors.brandPrimary)
         case .passengerWait:
-            return ("🚗", "Водитель ждёт вас", .orange)
+            return ("🚗", "Водитель ждёт вас", BIRGEColors.warning)
         case .inProgress:
-            return ("🟢", "Вы едете · \(store.etaMinutes) мин", .green)
+            return ("🟢", "Вы едете · \(store.etaMinutes) мин", BIRGEColors.success)
         default:
-            return ("", "", .gray)
+            return ("", "", BIRGEColors.textTertiary)
         }
     }
 
@@ -109,12 +101,9 @@ struct ActiveRideView: View {
     @ViewBuilder
     private var bottomSheet: some View {
         VStack(spacing: 0) {
-            // Drag indicator
-            Capsule()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 36, height: 4)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
+            BIRGESheetHandle()
+                .padding(.top, BIRGELayout.xxs)
+                .padding(.bottom, BIRGELayout.xs)
 
             switch store.status {
             case .driverArriving, .passengerWait:
@@ -126,11 +115,11 @@ struct ActiveRideView: View {
             }
         }
         .background(
-            Color.white
+            BIRGEColors.background
                 .clipShape(
                     .rect(
-                        topLeadingRadius: 24,
-                        topTrailingRadius: 24
+                        topLeadingRadius: BIRGELayout.radiusL,
+                        topTrailingRadius: BIRGELayout.radiusL
                     )
                 )
                 .shadow(color: .black.opacity(0.08), radius: 12, y: -4)
@@ -143,27 +132,27 @@ struct ActiveRideView: View {
     private var driverArrivingSheet: some View {
         VStack(spacing: 0) {
             // Driver info row
-            HStack(alignment: .top, spacing: 14) {
+            HStack(alignment: .top, spacing: BIRGELayout.xs) {
                 // Avatar
                 ZStack {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [BIRGEColors.blue, BIRGEColors.blue.opacity(0.7)],
+                                colors: [BIRGEColors.brandPrimary, BIRGEColors.brandPrimary.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 52, height: 52)
                     Text("👨‍💼")
-                        .font(.system(size: 24))
+                        .font(BIRGEFonts.title)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.driver.name)
                         .font(.headline)
 
-                    HStack(spacing: 4) {
+                    HStack(spacing: BIRGELayout.xxxs) {
                         Image(systemName: "star.fill")
                             .foregroundColor(.yellow)
                             .font(.caption)
@@ -177,11 +166,11 @@ struct ActiveRideView: View {
                     }
 
                     Text(store.driver.plate)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .font(BIRGEFonts.captionBold)
+                        .padding(.horizontal, BIRGELayout.xxs)
+                        .padding(.vertical, BIRGELayout.xxxs)
                         .background(Color(.systemGray6))
-                        .cornerRadius(6)
+                        .cornerRadius(BIRGELayout.radiusXS)
                 }
 
                 Spacer()
@@ -192,22 +181,23 @@ struct ActiveRideView: View {
                 } label: {
                     Image(systemName: "phone.fill")
                         .foregroundColor(.white)
-                        .font(.system(size: 18))
-                        .frame(width: 44, height: 44)
-                        .background(BIRGEColors.blue)
+                        .font(BIRGEFonts.sectionTitle)
+                        .frame(width: BIRGELayout.minTapTarget, height: BIRGELayout.minTapTarget)
+                        .background(BIRGEColors.brandPrimary)
                         .clipShape(Circle())
-                        .shadow(color: BIRGEColors.blue.opacity(0.3), radius: 6, y: 3)
+                        .shadow(color: BIRGEColors.brandPrimary.opacity(0.3), radius: 6, y: 3)
                 }
+                .accessibilityLabel("Позвонить водителю")
             }
-            .padding(20)
+            .padding(BIRGELayout.m)
 
             Divider()
 
             // ETA row
-            HStack(spacing: 10) {
+            HStack(spacing: BIRGELayout.xxs) {
                 Image(systemName: "mappin.circle.fill")
-                    .foregroundColor(BIRGEColors.blue)
-                    .font(.system(size: 20))
+                    .foregroundColor(BIRGEColors.brandPrimary)
+                    .font(BIRGEFonts.sectionTitle)
 
                 if store.status == .passengerWait {
                     Text("Водитель ждёт вас у подъезда")
@@ -219,8 +209,8 @@ struct ActiveRideView: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, BIRGELayout.m)
+            .padding(.vertical, BIRGELayout.xs)
 
             // Cancel button
             Button {
@@ -230,7 +220,7 @@ struct ActiveRideView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            .padding(.bottom, 20)
+            .padding(.bottom, BIRGELayout.m)
         }
     }
 
@@ -238,21 +228,21 @@ struct ActiveRideView: View {
 
     @ViewBuilder
     private var inProgressSheet: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .top, spacing: 14) {
+        VStack(spacing: BIRGELayout.s) {
+            HStack(alignment: .top, spacing: BIRGELayout.xs) {
                 // Avatar
                 ZStack {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [BIRGEColors.blue, BIRGEColors.blue.opacity(0.7)],
+                                colors: [BIRGEColors.brandPrimary, BIRGEColors.brandPrimary.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 52, height: 52)
                     Text("👨‍💼")
-                        .font(.system(size: 24))
+                        .font(BIRGEFonts.title)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -274,23 +264,23 @@ struct ActiveRideView: View {
                     Text("1 850₸")
                         .font(.title3)
                         .bold()
-                        .foregroundColor(BIRGEColors.blue)
+                        .foregroundColor(BIRGEColors.brandPrimary)
                     Text("Стоимость")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: BIRGELayout.xxs) {
                 Image(systemName: "mappin.circle.fill")
-                    .foregroundColor(BIRGEColors.blue)
-                    .font(.system(size: 20))
+                    .foregroundColor(BIRGEColors.brandPrimary)
+                    .font(BIRGEFonts.sectionTitle)
                 Text("Есентай Парк · ~\(store.etaMinutes) мин")
                     .font(.subheadline)
                 Spacer()
             }
         }
-        .padding(20)
+        .padding(BIRGELayout.m)
     }
 }
 

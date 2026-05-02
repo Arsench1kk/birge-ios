@@ -46,7 +46,7 @@ struct CorridorPlaceholderView: View {
                 .foregroundStyle(BIRGEColors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+        .background(BIRGEColors.background)
         .navigationTitle("Коридор")
         .navigationBarTitleDisplayMode(.inline)
     }

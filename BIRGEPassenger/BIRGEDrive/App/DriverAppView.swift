@@ -8,6 +8,9 @@ import SwiftUI
 
 struct DriverAppView: View {
     @Bindable var store: StoreOf<DriverAppFeature>
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var offerSecondsRemaining = 15
+    @State private var offerTimerTask: Task<Void, Never>?
 
     private enum Texts {
         static let pickingUpStatus = "Едем за пассажиром"
@@ -21,7 +24,7 @@ struct DriverAppView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             // Background
-            Color(.systemGroupedBackground)
+            BIRGEColors.surfaceGrouped
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -53,9 +56,20 @@ struct DriverAppView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(duration: 0.45), value: store.currentOffer != nil)
-        .animation(.spring(duration: 0.45), value: store.activeRide != nil)
-        .animation(.easeInOut(duration: 0.3), value: store.isOnline)
+        .animation(reduceMotion ? nil : .spring(duration: 0.45), value: store.currentOffer != nil)
+        .animation(reduceMotion ? nil : .spring(duration: 0.45), value: store.activeRide != nil)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: store.isOnline)
+        .onChange(of: store.currentOffer != nil) { _, hasOffer in
+            if hasOffer {
+                startOfferCountdown()
+            } else {
+                offerTimerTask?.cancel()
+                offerSecondsRemaining = 15
+            }
+        }
+        .onDisappear {
+            offerTimerTask?.cancel()
+        }
         .navigationBarHidden(true)
     }
 
@@ -64,7 +78,7 @@ struct DriverAppView: View {
     private var topBar: some View {
         HStack {
             Text("BIRGE Driver")
-                .font(.system(size: 22, weight: .bold))
+                .font(BIRGEFonts.title)
 
             Spacer()
 
@@ -74,22 +88,23 @@ struct DriverAppView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "banknote.fill")
-                        .font(.system(size: 14))
+                        .font(BIRGEFonts.captionBold)
                     Text("\(store.earnings.todayTenge)₸")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(BIRGEFonts.captionBold)
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .foregroundStyle(BIRGEColors.textOnBrand)
+                .padding(.horizontal, BIRGELayout.xs)
+                .padding(.vertical, BIRGELayout.xxs)
                 .background(
-                    Capsule().fill(Color.green)
+                    Capsule().fill(BIRGEColors.success)
                 )
             }
+            .accessibilityLabel("Заработок сегодня: \(store.earnings.todayTenge) тенге")
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 12)
-        .background(Color(.systemBackground))
+        .padding(.horizontal, BIRGELayout.m)
+        .padding(.top, BIRGELayout.s)
+        .padding(.bottom, BIRGELayout.xs)
+        .background(BIRGEColors.background)
         .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
     }
 
@@ -110,98 +125,89 @@ struct DriverAppView: View {
     // MARK: - Offline Center
 
     private var offlineCenter: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: BIRGELayout.l) {
             ZStack {
                 Circle()
-                    .fill(Color.green.opacity(0.12))
+                    .fill(BIRGEColors.success.opacity(0.12))
                     .frame(width: 140, height: 140)
 
                 Circle()
-                    .fill(Color.green.opacity(0.08))
+                    .fill(BIRGEColors.success.opacity(0.08))
                     .frame(width: 110, height: 110)
 
                 Image(systemName: "car.fill")
-                    .font(.system(size: 42))
-                    .foregroundStyle(Color.green)
+                    .font(BIRGEFonts.heroNumber)
+                    .foregroundStyle(BIRGEColors.success)
             }
 
-            VStack(spacing: 8) {
+            VStack(spacing: BIRGELayout.xxs) {
                 Text("Вы офлайн")
-                    .font(.title2.weight(.bold))
+                    .font(BIRGEFonts.title)
                     .foregroundStyle(.primary)
 
                 Text("Нажмите, чтобы начать принимать заказы")
-                    .font(.subheadline)
+                    .font(BIRGEFonts.subtext)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
-            Button {
+            BIRGEPrimaryButton(title: "Начать работу") {
                 store.send(.toggleOnline)
-            } label: {
-                Text("Начать работу")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.green, Color(red: 0.1, green: 0.7, blue: 0.4)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(18)
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, BIRGELayout.xl)
         }
     }
 
     // MARK: - Online Waiting
 
     private var onlineWaiting: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: BIRGELayout.l) {
             ZStack {
                 // Pulsing rings
-                PulseRing(delay: 0.0, color: .green)
-                PulseRing(delay: 0.5, color: .green)
-                PulseRing(delay: 1.0, color: .green)
+                if reduceMotion {
+                    ProgressView()
+                        .tint(BIRGEColors.success)
+                        .scaleEffect(1.3)
+                } else {
+                    PulseRing(delay: 0.0, color: BIRGEColors.success)
+                    PulseRing(delay: 0.5, color: BIRGEColors.success)
+                    PulseRing(delay: 1.0, color: BIRGEColors.success)
+                }
 
                 Circle()
-                    .fill(Color.green)
+                    .fill(BIRGEColors.success)
                     .frame(width: 70, height: 70)
                     .overlay(
                         Image(systemName: "antenna.radiowaves.left.and.right")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.white)
+                            .font(BIRGEFonts.title)
+                            .foregroundStyle(BIRGEColors.textOnBrand)
                     )
             }
             .frame(width: 160, height: 160)
 
-            VStack(spacing: 6) {
-                HStack(spacing: 6) {
+            VStack(spacing: BIRGELayout.xxs) {
+                HStack(spacing: BIRGELayout.xxs) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(BIRGEColors.success)
                         .frame(width: 8, height: 8)
                     Text("Онлайн • Ожидание")
-                        .font(.headline)
+                        .font(BIRGEFonts.sectionTitle)
                         .foregroundStyle(.primary)
                 }
                 Text("Ищем подходящие заказы для вас...")
-                    .font(.subheadline)
+                    .font(BIRGEFonts.subtext)
                     .foregroundStyle(.secondary)
             }
 
             // Today's stats mini card
-            HStack(spacing: 20) {
+            HStack(spacing: BIRGELayout.m) {
                 miniStat(label: "Поездок", value: "\(store.earnings.todayRides)")
                 Divider().frame(height: 30)
                 miniStat(label: "Заработок", value: "\(store.earnings.todayTenge)₸")
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 14)
-            .background(Color(.systemBackground))
-            .cornerRadius(14)
+            .padding(.horizontal, BIRGELayout.l)
+            .padding(.vertical, BIRGELayout.xs)
+            .birgeCard()
             .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
         }
     }
@@ -209,9 +215,9 @@ struct DriverAppView: View {
     private func miniStat(label: String, value: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 16, weight: .bold))
+                .font(BIRGEFonts.bodyMedium)
             Text(label)
-                .font(.caption)
+                .font(BIRGEFonts.caption)
                 .foregroundStyle(.secondary)
         }
     }
@@ -221,41 +227,42 @@ struct DriverAppView: View {
     private func offerCard(_ offer: DriverAppFeature.RideOffer) -> some View {
         VStack(spacing: 0) {
             // Handle bar
-            Capsule()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 40, height: 4)
-                .padding(.top, 12)
+            BIRGESheetHandle()
+                .padding(.top, BIRGELayout.xs)
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: BIRGELayout.s) {
+                countdownRing
+                    .frame(maxWidth: .infinity)
+
                 // Header
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
                         Text("Новый заказ")
-                            .font(.caption.weight(.semibold))
+                            .font(BIRGEFonts.captionBold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                         Text(offer.passengerName)
-                            .font(.title3.weight(.bold))
+                            .font(BIRGEFonts.sectionTitle)
                     }
                     Spacer()
                     Text("\(offer.fare)₸")
-                        .font(.system(size: 26, weight: .bold))
-                        .foregroundStyle(.green)
+                        .font(BIRGEFonts.heroNumber)
+                        .foregroundStyle(BIRGEColors.success)
                 }
 
                 Divider()
 
                 // Route
-                VStack(spacing: 10) {
+                VStack(spacing: BIRGELayout.xxs) {
                     routeRow(
                         icon: "circle.fill",
-                        color: .green,
+                        color: BIRGEColors.success,
                         label: "Забрать",
                         address: offer.pickup
                     )
                     routeRow(
                         icon: "mappin.circle.fill",
-                        color: .red,
+                        color: BIRGEColors.danger,
                         label: "Назначение",
                         address: offer.destination
                     )
@@ -271,61 +278,41 @@ struct DriverAppView: View {
                 }
 
                 // Action buttons
-                HStack(spacing: 12) {
-                    Button {
-                        store.send(.declineOffer)
-                    } label: {
-                        Text("Отклонить")
-                            .font(.headline)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(Color.red.opacity(0.1))
-                            )
+                VStack(spacing: BIRGELayout.xs) {
+                    BIRGEPrimaryButton(title: "Принять") {
+                        store.send(.acceptOffer)
                     }
 
-                    Button {
-                        store.send(.acceptOffer)
-                    } label: {
-                        Text("Принять")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(Color.green)
-                            )
+                    BIRGESecondaryButton(title: "Отклонить") {
+                        store.send(.declineOffer)
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, BIRGELayout.m)
+            .padding(.vertical, BIRGELayout.s)
         }
         .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color(.systemBackground))
+            RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
+                .fill(BIRGEColors.background)
                 .shadow(color: .black.opacity(0.12), radius: 20, x: 0, y: -4)
         )
         .padding(.horizontal, 0)
     }
 
     private func routeRow(icon: String, color: Color, label: String, address: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: BIRGELayout.xs) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(BIRGEFonts.captionBold)
                 .foregroundStyle(color)
                 .frame(width: 20)
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
                 Text(label)
-                    .font(.caption)
+                    .font(BIRGEFonts.caption)
                     .foregroundStyle(.secondary)
                 Text(address)
-                    .font(.system(size: 14, weight: .medium))
-                    .lineLimit(1)
+                    .font(label == "Назначение" ? BIRGEFonts.bodyMedium : BIRGEFonts.body)
+                    .lineLimit(2)
             }
         }
     }
@@ -333,29 +320,29 @@ struct DriverAppView: View {
     private func metricBadge(icon: String, label: String) -> some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
-                .font(.system(size: 12))
+                .font(BIRGEFonts.caption)
                 .foregroundStyle(.secondary)
             Text(label)
-                .font(.system(size: 14, weight: .medium))
+                .font(BIRGEFonts.captionBold)
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(Color(.secondarySystemBackground))
-        .cornerRadius(8)
+        .cornerRadius(BIRGELayout.radiusXS)
     }
 
     // MARK: - Active Ride Banner
 
     private func activeRideBanner(_ ride: DriverAppFeature.DriverActiveRide) -> some View {
-        VStack(spacing: 14) {
+        VStack(spacing: BIRGELayout.xs) {
             // Status bar
             HStack {
                 Circle()
                     .fill(statusColor(for: ride.status))
                     .frame(width: 10, height: 10)
                 Text(statusText(for: ride.status))
-                    .font(.headline)
+                    .font(BIRGEFonts.sectionTitle)
                 Spacer()
             }
 
@@ -364,13 +351,13 @@ struct DriverAppView: View {
                 Image(systemName: "mappin.circle.fill")
                     .foregroundStyle(.red)
                 Text(ride.destination)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+                    .font(BIRGEFonts.subtext)
+                    .lineLimit(2)
                 Spacer()
             }
 
             // Action button
-            Button {
+            BIRGEPrimaryButton(title: actionText(for: ride.status)) {
                 switch ride.status {
                 case .pickingUp:
                     store.send(.arrivedAtPickup)
@@ -379,22 +366,12 @@ struct DriverAppView: View {
                 case .inProgress:
                     store.send(.completeRide)
                 }
-            } label: {
-                Text(actionText(for: ride.status))
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(statusColor(for: ride.status))
-                    )
             }
         }
-        .padding(20)
+        .padding(BIRGELayout.m)
         .background(
-            RoundedRectangle(cornerRadius: 22)
-                .fill(Color(.systemBackground))
+            RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
+                .fill(BIRGEColors.background)
                 .shadow(color: .black.opacity(0.1), radius: 16, x: 0, y: -4)
         )
     }
@@ -424,31 +401,56 @@ struct DriverAppView: View {
     private func statusColor(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> Color {
         switch status {
         case .pickingUp, .passengerWait:
-            return .orange
+            return BIRGEColors.warning
         case .inProgress:
-            return .green
+            return BIRGEColors.success
         }
     }
 
     // MARK: - End Shift Button
 
     private var endShiftButton: some View {
-        Button {
+        BIRGESecondaryButton(title: "Завершить смену") {
             store.send(.toggleOnline)
-        } label: {
-            Text("Завершить смену")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color(.secondarySystemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                        )
-                )
+        }
+    }
+
+    private var countdownRing: some View {
+        ZStack {
+            Circle()
+                .stroke(BIRGEColors.surfaceElevated, lineWidth: 7)
+                .frame(width: 64, height: 64)
+            Circle()
+                .trim(from: 0, to: CGFloat(max(offerSecondsRemaining, 0)) / 15)
+                .stroke(countdownColor, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .frame(width: 64, height: 64)
+                .animation(reduceMotion ? nil : .linear(duration: 1), value: offerSecondsRemaining)
+            Text("\(offerSecondsRemaining)")
+                .font(BIRGEFonts.sectionTitle)
+                .foregroundStyle(countdownColor)
+        }
+        .accessibilityLabel("Осталось \(offerSecondsRemaining) секунд")
+    }
+
+    private var countdownColor: Color {
+        if offerSecondsRemaining <= 3 {
+            return BIRGEColors.danger
+        } else if offerSecondsRemaining <= 7 {
+            return BIRGEColors.warning
+        }
+        return BIRGEColors.success
+    }
+
+    private func startOfferCountdown() {
+        offerTimerTask?.cancel()
+        offerSecondsRemaining = 15
+        offerTimerTask = Task { @MainActor in
+            while offerSecondsRemaining > 0 {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                offerSecondsRemaining -= 1
+            }
         }
     }
 }
@@ -459,6 +461,7 @@ private struct PulseRing: View {
     let delay: Double
     let color: Color
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scale: CGFloat = 0.4
     @State private var opacity: Double = 0.8
 
@@ -467,11 +470,10 @@ private struct PulseRing: View {
             .fill(color.opacity(opacity))
             .scaleEffect(scale)
             .onAppear {
-                withAnimation(
-                    .easeOut(duration: 1.5)
+                let animation = Animation.easeOut(duration: 1.5)
                     .repeatForever(autoreverses: false)
                     .delay(delay)
-                ) {
+                withAnimation(reduceMotion ? nil : animation) {
                     scale = 1.6
                     opacity = 0
                 }

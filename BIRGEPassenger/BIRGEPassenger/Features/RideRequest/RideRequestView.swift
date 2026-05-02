@@ -15,27 +15,27 @@ struct RideRequestView: View {
                         Image(systemName: "chevron.left")
                         Text("Назад")
                     }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(BIRGEColors.blue)
+                    .font(BIRGEFonts.bodyMedium)
+                    .foregroundStyle(BIRGEColors.brandPrimary)
                 }
 
                 Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
+            .padding(.horizontal, BIRGELayout.s)
+            .padding(.top, BIRGELayout.xs)
+            .padding(.bottom, BIRGELayout.s)
 
             // ADDRESS SECTION
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 12) {
+                HStack(spacing: BIRGELayout.xs) {
                     Circle()
-                        .fill(Color.green)
-                        .frame(width: 8, height: 8)
+                        .fill(BIRGEColors.success)
+                        .frame(width: BIRGELayout.xxs, height: BIRGELayout.xxs)
                     Text(store.origin)
-                        .font(.system(size: 15))
+                        .font(BIRGEFonts.body)
                         .foregroundStyle(BIRGEColors.textSecondary)
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, BIRGELayout.xxs)
                 
                 // Vertical dashed line between rows
                 Rectangle()
@@ -50,12 +50,12 @@ struct RideRequestView: View {
                             .stroke(Color.gray.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3]))
                         }
                     )
-                    .padding(.leading, 3.5)
+                    .padding(.leading, BIRGELayout.xxxs)
                 
-                HStack(spacing: 12) {
+                HStack(spacing: BIRGELayout.xs) {
                     Image(systemName: "mappin.circle.fill")
-                        .foregroundStyle(BIRGEColors.blue)
-                        .font(.system(size: 16))
+                        .foregroundStyle(BIRGEColors.brandPrimary)
+                        .font(BIRGEFonts.body)
                     TextField(
                         "Куда едем?",
                         text: Binding(
@@ -63,67 +63,53 @@ struct RideRequestView: View {
                             set: { send(.destinationChanged($0)) }
                         )
                     )
-                        .font(.system(size: 15, weight: .medium))
+                        .font(BIRGEFonts.bodyMedium)
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, BIRGELayout.xxs)
             }
-            .padding(16)
-            .background(Color.white)
-            .cornerRadius(16)
+            .padding(BIRGELayout.s)
+            .birgeCard()
             .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+            .padding(.horizontal, BIRGELayout.s)
+            .padding(.bottom, BIRGELayout.l)
             
             // RIDE TIER SELECTOR
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: BIRGELayout.xs) {
                     ForEach(RideRequestFeature.RideTier.allCases, id: \.self) { tier in
                         tierCard(for: tier)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                .padding(.horizontal, BIRGELayout.s)
+                .padding(.bottom, BIRGELayout.l)
             }
             
             // ROUTE SUMMARY ROW
             Text("📍 Алатау → Есентай  ·  18 км  ·  ~35 мин")
-                .font(.caption)
+                .font(BIRGEFonts.caption)
                 .foregroundStyle(BIRGEColors.textSecondary)
-                .padding(.bottom, 16)
+                .padding(.bottom, BIRGELayout.s)
 
             if let errorMessage = store.errorMessage {
-                Text(errorMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
+                BIRGEToast(message: errorMessage, style: .error)
+                    .padding(.horizontal, BIRGELayout.s)
+                    .padding(.bottom, BIRGELayout.s)
             }
             
             Spacer()
         }
-        .background(Color.white)
+        .background(BIRGEColors.background)
         .safeAreaInset(edge: .bottom) {
-            Button {
+            BIRGEPrimaryButton(
+                title: store.isLoading ? "Создаём поездку..." : "Найти водителя · \(store.fare)₸",
+                isLoading: store.isLoading
+            ) {
                 send(.findDriverTapped)
-            } label: {
-                HStack(spacing: 10) {
-                    if store.isLoading {
-                        ProgressView()
-                            .tint(.white)
-                    }
-                    Text(store.isLoading ? "Создаём поездку..." : "Найти водителя · \(store.fare)₸")
-                        .font(.system(size: 17, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(store.isLoading ? BIRGEColors.blue.opacity(0.65) : BIRGEColors.blue)
-                .cornerRadius(16)
             }
             .disabled(store.isLoading)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            .padding(.horizontal, BIRGELayout.s)
+            .padding(.bottom, BIRGELayout.s)
+            .background(BIRGEColors.background)
         }
         .navigationTitle("Новая поездка")
         .navigationBarTitleDisplayMode(.inline)
@@ -139,45 +125,46 @@ struct RideRequestView: View {
                 _ = send(.tierSelected(tier))
             }
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: BIRGELayout.xxs) {
                 HStack(alignment: .top) {
                     Image(systemName: icon(for: tier))
-                        .font(.system(size: 24))
-                        .foregroundStyle(BIRGEColors.blue)
+                        .font(BIRGEFonts.title)
+                        .foregroundStyle(BIRGEColors.brandPrimary)
                     Spacer()
                     if tier == .corridor {
                         Text("−52%")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(Color.green)
-                            .cornerRadius(8)
+                            .font(BIRGEFonts.captionBold)
+                            .foregroundStyle(BIRGEColors.textOnBrand)
+                            .padding(.horizontal, BIRGELayout.xxs)
+                            .padding(.vertical, BIRGELayout.xxxs)
+                            .background(BIRGEColors.success)
+                            .cornerRadius(BIRGELayout.radiusXS)
                     }
                 }
                 
                 Spacer()
                 
                 Text(tier.rawValue)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(BIRGEFonts.bodyMedium)
                     .foregroundStyle(.primary)
+                    .lineLimit(2)
                 
                 Text(subtitle(for: tier))
-                    .font(.caption)
+                    .font(BIRGEFonts.caption)
                     .foregroundStyle(BIRGEColors.textSecondary)
                 
                 Text("\(store.fares[tier] ?? 0)₸")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(BIRGEFonts.sectionTitle)
                     .foregroundStyle(.primary)
-                    .padding(.top, 4)
+                    .padding(.top, BIRGELayout.xxxs)
             }
-            .padding(16)
-            .frame(width: 160, height: 140, alignment: .leading)
-            .background(isSelected ? BIRGEColors.blue.opacity(0.06) : Color.white)
-            .cornerRadius(16)
+            .padding(BIRGELayout.s)
+            .frame(minWidth: 132, maxWidth: 180, minHeight: 132, alignment: .leading)
+            .background(isSelected ? BIRGEColors.brandPrimary.opacity(0.08) : BIRGEColors.surfacePrimary)
+            .cornerRadius(BIRGELayout.radiusM)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? BIRGEColors.blue : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+                RoundedRectangle(cornerRadius: BIRGELayout.radiusM)
+                    .stroke(isSelected ? BIRGEColors.brandPrimary : BIRGEColors.textTertiary.opacity(0.22), lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(.plain)

@@ -75,7 +75,7 @@ final class RideFeatureTests: XCTestCase {
             $0.driverRating = 4.92
         }
 
-        await store.receive(.rideStatusChanged(.matched)) {
+        await store.receive(\.rideStatusChanged, .matched) {
             $0.status = .matched
         }
     }
@@ -105,7 +105,7 @@ final class RideFeatureTests: XCTestCase {
 
         await store.send(.webSocketEventReceived(.message(.text(json))))
 
-        await store.receive(.driverLocationUpdated(expectedCoordinate)) {
+        await store.receive(\.driverLocationUpdated, expectedCoordinate) {
             $0.driverLocation = expectedCoordinate
         }
     }
@@ -133,7 +133,7 @@ final class RideFeatureTests: XCTestCase {
 
         await store.send(.webSocketEventReceived(.message(.text(json))))
 
-        await store.receive(.etaUpdated(180)) {
+        await store.receive(\.etaUpdated, 180) {
             $0.etaSeconds = 180
         }
     }
@@ -164,14 +164,14 @@ final class RideFeatureTests: XCTestCase {
             $0.cancellationReason = "Changed mind"
         }
 
-        await store.receive(.cancelConfirmed) {
+        await store.receive(\.cancelConfirmed) {
             $0.isLoading = false
             $0.status = .cancelled
         }
 
         await store.send(.view(.backToHomeTapped))
 
-        await store.receive(.delegate(.cancelled))
+        await store.receive(\.delegate.cancelled)
 
         XCTAssertTrue(cancelCalled.value, "apiClient.cancelRide should have been called")
     }
@@ -208,9 +208,9 @@ final class RideFeatureTests: XCTestCase {
         await store.send(.webSocketConnected)
 
         // Should fetch ride from server
-        await store.receive(.rideLoadedFromServer(
+        await store.receive(\.rideLoadedFromServer, 
             RideResponse(rideId: "ride-123", status: "driver_arriving", etaSeconds: 120)
-        )) {
+        ) {
             $0.etaSeconds = 120
         }
 
@@ -245,19 +245,21 @@ final class RideFeatureTests: XCTestCase {
             )
         }
 
-        await store.send(.webSocketDisconnected)
+        await store.send(.webSocketDisconnected) {
+            $0.webSocketReconnectAttempts = 1
+        }
 
-        await store.receive(.rideLoadedFromServer(
+        await store.receive(\.rideLoadedFromServer,
             RideResponse(
                 rideId: "ride-123",
                 status: "passenger_wait",
                 verificationCode: "1234"
             )
-        )) {
+        ) {
             $0.verificationCode = "1234"
         }
 
-        await store.receive(.rideStatusChanged(.passengerWait)) {
+        await store.receive(\.rideStatusChanged, .passengerWait) {
             $0.status = .passengerWait
             $0.waitCountdownSeconds = 180
         }

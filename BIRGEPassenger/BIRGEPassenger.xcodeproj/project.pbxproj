@@ -19,6 +19,7 @@
 		AA00000AAAAA000A00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
 		AA00000BAAAA000B00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
 		AA00000CAAAA000C00000001 /* ConcurrencyExtras in Frameworks */ = {isa = PBXBuildFile; productRef = AA000015AAAA001500000001 /* ConcurrencyExtras */; };
+		AA000016AAAA001600000001 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = AA000017AAAA001700000001 /* GRDB */; };
 		BB000001BBBB000100000001 /* BIRGECore in Frameworks */ = {isa = PBXBuildFile; productRef = BB000004BBBB000400000001 /* BIRGECore */; };
 		BB000002BBBB000200000001 /* BIRGECore in Frameworks */ = {isa = PBXBuildFile; productRef = BB000005BBBB000500000001 /* BIRGECore */; };
 		BB000003BBBB000300000001 /* BIRGECore in Frameworks */ = {isa = PBXBuildFile; productRef = BB000006BBBB000600000001 /* BIRGECore */; };
@@ -69,6 +70,7 @@
 				AA000009AAAA000900000001 /* CasePathsCore in Frameworks */,
 				AA00000CAAAA000C00000001 /* ConcurrencyExtras in Frameworks */,
 				AA000003AAAA000300000001 /* ComposableArchitecture in Frameworks */,
+				AA000016AAAA001600000001 /* GRDB in Frameworks */,
 				BB000001BBBB000100000001 /* BIRGECore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -155,6 +157,7 @@
 				AA000013AAAA001300000001 /* Dependencies */,
 				AA000014AAAA001400000001 /* CasePathsCore */,
 				AA000015AAAA001500000001 /* ConcurrencyExtras */,
+				AA000017AAAA001700000001 /* GRDB */,
 				BB000004BBBB000400000001 /* BIRGECore */,
 			);
 			productName = BIRGEPassengerTests;
@@ -721,6 +724,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AA000012AAAA001200000001 /* XCRemoteSwiftPackageReference "swift-concurrency-extras" */;
 			productName = ConcurrencyExtras;
+		};
+		AA000017AAAA001700000001 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */;
+			productName = GRDB;
 		};
 		BB000004BBBB000400000001 /* BIRGECore */ = {
 			isa = XCSwiftPackageProductDependency;

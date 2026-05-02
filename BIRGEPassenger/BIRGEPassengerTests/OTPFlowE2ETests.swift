@@ -5,9 +5,91 @@
 //  E2E and Integration tests for the OTP Authentication Flow.
 //
 
-import XCTest
 import ComposableArchitecture
+import Foundation
+import XCTest
 @testable import BIRGEPassenger
+
+private enum OTPLogReader {
+    struct Match {
+        let otpCode: String
+    }
+
+    static func byteCount(logPath: String) -> UInt64 {
+        let url = URL(fileURLWithPath: logPath)
+        guard
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+            let size = attributes[.size] as? NSNumber
+        else {
+            return 0
+        }
+        return size.uint64Value
+    }
+
+    static func waitForLatestOTP(
+        for phone: String,
+        logPath: String,
+        startingAtByteOffset: UInt64,
+        timeout: TimeInterval
+    ) async throws -> Match {
+        let deadline = Date().addingTimeInterval(timeout)
+        let url = URL(fileURLWithPath: logPath)
+
+        while Date() < deadline {
+            if let match = latestOTP(
+                for: phone,
+                in: url,
+                startingAtByteOffset: startingAtByteOffset
+            ) {
+                return match
+            }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+
+        throw XCTSkip("No OTP for \(phone) appeared in \(logPath) within \(timeout)s.")
+    }
+
+    private static func latestOTP(
+        for phone: String,
+        in url: URL,
+        startingAtByteOffset: UInt64
+    ) -> Match? {
+        guard
+            let handle = try? FileHandle(forReadingFrom: url),
+            let data = try? readData(from: handle, startingAtByteOffset: startingAtByteOffset),
+            let contents = String(data: data, encoding: .utf8)
+        else {
+            return nil
+        }
+
+        let pattern = #"\b\d{6}\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+
+        return contents
+            .components(separatedBy: .newlines)
+            .reversed()
+            .first { $0.contains(phone) }
+            .flatMap { line in
+                let range = NSRange(line.startIndex..<line.endIndex, in: line)
+                guard let result = regex.firstMatch(in: line, range: range),
+                      let codeRange = Range(result.range, in: line)
+                else {
+                    return nil
+                }
+                return Match(otpCode: String(line[codeRange]))
+            }
+    }
+
+    private static func readData(
+        from handle: FileHandle,
+        startingAtByteOffset: UInt64
+    ) throws -> Data {
+        try handle.seek(toOffset: startingAtByteOffset)
+        return try handle.readToEnd() ?? Data()
+    }
+}
 
 @MainActor
 final class OTPFlowE2ETests: XCTestCase {

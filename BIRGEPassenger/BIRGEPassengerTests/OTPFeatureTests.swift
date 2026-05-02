@@ -27,7 +27,7 @@ final class OTPFeatureTests: XCTestCase {
             $0.isLoading = true
         }
         
-        await store.receive(._otpRequestSucceeded) {
+        await store.receive(\._otpRequestSucceeded) {
             $0.isLoading = false
             $0.step = .code // waiting_for_verification
         }
@@ -56,11 +56,11 @@ final class OTPFeatureTests: XCTestCase {
             $0.isLoading = true
         }
         
-        await store.receive(._verifySucceeded(role: "passenger")) {
+        await store.receive(\._verifySucceeded, "passenger") {
             $0.isLoading = false
         }
         
-        await store.receive(.delegate(.authenticated(role: "passenger")))
+        await store.receive(\.delegate.authenticated, "passenger")
     }
     
     func testOTPVerifyFailure() async {
@@ -79,7 +79,7 @@ final class OTPFeatureTests: XCTestCase {
             $0.isLoading = true
         }
         
-        await store.receive(._verifyFailed(AuthError.verificationFailed.localizedDescription)) {
+        await store.receive(\._verifyFailed, AuthError.verificationFailed.localizedDescription) {
             $0.isLoading = false
             $0.errorMessage = AuthError.verificationFailed.localizedDescription
         }
