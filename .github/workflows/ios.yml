@@ -37,6 +37,13 @@ jobs:
           sudo xcode-select -switch /Applications/Xcode_16.4.app
           xcodebuild -downloadPlatform iOS
 
+      - name: Resolve Swift Packages
+        working-directory: BIRGEPassenger
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project BIRGEPassenger.xcodeproj \
+            -scheme BIRGEPassenger
+
       - name: Build BIRGEPassenger
         working-directory: BIRGEPassenger
         run: |
@@ -44,6 +51,9 @@ jobs:
             -project BIRGEPassenger.xcodeproj \
             -scheme BIRGEPassenger \
             -destination 'generic/platform=iOS' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=NO
