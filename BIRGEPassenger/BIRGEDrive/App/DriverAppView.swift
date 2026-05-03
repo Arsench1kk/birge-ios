@@ -145,6 +145,16 @@ struct DriverAppView: View {
                         .frame(width: 54, height: 54)
                         .background(Circle().fill(BIRGEColors.brandPrimary))
                         .shadow(color: BIRGEColors.brandPrimary.opacity(0.28), radius: 14, y: 7)
+
+                    if store.activeRide != nil {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(BIRGEColors.textOnBrand)
+                            .frame(width: 42, height: 42)
+                            .background(Circle().fill(BIRGEColors.success))
+                            .offset(x: 72, y: -58)
+                            .shadow(color: BIRGEColors.success.opacity(0.24), radius: 12, y: 6)
+                    }
                 }
                 .offset(y: -12)
             }
@@ -578,6 +588,8 @@ struct DriverAppView: View {
 
     private func activeRouteStatus(_ ride: DriverAppFeature.DriverActiveRide) -> some View {
         VStack(spacing: BIRGELayout.xs) {
+            navigationCue(ride)
+
             Label(statusText(for: ride.status), systemImage: statusIcon(for: ride.status))
                 .font(BIRGEFonts.captionBold)
                 .foregroundStyle(statusColor(for: ride.status))
@@ -625,6 +637,8 @@ struct DriverAppView: View {
 
             routeProgress(for: ride.status)
 
+            navigationPanel(ride)
+
             VStack(spacing: BIRGELayout.xxs) {
                 routeRow(
                     icon: "location.circle.fill",
@@ -666,6 +680,74 @@ struct DriverAppView: View {
         }
         .padding(BIRGELayout.m)
         .liquidGlass(.card, tint: statusColor(for: ride.status).opacity(0.06), isInteractive: true)
+    }
+
+    private func navigationCue(_ ride: DriverAppFeature.DriverActiveRide) -> some View {
+        HStack(spacing: BIRGELayout.xs) {
+            Image(systemName: maneuverSymbol(for: ride.status))
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(BIRGEColors.textOnBrand)
+                .frame(width: 52, height: 52)
+                .background(Circle().fill(statusColor(for: ride.status)))
+
+            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                Text(nextManeuverDistance(for: ride.status))
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                Text(nextManeuverText(for: ride))
+                    .font(BIRGEFonts.sectionTitle)
+                    .foregroundStyle(BIRGEColors.textPrimary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+        }
+        .padding(BIRGELayout.s)
+        .frame(maxWidth: 320)
+        .liquidGlass(.card, tint: statusColor(for: ride.status).opacity(0.08), isInteractive: true)
+    }
+
+    private func navigationPanel(_ ride: DriverAppFeature.DriverActiveRide) -> some View {
+        VStack(alignment: .leading, spacing: BIRGELayout.xs) {
+            HStack {
+                Label("Навигация активна", systemImage: "location.north.line.fill")
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(statusColor(for: ride.status))
+                Spacer()
+                Text(routePhaseText(for: ride.status))
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+            }
+
+            HStack(alignment: .top, spacing: BIRGELayout.xs) {
+                Image(systemName: maneuverSymbol(for: ride.status))
+                    .font(BIRGEFonts.sectionTitle)
+                    .foregroundStyle(BIRGEColors.textOnBrand)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(statusColor(for: ride.status)))
+
+                VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                    Text(nextManeuverText(for: ride))
+                        .font(BIRGEFonts.bodyMedium)
+                        .foregroundStyle(BIRGEColors.textPrimary)
+                        .lineLimit(2)
+                    Text(routeGuidanceDetail(for: ride))
+                        .font(BIRGEFonts.caption)
+                        .foregroundStyle(BIRGEColors.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: BIRGELayout.xs) {
+                guidanceChip(icon: "clock.fill", value: "\(ride.etaMinutes) мин")
+                guidanceChip(icon: "speedometer", value: "42 км/ч")
+                guidanceChip(icon: "shield.lefthalf.filled", value: "спокойно")
+            }
+        }
+        .padding(BIRGELayout.s)
+        .liquidGlass(.card, tint: statusColor(for: ride.status).opacity(0.045), isInteractive: true)
     }
 
     private func passengersCard(inProgress: Bool) -> some View {
@@ -823,6 +905,17 @@ struct DriverAppView: View {
         .liquidGlass(.pill, tint: BIRGEColors.brandPrimary.opacity(0.05))
     }
 
+    private func guidanceChip(icon: String, value: String) -> some View {
+        Label(value, systemImage: icon)
+            .font(BIRGEFonts.captionBold)
+            .foregroundStyle(BIRGEColors.textPrimary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, BIRGELayout.xs)
+            .padding(.vertical, BIRGELayout.xxs)
+            .liquidGlass(.pill, tint: BIRGEColors.brandPrimary.opacity(0.035))
+    }
+
     private func statusText(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
         switch status {
         case .pickingUp:
@@ -842,6 +935,61 @@ struct DriverAppView: View {
             return "Проверьте коды посадки и начните маршрут"
         case .inProgress:
             return "\(ride.destination) · ~\(ride.etaMinutes) мин"
+        }
+    }
+
+    private func nextManeuverText(for ride: DriverAppFeature.DriverActiveRide) -> String {
+        switch ride.status {
+        case .pickingUp:
+            return "Поверните направо к точке посадки"
+        case .passengerWait:
+            return "Остановитесь у входа и проверьте посадку"
+        case .inProgress:
+            return "Держитесь правее к \(ride.destination)"
+        }
+    }
+
+    private func nextManeuverDistance(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return "через 450 м"
+        case .passengerWait:
+            return "через 80 м"
+        case .inProgress:
+            return "через 1.2 км"
+        }
+    }
+
+    private func routeGuidanceDetail(for ride: DriverAppFeature.DriverActiveRide) -> String {
+        switch ride.status {
+        case .pickingUp:
+            return "Финиш подачи: \(ride.pickup)"
+        case .passengerWait:
+            return "После посадки маршрут продолжится до \(ride.destination)"
+        case .inProgress:
+            return "Финальная точка: \(ride.destination)"
+        }
+    }
+
+    private func routePhaseText(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return "Подача"
+        case .passengerWait:
+            return "Посадка"
+        case .inProgress:
+            return "В пути"
+        }
+    }
+
+    private func maneuverSymbol(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return "arrow.turn.up.right"
+        case .passengerWait:
+            return "parkingsign.circle.fill"
+        case .inProgress:
+            return "arrow.up.forward.circle.fill"
         }
     }
 
