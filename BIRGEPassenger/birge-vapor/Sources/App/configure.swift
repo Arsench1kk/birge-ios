@@ -34,6 +34,7 @@ public func configure(_ app: Application) async throws {
 
     app.migrations.add(CreateUsers())
     app.migrations.add(CreateDriverProfiles())
+    app.migrations.add(AddDriverProfileRegistrationFields())
     app.migrations.add(CreateRides())
     app.migrations.add(AddRideRequestAPIFields())
     app.migrations.add(CreateCorridors())

@@ -16,6 +16,33 @@ final class DriverProfile: Model, Content, @unchecked Sendable {
     @OptionalField(key: "license_plate")
     var licensePlate: String?
 
+    @OptionalField(key: "first_name")
+    var firstName: String?
+
+    @OptionalField(key: "last_name")
+    var lastName: String?
+
+    @OptionalField(key: "birth_date")
+    var birthDate: String?
+
+    @OptionalField(key: "iin")
+    var iin: String?
+
+    @OptionalField(key: "vehicle_make")
+    var vehicleMake: String?
+
+    @OptionalField(key: "vehicle_year")
+    var vehicleYear: String?
+
+    @OptionalField(key: "vehicle_color")
+    var vehicleColor: String?
+
+    @OptionalField(key: "seats")
+    var seats: Int?
+
+    @OptionalField(key: "uploaded_documents")
+    var uploadedDocuments: [String]?
+
     @Field(key: "kyc_status")
     var kycStatus: String
 
@@ -24,6 +51,9 @@ final class DriverProfile: Model, Content, @unchecked Sendable {
 
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
+
+    @Timestamp(key: "updated_at", on: .update)
+    var updatedAt: Date?
 
     init() { }
 
