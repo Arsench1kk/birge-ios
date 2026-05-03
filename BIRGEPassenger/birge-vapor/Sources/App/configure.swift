@@ -40,6 +40,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateCorridorBookings())
     app.migrations.add(CreatePassengerSubscriptions())
     app.migrations.add(CreatePaymentEvents())
+    app.migrations.add(CreateDriverLocationRecords())
 
     try await app.autoMigrate()
     try routes(app)

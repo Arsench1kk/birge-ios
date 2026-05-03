@@ -7,6 +7,7 @@ func routes(_ app: Application) throws {
     try api.register(collection: CorridorsController())
     try api.register(collection: SubscriptionsController())
     try api.register(collection: PaymentsController())
+    try api.register(collection: LocationsController())
 
     // WebSocket
     app.webSocket("ws", "ride", ":rideId") { req, ws in

@@ -40,12 +40,16 @@ final class LocationManagerCoordinator: NSObject, CLLocationManagerDelegate {
         mgr.delegate = self
         mgr.desiredAccuracy = kCLLocationAccuracyBest
         mgr.distanceFilter = 5 // meters — avoid noisy updates
-        mgr.allowsBackgroundLocationUpdates = false // passenger app
+        mgr.allowsBackgroundLocationUpdates = Bundle.main.bundleIdentifier?.contains("BIRGEDrive") == true
         mgr.pausesLocationUpdatesAutomatically = false
 
         // Request authorization if needed
         if mgr.authorizationStatus == .notDetermined {
-            mgr.requestWhenInUseAuthorization()
+            if Bundle.main.bundleIdentifier?.contains("BIRGEDrive") == true {
+                mgr.requestAlwaysAuthorization()
+            } else {
+                mgr.requestWhenInUseAuthorization()
+            }
         }
 
         mgr.startUpdatingLocation()

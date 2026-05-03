@@ -4,6 +4,7 @@
 //
 
 import ComposableArchitecture
+import BIRGECore
 import Foundation
 
 @Reducer
@@ -21,6 +22,7 @@ struct DriverAppFeature {
     }
 
     struct DriverActiveRide: Equatable, Sendable {
+        var rideID: String
         var passengerName: String
         var pickup: String
         var destination: String
@@ -105,6 +107,8 @@ struct DriverAppFeature {
 
     // MARK: - Body
 
+    @Dependency(\.locationClient) var locationClient
+
     var body: some Reducer<State, Action> {
         Scope(state: \.registration, action: \.registration) {
             DriverRegistrationFeature()
@@ -119,10 +123,14 @@ struct DriverAppFeature {
                 state.isOnline.toggle()
                 if !state.isOnline {
                     // Going offline — clear active state
+                    let rideID = state.activeRide?.rideID
                     state.currentOffer = nil
                     state.activeRide = nil
                     state.completedRideSummary = nil
-                    return .none
+                    return .merge(
+                        .cancel(id: DriverLocationCancelID.tracking),
+                        stopAndSyncDriverLocation(rideID: rideID)
+                    )
                 }
                 // Going online — simulate offer arriving after 4s
                 return .run { send in
@@ -144,7 +152,9 @@ struct DriverAppFeature {
 
             case .acceptOffer:
                 state.currentOffer = nil
+                let rideID = UUID().uuidString
                 state.activeRide = DriverActiveRide(
+                    rideID: rideID,
                     passengerName: "Арсен А.",
                     pickup: "Алатау, ул. Момышулы 15",
                     destination: "Есентай Молл",
@@ -153,7 +163,7 @@ struct DriverAppFeature {
                     etaMinutes: 6,
                     status: .pickingUp
                 )
-                return .none
+                return startDriverLocationTracking(rideID: rideID)
 
             case .declineOffer:
                 state.currentOffer = nil
@@ -188,7 +198,10 @@ struct DriverAppFeature {
                     todayTenge: state.earnings.todayTenge,
                     todayRides: state.earnings.todayRides
                 )
-                return .none
+                return .merge(
+                    .cancel(id: DriverLocationCancelID.tracking),
+                    stopAndSyncDriverLocation(rideID: completedRide?.rideID)
+                )
 
             case .dismissCompletedRide:
                 state.completedRideSummary = nil
@@ -214,5 +227,29 @@ struct DriverAppFeature {
             }
         }
         .forEach(\.path, action: \.path)
+    }
+
+    private enum DriverLocationCancelID {
+        static let tracking = "DriverAppFeature.locationTracking"
+    }
+
+    private func startDriverLocationTracking(rideID: String) -> Effect<Action> {
+        .run { _ in
+            let stream = await locationClient.startTracking(rideID)
+            for await _ in stream {
+                // LocationClient writes every update to GRDB. The dashboard
+                // does not need per-point reducer state yet.
+            }
+        }
+        .cancellable(id: DriverLocationCancelID.tracking)
+    }
+
+    private func stopAndSyncDriverLocation(rideID: String?) -> Effect<Action> {
+        .run { _ in
+            await locationClient.stopTracking()
+            if let rideID {
+                try? await locationClient.syncPendingLocations(rideID)
+            }
+        }
     }
 }

@@ -584,7 +584,9 @@
 				DEVELOPMENT_TEAM = YT2W57F27G;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "BIRGE Drive uses background location while you are on an active ride so passengers can see accurate pickup and route progress.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BIRGE uses your location to provide nearby rides, pickup coordination, and navigation.";
+				INFOPLIST_KEY_UIBackgroundModes = location;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -617,7 +619,9 @@
 				DEVELOPMENT_TEAM = YT2W57F27G;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "BIRGE Drive uses background location while you are on an active ride so passengers can see accurate pickup and route progress.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BIRGE uses your location to provide nearby rides, pickup coordination, and navigation.";
+				INFOPLIST_KEY_UIBackgroundModes = location;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
