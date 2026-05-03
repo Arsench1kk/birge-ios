@@ -137,7 +137,7 @@ final class OTPFlowE2ETests: XCTestCase {
         }
 
         // Uses the real AuthClient. Ensure Vapor is running locally.
-        let store = TestStore(initialState: AppFeature.State()) {
+        let store = TestStore(initialState: .unauthenticated(OTPFeature.State())) {
             AppFeature()
         } withDependencies: {
             $0.authClient = .liveValue 
@@ -211,7 +211,7 @@ final class OTPFlowE2ETests: XCTestCase {
 
     // b) Invalid OTP test using isolated dependencies
     func testOTPFlowInvalidCode() async throws {
-        let store = TestStore(initialState: AppFeature.State()) {
+        let store = TestStore(initialState: .unauthenticated(OTPFeature.State())) {
             AppFeature()
         } withDependencies: {
             // Mock network layer to force verification failure
@@ -260,13 +260,15 @@ final class OTPFlowE2ETests: XCTestCase {
             throw XCTSkip("Simulator keychain is unavailable without the test host entitlement.")
         }
         
-        // 2. Simulate Cold Boot (AppFeature.init reads Keychain synchronously)
-        let appState = AppFeature.State()
-        
-        // 3. Verify App boots directly into authenticated state
-        guard case .authenticated = appState else {
-            XCTFail("App did not restore authenticated state from Keychain")
-            return
+        // 2. Simulate Cold Boot (AppFeature starts at splash and restores after splash completion)
+        let store = TestStore(initialState: AppFeature.State()) {
+            AppFeature()
+        } withDependencies: {
+            $0.keychainClient = .liveValue
+        }
+
+        await store.send(.splash(.delegate(.splashFinished))) {
+            $0 = .authenticated(PassengerAppFeature.State())
         }
         
         let loadedToken = try KeychainClient.liveValue.load("birge_access_token")
