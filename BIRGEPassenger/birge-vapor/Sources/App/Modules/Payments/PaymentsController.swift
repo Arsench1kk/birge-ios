@@ -14,6 +14,9 @@ struct PaymentsController: RouteCollection {
 
     func handleKaspiWebhook(req: Request) async throws -> KaspiWebhookResponseDTO {
         let dto = try req.content.decode(KaspiWebhookDTO.self)
-        return try await PaymentsService(req: req).handleKaspiWebhook(dto)
+        let signature = req.headers.first(name: "X-Kaspi-Signature")
+            ?? req.headers.first(name: "Kaspi-Signature")
+            ?? dto.signature
+        return try await PaymentsService(req: req).handleKaspiWebhook(dto, signature: signature)
     }
 }

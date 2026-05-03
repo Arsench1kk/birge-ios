@@ -37,7 +37,9 @@ struct PaymentsService {
         )
     }
 
-    func handleKaspiWebhook(_ dto: KaspiWebhookDTO) async throws -> KaspiWebhookResponseDTO {
+    func handleKaspiWebhook(_ dto: KaspiWebhookDTO, signature: String?) async throws -> KaspiWebhookResponseDTO {
+        try validateKaspiSignature(dto, signature: signature)
+
         if let existing = try await PaymentEvent.query(on: req.db)
             .filter(\.$eventID == dto.eventID)
             .first() {
@@ -65,5 +67,30 @@ struct PaymentsService {
             duplicate: false,
             paymentID: dto.paymentID
         )
+    }
+
+    private func validateKaspiSignature(_ dto: KaspiWebhookDTO, signature: String?) throws {
+        guard let secret = Environment.get("KASPI_WEBHOOK_SECRET"), !secret.isEmpty else {
+            return
+        }
+
+        guard let signature, !signature.isEmpty else {
+            throw Abort(.unauthorized, reason: "Missing Kaspi webhook signature")
+        }
+
+        let payload = KaspiWebhookSignature.canonicalPayload(
+            eventID: dto.eventID,
+            paymentID: dto.paymentID,
+            amountTenge: dto.amountTenge,
+            status: dto.status
+        )
+
+        guard KaspiWebhookSignature.isValid(
+            signature: signature,
+            payload: payload,
+            secret: secret
+        ) else {
+            throw Abort(.unauthorized, reason: "Invalid Kaspi webhook signature")
+        }
     }
 }
