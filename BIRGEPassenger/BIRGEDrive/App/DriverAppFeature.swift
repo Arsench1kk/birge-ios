@@ -44,6 +44,8 @@ struct DriverAppFeature {
 
     @ObservableState
     struct State: Equatable {
+        var isRegistrationComplete = false
+        var registration = DriverRegistrationFeature.State()
         var isOnline: Bool = false
         var currentOffer: RideOffer? = nil
         var activeRide: DriverActiveRide? = nil
@@ -51,6 +53,8 @@ struct DriverAppFeature {
         var path = StackState<Path.State>()
 
         static func == (lhs: State, rhs: State) -> Bool {
+            lhs.isRegistrationComplete == rhs.isRegistrationComplete &&
+            lhs.registration == rhs.registration &&
             lhs.isOnline == rhs.isOnline &&
             lhs.currentOffer == rhs.currentOffer &&
             lhs.activeRide == rhs.activeRide &&
@@ -79,13 +83,20 @@ struct DriverAppFeature {
         case completeRide
         case earningsTapped
         case path(StackActionOf<Path>)
+        case registration(DriverRegistrationFeature.Action)
     }
 
     // MARK: - Body
 
     var body: some Reducer<State, Action> {
+        Scope(state: \.registration, action: \.registration) {
+            DriverRegistrationFeature()
+        }
         Reduce { state, action in
             switch action {
+            case .registration(.delegate(.completed)):
+                state.isRegistrationComplete = true
+                return .none
 
             case .toggleOnline:
                 state.isOnline.toggle()
@@ -156,7 +167,7 @@ struct DriverAppFeature {
                 )))
                 return .none
 
-            case .path:
+            case .path, .registration:
                 return .none
             }
         }

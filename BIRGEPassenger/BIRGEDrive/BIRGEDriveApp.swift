@@ -19,7 +19,13 @@ struct BIRGEDriveApp: App {
             NavigationStack(
                 path: $store.scope(state: \.path, action: \.path)
             ) {
-                DriverAppView(store: store)
+                if store.isRegistrationComplete {
+                    DriverAppView(store: store)
+                } else {
+                    DriverRegistrationView(
+                        store: store.scope(state: \.registration, action: \.registration)
+                    )
+                }
             } destination: { store in
                 switch store.case {
                 case .earnings(let store):
