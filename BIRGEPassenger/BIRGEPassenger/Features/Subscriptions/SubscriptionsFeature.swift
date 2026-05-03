@@ -1,3 +1,4 @@
+import BIRGECore
 import ComposableArchitecture
 import Foundation
 
@@ -8,6 +9,10 @@ struct SubscriptionsFeature {
         var currentPlanID = SubscriptionPlan.free.id
         var selectedPlanID: SubscriptionPlan.ID?
         var plans = SubscriptionPlan.all
+        var activeSince = "Сегодня"
+        var isLoading = false
+        var isActivating = false
+        var errorMessage: String?
 
         var currentPlan: SubscriptionPlan {
             plans.first { $0.id == currentPlanID } ?? .free
@@ -20,23 +25,75 @@ struct SubscriptionsFeature {
     }
 
     enum Action: Equatable, Sendable {
+        case onAppear
+        case subscriptionsLoaded(SubscriptionOverviewResponse)
+        case subscriptionsFailed(String)
         case planTapped(SubscriptionPlan.ID)
         case activateSelectedTapped
+        case activationSucceeded(ActivateSubscriptionResponse)
+        case activationFailed(String)
         case closeDetailTapped
     }
+
+    @Dependency(\.apiClient) var apiClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
+            case .onAppear:
+                state.isLoading = true
+                state.errorMessage = nil
+                return .run { send in
+                    do {
+                        let response = try await apiClient.fetchSubscriptions()
+                        await send(.subscriptionsLoaded(response))
+                    } catch {
+                        await send(.subscriptionsFailed(error.localizedDescription))
+                    }
+                }
+
+            case .subscriptionsLoaded(let response):
+                state.isLoading = false
+                state.errorMessage = nil
+                state.currentPlanID = response.currentPlanID
+                state.activeSince = response.activeSince
+                state.plans = response.plans.map(SubscriptionPlan.init(dto:))
+                return .none
+
+            case .subscriptionsFailed(let message):
+                state.isLoading = false
+                state.errorMessage = message
+                return .none
+
             case .planTapped(let id):
                 state.selectedPlanID = id
                 return .none
+
             case .activateSelectedTapped:
-                if let selectedPlanID = state.selectedPlanID {
-                    state.currentPlanID = selectedPlanID
-                    state.selectedPlanID = nil
+                guard let selectedPlanID = state.selectedPlanID else { return .none }
+                state.isActivating = true
+                state.errorMessage = nil
+                return .run { send in
+                    do {
+                        let response = try await apiClient.activateSubscription(selectedPlanID)
+                        await send(.activationSucceeded(response))
+                    } catch {
+                        await send(.activationFailed(error.localizedDescription))
+                    }
                 }
+
+            case .activationSucceeded(let response):
+                state.isActivating = false
+                state.currentPlanID = response.currentPlanID
+                state.activeSince = response.activeSince
+                state.selectedPlanID = nil
                 return .none
+
+            case .activationFailed(let message):
+                state.isActivating = false
+                state.errorMessage = message
+                return .none
+
             case .closeDetailTapped:
                 state.selectedPlanID = nil
                 return .none
@@ -54,11 +111,57 @@ struct SubscriptionPlan: Equatable, Identifiable, Sendable {
     let isPopular: Bool
     let features: [Feature]
 
+    nonisolated init(
+        id: String,
+        title: String,
+        price: String,
+        subtitle: String,
+        badge: String?,
+        isPopular: Bool,
+        features: [Feature]
+    ) {
+        self.id = id
+        self.title = title
+        self.price = price
+        self.subtitle = subtitle
+        self.badge = badge
+        self.isPopular = isPopular
+        self.features = features
+    }
+
+    nonisolated init(dto: SubscriptionPlanDTO) {
+        self.init(
+            id: dto.id,
+            title: dto.title,
+            price: dto.price,
+            subtitle: dto.subtitle,
+            badge: dto.badge,
+            isPopular: dto.isPopular,
+            features: dto.features.map(Feature.init(dto:))
+        )
+    }
+
     struct Feature: Equatable, Sendable {
         let title: String
         let subtitle: String
         let symbol: String
         let isIncluded: Bool
+
+        nonisolated init(title: String, subtitle: String, symbol: String, isIncluded: Bool) {
+            self.title = title
+            self.subtitle = subtitle
+            self.symbol = symbol
+            self.isIncluded = isIncluded
+        }
+
+        nonisolated init(dto: SubscriptionFeatureDTO) {
+            self.init(
+                title: dto.title,
+                subtitle: dto.subtitle,
+                symbol: dto.symbol,
+                isIncluded: dto.isIncluded
+            )
+        }
     }
 
     static let free = SubscriptionPlan(

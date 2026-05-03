@@ -15,6 +15,9 @@ struct SubscriptionsView: View {
         .background(background)
         .navigationTitle(store.selectedPlan?.title ?? "Подписка")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await store.send(.onAppear).finish()
+        }
         .toolbar {
             if store.selectedPlan != nil {
                 ToolbarItem(placement: .topBarLeading) {
@@ -45,6 +48,14 @@ struct SubscriptionsView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: BIRGELayout.m) {
                 currentPlanCard
+
+                if store.isLoading {
+                    loadingCard
+                }
+
+                if let message = store.errorMessage {
+                    errorCard(message)
+                }
 
                 Text("Выберите тариф")
                     .font(BIRGEFonts.captionBold)
@@ -83,7 +94,7 @@ struct SubscriptionsView: View {
                 Text(store.currentPlan.title)
                     .font(BIRGEFonts.title)
                     .foregroundStyle(BIRGEColors.textPrimary)
-                Text("Активен с 1 мая 2026")
+                Text("Активен с \(store.activeSince)")
                     .font(BIRGEFonts.caption)
                     .foregroundStyle(BIRGEColors.textSecondary)
             }
@@ -100,6 +111,24 @@ struct SubscriptionsView: View {
         }
         .padding(BIRGELayout.s)
         .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04), isInteractive: true)
+    }
+
+    private var loadingCard: some View {
+        Label("Обновляем тарифы", systemImage: "arrow.triangle.2.circlepath")
+            .font(BIRGEFonts.bodyMedium)
+            .foregroundStyle(BIRGEColors.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(BIRGELayout.s)
+            .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.025))
+    }
+
+    private func errorCard(_ message: String) -> some View {
+        Label(message, systemImage: "exclamationmark.triangle.fill")
+            .font(BIRGEFonts.caption)
+            .foregroundStyle(BIRGEColors.warning)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(BIRGELayout.s)
+            .liquidGlass(.card, tint: BIRGEColors.warning.opacity(0.08))
     }
 
     private func planCard(_ plan: SubscriptionPlan) -> some View {
@@ -323,15 +352,18 @@ struct SubscriptionsView: View {
             }
 
             BIRGEPrimaryButton(
-                title: store.currentPlanID == plan.id ? "Тариф уже активен" : "Перейти на \(plan.title)"
+                title: store.isActivating
+                    ? "Подключаем..."
+                    : store.currentPlanID == plan.id ? "Тариф уже активен" : "Перейти на \(plan.title)"
             ) {
                 store.send(.activateSelectedTapped)
             }
-            .disabled(store.currentPlanID == plan.id)
+            .disabled(store.currentPlanID == plan.id || store.isActivating)
 
             Button("Остаться на \(store.currentPlan.title)") {
                 store.send(.closeDetailTapped)
             }
+            .disabled(store.isActivating)
             .font(BIRGEFonts.bodyMedium)
             .foregroundStyle(BIRGEColors.textSecondary)
             .frame(height: 44)

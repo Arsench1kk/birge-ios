@@ -337,6 +337,208 @@ public struct CorridorBookingResponse: Equatable, Sendable, Decodable {
     }
 }
 
+public struct SubscriptionFeatureDTO: Decodable, Equatable, Sendable {
+    public let title: String
+    public let subtitle: String
+    public let symbol: String
+    public let isIncluded: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case title
+        case subtitle
+        case symbol
+        case isIncluded
+        case isIncludedSnake = "is_included"
+    }
+
+    public init(title: String, subtitle: String, symbol: String, isIncluded: Bool) {
+        self.title = title
+        self.subtitle = subtitle
+        self.symbol = symbol
+        self.isIncluded = isIncluded
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.subtitle = try container.decode(String.self, forKey: .subtitle)
+        self.symbol = try container.decode(String.self, forKey: .symbol)
+        self.isIncluded = try container.decodeIfPresent(Bool.self, forKey: .isIncluded)
+            ?? container.decode(Bool.self, forKey: .isIncludedSnake)
+    }
+}
+
+public struct SubscriptionPlanDTO: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let title: String
+    public let price: String
+    public let subtitle: String
+    public let badge: String?
+    public let isPopular: Bool
+    public let features: [SubscriptionFeatureDTO]
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case price
+        case subtitle
+        case badge
+        case isPopular
+        case isPopularSnake = "is_popular"
+        case features
+    }
+
+    public init(
+        id: String,
+        title: String,
+        price: String,
+        subtitle: String,
+        badge: String? = nil,
+        isPopular: Bool,
+        features: [SubscriptionFeatureDTO]
+    ) {
+        self.id = id
+        self.title = title
+        self.price = price
+        self.subtitle = subtitle
+        self.badge = badge
+        self.isPopular = isPopular
+        self.features = features
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.price = try container.decode(String.self, forKey: .price)
+        self.subtitle = try container.decode(String.self, forKey: .subtitle)
+        self.badge = try container.decodeIfPresent(String.self, forKey: .badge)
+        self.isPopular = try container.decodeIfPresent(Bool.self, forKey: .isPopular)
+            ?? container.decode(Bool.self, forKey: .isPopularSnake)
+        self.features = try container.decode([SubscriptionFeatureDTO].self, forKey: .features)
+    }
+}
+
+public struct SubscriptionOverviewResponse: Equatable, Sendable, Decodable {
+    public let currentPlanID: String
+    public let activeSince: String
+    public let plans: [SubscriptionPlanDTO]
+
+    private enum CodingKeys: String, CodingKey {
+        case currentPlanID
+        case currentPlanIDSnake = "current_plan_id"
+        case activeSince
+        case activeSinceSnake = "active_since"
+        case plans
+    }
+
+    public init(currentPlanID: String, activeSince: String, plans: [SubscriptionPlanDTO]) {
+        self.currentPlanID = currentPlanID
+        self.activeSince = activeSince
+        self.plans = plans
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.currentPlanID = try container.decodeIfPresent(String.self, forKey: .currentPlanID)
+            ?? container.decode(String.self, forKey: .currentPlanIDSnake)
+        self.activeSince = try container.decodeIfPresent(String.self, forKey: .activeSince)
+            ?? container.decode(String.self, forKey: .activeSinceSnake)
+        self.plans = try container.decode([SubscriptionPlanDTO].self, forKey: .plans)
+    }
+}
+
+public struct ActivateSubscriptionResponse: Equatable, Sendable, Decodable {
+    public let currentPlanID: String
+    public let activeSince: String
+    public let message: String
+
+    private enum CodingKeys: String, CodingKey {
+        case currentPlanID
+        case currentPlanIDSnake = "current_plan_id"
+        case activeSince
+        case activeSinceSnake = "active_since"
+        case message
+    }
+
+    public init(currentPlanID: String, activeSince: String, message: String) {
+        self.currentPlanID = currentPlanID
+        self.activeSince = activeSince
+        self.message = message
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.currentPlanID = try container.decodeIfPresent(String.self, forKey: .currentPlanID)
+            ?? container.decode(String.self, forKey: .currentPlanIDSnake)
+        self.activeSince = try container.decodeIfPresent(String.self, forKey: .activeSince)
+            ?? container.decode(String.self, forKey: .activeSinceSnake)
+        self.message = try container.decode(String.self, forKey: .message)
+    }
+}
+
+public extension SubscriptionPlanDTO {
+    static let defaults: [SubscriptionPlanDTO] = [
+        SubscriptionPlanDTO(
+            id: "free",
+            title: "Бесплатно",
+            price: "0₸ / месяц",
+            subtitle: "Такси on-demand и просмотр доступных коридоров.",
+            badge: "Текущий",
+            isPopular: false,
+            features: [
+                .init(title: "Такси On-Demand", subtitle: "Стандартный тариф", symbol: "car.fill", isIncluded: true),
+                .init(title: "Просмотр коридоров", subtitle: "Без бронирования подписки", symbol: "map.fill", isIncluded: true),
+                .init(title: "Подписка на коридоры", subtitle: "Недоступно", symbol: "person.3.fill", isIncluded: false),
+                .init(title: "Приоритет в поиске", subtitle: "Недоступно", symbol: "bolt.fill", isIncluded: false)
+            ]
+        ),
+        SubscriptionPlanDTO(
+            id: "lite",
+            title: "Лайт",
+            price: "650₸ / поездка",
+            subtitle: "Один регулярный коридор для спокойных будней.",
+            badge: nil,
+            isPopular: false,
+            features: [
+                .init(title: "Такси On-Demand", subtitle: "Всегда доступно", symbol: "car.fill", isIncluded: true),
+                .init(title: "1 коридор", subtitle: "Для основного маршрута", symbol: "map.circle.fill", isIncluded: true),
+                .init(title: "До 10 поездок в день", subtitle: "Хватает для дома и работы", symbol: "calendar.badge.clock", isIncluded: true),
+                .init(title: "Приоритет в час пик", subtitle: "Недоступно", symbol: "bolt.fill", isIncluded: false)
+            ]
+        ),
+        SubscriptionPlanDTO(
+            id: "standard",
+            title: "Стандарт",
+            price: "850₸ / поездка",
+            subtitle: "Два коридора и стандартный приоритет.",
+            badge: nil,
+            isPopular: false,
+            features: [
+                .init(title: "2 коридора", subtitle: "Например работа и учёба", symbol: "map.fill", isIncluded: true),
+                .init(title: "До 30 поездок в день", subtitle: "Для активного расписания", symbol: "calendar", isIncluded: true),
+                .init(title: "Стандартный приоритет", subtitle: "Быстрее в популярных районах", symbol: "bolt.circle.fill", isIncluded: true),
+                .init(title: "Поддержка 24/7", subtitle: "В профессиональном тарифе", symbol: "message.fill", isIncluded: false)
+            ]
+        ),
+        SubscriptionPlanDTO(
+            id: "pro",
+            title: "Профессионал",
+            price: "1 200₸ / поездка",
+            subtitle: "Безлимит коридоров, высокий приоритет и поддержка 24/7.",
+            badge: "Популярный выбор",
+            isPopular: true,
+            features: [
+                .init(title: "Безлимит коридоров", subtitle: "Все доступные направления", symbol: "infinity", isIncluded: true),
+                .init(title: "Безлимит поездок", subtitle: "Без дневных ограничений", symbol: "car.2.fill", isIncluded: true),
+                .init(title: "Высокий приоритет", subtitle: "Лучше в час пик", symbol: "bolt.fill", isIncluded: true),
+                .init(title: "Поддержка 24/7", subtitle: "Чат и телефон", symbol: "message.fill", isIncluded: true),
+                .init(title: "Скидка 10%", subtitle: "На тариф Комфорт", symbol: "gift.fill", isIncluded: true)
+            ]
+        )
+    ]
+}
+
 private struct CancelRideRequest: Encodable {
     let reason: String
 }
@@ -374,6 +576,10 @@ private struct LocationRecordRequest: Encodable {
     }
 }
 
+private struct ActivateSubscriptionRequest: Encodable {
+    let planID: String
+}
+
 // MARK: - API Client
 
 public struct APIClient: Sendable {
@@ -388,6 +594,8 @@ public struct APIClient: Sendable {
     public var uploadLocationsBulk: @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse
     public var fetchCorridors: @Sendable () async throws -> CorridorListResponse
     public var bookCorridor: @Sendable (_ corridorID: String) async throws -> CorridorBookingResponse
+    public var fetchSubscriptions: @Sendable () async throws -> SubscriptionOverviewResponse
+    public var activateSubscription: @Sendable (_ planID: String) async throws -> ActivateSubscriptionResponse
 
     public init(
         fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideDTO = { _ in
@@ -442,6 +650,20 @@ public struct APIClient: Sendable {
                 ),
                 message: "Corridor booked"
             )
+        },
+        fetchSubscriptions: @escaping @Sendable () async throws -> SubscriptionOverviewResponse = {
+            SubscriptionOverviewResponse(
+                currentPlanID: "free",
+                activeSince: "Сегодня",
+                plans: SubscriptionPlanDTO.defaults
+            )
+        },
+        activateSubscription: @escaping @Sendable (_ planID: String) async throws -> ActivateSubscriptionResponse = { planID in
+            ActivateSubscriptionResponse(
+                currentPlanID: planID,
+                activeSince: "Сегодня",
+                message: "Subscription activated"
+            )
         }
     ) {
         self.requestOTP = requestOTP
@@ -455,6 +677,8 @@ public struct APIClient: Sendable {
         self.uploadLocationsBulk = uploadLocationsBulk
         self.fetchCorridors = fetchCorridors
         self.bookCorridor = bookCorridor
+        self.fetchSubscriptions = fetchSubscriptions
+        self.activateSubscription = activateSubscription
     }
 }
 
@@ -549,6 +773,21 @@ extension APIClient: DependencyKey {
                     path: ["corridors", corridorID, "book"],
                     method: "POST",
                     responseType: CorridorBookingResponse.self
+                )
+            },
+            fetchSubscriptions: {
+                try await transport.sendAuthenticated(
+                    path: ["subscriptions"],
+                    method: "GET",
+                    responseType: SubscriptionOverviewResponse.self
+                )
+            },
+            activateSubscription: { planID in
+                try await transport.sendAuthenticated(
+                    path: ["subscriptions", "activate"],
+                    method: "POST",
+                    body: ActivateSubscriptionRequest(planID: planID),
+                    responseType: ActivateSubscriptionResponse.self
                 )
             }
         )
