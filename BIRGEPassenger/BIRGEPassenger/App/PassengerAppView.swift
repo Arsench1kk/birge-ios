@@ -23,6 +23,8 @@ struct PassengerAppView: View {
                 CorridorListView(store: store)
             case .corridorDetail(let store):
                 CorridorDetailView(store: store)
+            case .myCorridors(let store):
+                MyCorridorsView(store: store)
             case .aiExplanation(let store):
                 AIExplanationView(store: store)
             case .subscriptions(let store):

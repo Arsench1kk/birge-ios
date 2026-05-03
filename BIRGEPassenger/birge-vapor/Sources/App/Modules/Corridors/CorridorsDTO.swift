@@ -51,3 +51,14 @@ struct CorridorBookingDTO: Content {
     let message: String
     let bookingID: UUID?
 }
+
+struct CorridorBookingItemDTO: Content {
+    let bookingID: UUID
+    let status: String
+    let bookedAt: Date?
+    let corridor: CorridorDTO
+}
+
+struct CorridorBookingsListDTO: Content {
+    let bookings: [CorridorBookingItemDTO]
+}

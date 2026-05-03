@@ -65,6 +65,31 @@ struct CorridorsService {
         )
     }
 
+    func bookings() async throws -> CorridorBookingsListDTO {
+        guard try req.authenticatedUserRole == User.UserRole.passenger.rawValue else {
+            throw Abort(.forbidden, reason: "Only passengers can view passenger corridor bookings")
+        }
+
+        let passengerID = try req.authenticatedUserID
+        let bookings = try await CorridorBooking.query(on: req.db)
+            .filter(\.$passenger.$id == passengerID)
+            .filter(\.$status != "cancelled")
+            .with(\.$corridor)
+            .sort(\.$bookedAt, .descending)
+            .all()
+
+        let items = try bookings.map { booking in
+            try CorridorBookingItemDTO(
+                bookingID: booking.requireID(),
+                status: booking.status,
+                bookedAt: booking.bookedAt,
+                corridor: CorridorDTO(corridor: booking.corridor)
+            )
+        }
+
+        return CorridorBookingsListDTO(bookings: items)
+    }
+
     private func seedDefaultsIfNeeded() async throws {
         let count = try await Corridor.query(on: req.db).count()
         guard count == 0 else { return }

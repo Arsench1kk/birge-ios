@@ -354,6 +354,47 @@ public struct CorridorBookingResponse: Equatable, Sendable, Decodable {
     }
 }
 
+public struct CorridorBookingItemDTO: Equatable, Identifiable, Sendable, Decodable {
+    public var id: String { bookingID }
+    public let bookingID: String
+    public let status: String
+    public let bookedAt: Date?
+    public let corridor: CorridorDTO
+
+    private enum CodingKeys: String, CodingKey {
+        case bookingID
+        case bookingIDSnake = "booking_id"
+        case status
+        case bookedAt
+        case bookedAtSnake = "booked_at"
+        case corridor
+    }
+
+    public init(bookingID: String, status: String, bookedAt: Date? = nil, corridor: CorridorDTO) {
+        self.bookingID = bookingID
+        self.status = status
+        self.bookedAt = bookedAt
+        self.corridor = corridor
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.bookingID = try container.decodeFlexibleString(.bookingID, .bookingIDSnake)
+        self.status = try container.decode(String.self, forKey: .status)
+        self.bookedAt = try container.decodeIfPresent(Date.self, forKey: .bookedAt)
+            ?? container.decodeIfPresent(Date.self, forKey: .bookedAtSnake)
+        self.corridor = try container.decode(CorridorDTO.self, forKey: .corridor)
+    }
+}
+
+public struct CorridorBookingsListResponse: Equatable, Sendable, Decodable {
+    public let bookings: [CorridorBookingItemDTO]
+
+    public init(bookings: [CorridorBookingItemDTO]) {
+        self.bookings = bookings
+    }
+}
+
 public struct SubscriptionFeatureDTO: Decodable, Equatable, Sendable {
     public let title: String
     public let subtitle: String
@@ -664,6 +705,7 @@ public struct APIClient: Sendable {
     public var uploadLocationsBulk: @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse
     public var fetchCorridors: @Sendable () async throws -> CorridorListResponse
     public var bookCorridor: @Sendable (_ corridorID: String) async throws -> CorridorBookingResponse
+    public var fetchCorridorBookings: @Sendable () async throws -> CorridorBookingsListResponse
     public var fetchSubscriptions: @Sendable () async throws -> SubscriptionOverviewResponse
     public var activateSubscription: @Sendable (_ planID: String) async throws -> ActivateSubscriptionResponse
     public var createKaspiCheckout: @Sendable (_ purpose: String, _ amountTenge: Int, _ planID: String?) async throws -> KaspiCheckoutResponse
@@ -722,6 +764,9 @@ public struct APIClient: Sendable {
                 message: "Corridor booked"
             )
         },
+        fetchCorridorBookings: @escaping @Sendable () async throws -> CorridorBookingsListResponse = {
+            CorridorBookingsListResponse(bookings: [])
+        },
         fetchSubscriptions: @escaping @Sendable () async throws -> SubscriptionOverviewResponse = {
             SubscriptionOverviewResponse(
                 currentPlanID: "free",
@@ -758,6 +803,7 @@ public struct APIClient: Sendable {
         self.uploadLocationsBulk = uploadLocationsBulk
         self.fetchCorridors = fetchCorridors
         self.bookCorridor = bookCorridor
+        self.fetchCorridorBookings = fetchCorridorBookings
         self.fetchSubscriptions = fetchSubscriptions
         self.activateSubscription = activateSubscription
         self.createKaspiCheckout = createKaspiCheckout
@@ -855,6 +901,13 @@ extension APIClient: DependencyKey {
                     path: ["corridors", corridorID, "book"],
                     method: "POST",
                     responseType: CorridorBookingResponse.self
+                )
+            },
+            fetchCorridorBookings: {
+                try await transport.sendAuthenticated(
+                    path: ["corridors", "bookings"],
+                    method: "GET",
+                    responseType: CorridorBookingsListResponse.self
                 )
             },
             fetchSubscriptions: {

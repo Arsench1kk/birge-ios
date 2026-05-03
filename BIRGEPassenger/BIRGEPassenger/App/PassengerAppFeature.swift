@@ -20,6 +20,7 @@ import Foundation
         case offerFound(OfferFoundFeature)
         case corridorList(CorridorListFeature)
         case corridorDetail(CorridorDetailFeature)
+        case myCorridors(MyCorridorsFeature)
         case aiExplanation(AIExplanationFeature)
         case subscriptions(SubscriptionsFeature)
         #if DEBUG
@@ -84,6 +85,16 @@ import Foundation
 
             // Home → Ride History (stub — profile for now)
             case .home(.delegate(.openRideHistory)):
+                state.path.append(.myCorridors(MyCorridorsFeature.State()))
+                return .none
+
+            // My Corridors → Corridor Detail
+            case .path(.element(_, action: .myCorridors(.delegate(.corridorSelected(let corridor))))):
+                state.path.append(.corridorDetail(CorridorDetailFeature.State(
+                    corridor: corridor,
+                    isJoined: true,
+                    statusMessage: "Вы уже в этом коридоре"
+                )))
                 return .none
 
             // Home → Subscription (stub)
