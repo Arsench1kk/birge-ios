@@ -6,6 +6,7 @@
 //
 
 import ComposableArchitecture
+import ConcurrencyExtras
 import XCTest
 @testable import BIRGEPassenger
 
@@ -40,6 +41,7 @@ final class OTPFeatureTests: XCTestCase {
             role: "passenger",
             userId: "123"
         )
+        let savedValues = LockIsolated<[String: String]>([:])
         
         let store = TestStore(initialState: OTPFeature.State(
             phoneNumber: "+7777123456",
@@ -49,7 +51,9 @@ final class OTPFeatureTests: XCTestCase {
             OTPFeature()
         } withDependencies: {
             $0.authClient.verifyOTP = { _, _ in authResponse }
-            $0.keychainClient.save = { _, _ in } // Mock save
+            $0.keychainClient.save = { key, value in
+                savedValues.withValue { $0[key] = value }
+            }
         }
         
         await store.send(.verifyTapped) {
@@ -61,6 +65,10 @@ final class OTPFeatureTests: XCTestCase {
         }
         
         await store.receive(\.delegate.authenticated, "passenger")
+
+        XCTAssertEqual(savedValues.value[KeychainClient.Keys.accessToken], "access")
+        XCTAssertEqual(savedValues.value[KeychainClient.Keys.refreshToken], "refresh")
+        XCTAssertEqual(savedValues.value[KeychainClient.Keys.userID], "123")
     }
     
     func testOTPVerifyFailure() async {

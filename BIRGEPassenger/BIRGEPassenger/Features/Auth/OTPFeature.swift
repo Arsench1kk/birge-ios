@@ -96,11 +96,15 @@ struct OTPFeature {
                 state.errorMessage = nil
                 let phone = state.phoneNumber
                 let code = state.otpCode
-                return .run { [keychainClient] send in
+                let saveToKeychain = keychainClient.save
+                let accessTokenKey = KeychainClient.Keys.accessToken
+                let refreshTokenKey = KeychainClient.Keys.refreshToken
+                let userIDKey = KeychainClient.Keys.userID
+                return .run { send in
                     let response = try await authClient.verifyOTP(phone, code)
-                    try keychainClient.save("birge_access_token", response.accessToken)
-                    try keychainClient.save("birge_refresh_token", response.refreshToken)
-                    try keychainClient.save("birge_user_id", response.userId)
+                    try saveToKeychain(accessTokenKey, response.accessToken)
+                    try saveToKeychain(refreshTokenKey, response.refreshToken)
+                    try saveToKeychain(userIDKey, response.userId)
                     await send(._verifySucceeded(role: response.role))
                 } catch: { error, send in
                     await send(._verifyFailed(error.localizedDescription))
@@ -131,4 +135,3 @@ struct OTPFeature {
         }
     }
 }
-

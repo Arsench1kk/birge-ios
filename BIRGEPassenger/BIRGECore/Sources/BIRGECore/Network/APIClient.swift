@@ -127,6 +127,35 @@ public struct APIAuthResponse: Equatable, Sendable, Decodable {
     }
 }
 
+public struct TokenPair: Codable, Equatable, Sendable {
+    public let accessToken: String
+    public let refreshToken: String
+
+    public init(accessToken: String, refreshToken: String) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case accessToken
+        case accessTokenSnake = "access_token"
+        case refreshToken
+        case refreshTokenSnake = "refresh_token"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.accessToken = try container.decodeFlexibleString(.accessTokenSnake, .accessToken)
+        self.refreshToken = try container.decodeFlexibleString(.refreshTokenSnake, .refreshToken)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(accessToken, forKey: .accessToken)
+        try container.encode(refreshToken, forKey: .refreshToken)
+    }
+}
+
 public struct CurrentUserResponse: Equatable, Sendable, Decodable {
     public let id: String
     public let phone: String
@@ -237,6 +266,7 @@ private struct LocationRecordRequest: Encodable {
 public struct APIClient: Sendable {
     public var requestOTP: @Sendable (_ phone: String) async throws -> Void
     public var verifyOTP: @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse
+    public var refreshTokens: @Sendable () async throws -> TokenPair
     public var refreshAccessToken: @Sendable () async throws -> String
     public var fetchMe: @Sendable () async throws -> UserDTO
     public var currentUser: @Sendable () async throws -> CurrentUserResponse
@@ -253,6 +283,9 @@ public struct APIClient: Sendable {
         requestOTP: @escaping @Sendable (_ phone: String) async throws -> Void = { _ in },
         verifyOTP: @escaping @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse = { _, _ in
             APIAuthResponse(accessToken: "test-access-token", refreshToken: "test-refresh-token", role: "passenger", userID: "test-user-id")
+        },
+        refreshTokens: @escaping @Sendable () async throws -> TokenPair = {
+            TokenPair(accessToken: "test-access-token", refreshToken: "test-refresh-token")
         },
         refreshAccessToken: @escaping @Sendable () async throws -> String = { "test-access-token" },
         fetchMe: @escaping @Sendable () async throws -> UserDTO = {
@@ -277,6 +310,7 @@ public struct APIClient: Sendable {
     ) {
         self.requestOTP = requestOTP
         self.verifyOTP = verifyOTP
+        self.refreshTokens = refreshTokens
         self.refreshAccessToken = refreshAccessToken
         self.fetchMe = fetchMe
         self.currentUser = currentUser
@@ -291,8 +325,36 @@ public struct APIClient: Sendable {
 
 extension APIClient: DependencyKey {
     public static var liveValue: APIClient {
-        let tokenRefreshClient = TokenRefreshClient.liveValue
-        let transport = LiveAPITransport(tokenRefreshClient: tokenRefreshClient)
+        makeLive(baseURLString: LiveAPITransport.defaultBaseURLString)
+    }
+
+    static func makeLive(
+        baseURLString: String,
+        credentialStore: TokenCredentialStore = .live,
+        authSessionClient: AuthSessionClient = .liveValue,
+        sendRequest: @escaping HTTPSend = { request in
+            try await URLSession.shared.data(for: request)
+        }
+    ) -> APIClient {
+        let accessTokenStore = AccessTokenStore()
+        let tokenRefreshTransport = TokenRefreshTransport(
+            baseURLString: baseURLString,
+            credentialStore: credentialStore,
+            sendRequest: sendRequest
+        )
+        let coordinator = TokenRefreshCoordinator(
+            accessTokenStore: accessTokenStore,
+            credentialStore: credentialStore,
+            transport: tokenRefreshTransport,
+            authSessionClient: authSessionClient
+        )
+        let tokenRefreshClient = makeTokenRefreshClient(coordinator: coordinator)
+        let transport = LiveAPITransport(
+            baseURLString: baseURLString,
+            tokenRefreshClient: tokenRefreshClient,
+            authSessionClient: authSessionClient,
+            sendRequest: sendRequest
+        )
         return APIClient(
             fetchRide: { rideID in
                 try await transport.sendAuthenticated(
@@ -329,6 +391,9 @@ extension APIClient: DependencyKey {
                     response.refreshToken
                 )
                 return response
+            },
+            refreshTokens: {
+                try await tokenRefreshClient.refreshTokens()
             },
             refreshAccessToken: {
                 try await tokenRefreshClient.refreshAccessToken()
@@ -385,13 +450,26 @@ extension DependencyValues {
 
 // MARK: - Live Transport
 
+typealias HTTPSend = @Sendable (_ request: URLRequest) async throws -> (Data, URLResponse)
+
 private actor LiveAPITransport {
+    private let baseURLString: String
     private let tokenRefreshClient: TokenRefreshClient
+    private let authSessionClient: AuthSessionClient
+    private let sendRequest: HTTPSend
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    init(tokenRefreshClient: TokenRefreshClient) {
+    init(
+        baseURLString: String,
+        tokenRefreshClient: TokenRefreshClient,
+        authSessionClient: AuthSessionClient,
+        sendRequest: @escaping HTTPSend
+    ) {
+        self.baseURLString = baseURLString
         self.tokenRefreshClient = tokenRefreshClient
+        self.authSessionClient = authSessionClient
+        self.sendRequest = sendRequest
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .iso8601
@@ -443,11 +521,12 @@ private actor LiveAPITransport {
         do {
             return try await send(path: path, method: method, bodyData: bodyData, bearerToken: accessToken, responseType: responseType)
         } catch let error as HTTPStatusError where error.statusCode == 401 {
-            let refreshedToken = try await tokenRefreshClient.refreshAccessToken()
+            let refreshedTokens = try await tokenRefreshClient.refreshTokens()
             do {
-                return try await send(path: path, method: method, bodyData: bodyData, bearerToken: refreshedToken, responseType: responseType)
+                return try await send(path: path, method: method, bodyData: bodyData, bearerToken: refreshedTokens.accessToken, responseType: responseType)
             } catch let retryError as HTTPStatusError where retryError.statusCode == 401 {
                 try? await tokenRefreshClient.clearTokens()
+                await authSessionClient.sendAuthExpired(Self.authExpiredMessage)
                 throw BIRGEAPIError(errorCode: "UNAUTHORIZED", message: "Authentication expired.")
             }
         }
@@ -457,11 +536,7 @@ private actor LiveAPITransport {
         if let token = try await tokenRefreshClient.currentAccessToken() {
             return token
         }
-        if let token = try KeychainCredentialStore.live.load(TokenRefreshClient.legacyAccessTokenKey) {
-            await AccessTokenStore.shared.setToken(token)
-            return token
-        }
-        return try await tokenRefreshClient.refreshAccessToken()
+        return try await tokenRefreshClient.refreshTokens().accessToken
     }
 
     private func send<Response: Decodable & Sendable>(
@@ -482,7 +557,7 @@ private actor LiveAPITransport {
             request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await sendRequest(request)
         guard let http = response as? HTTPURLResponse else {
             throw BIRGEAPIError.invalidResponse()
         }
@@ -509,7 +584,7 @@ private actor LiveAPITransport {
     }
 
     private func url(path: [String]) throws -> URL {
-        guard var url = URL(string: Self.baseURLString) else {
+        guard var url = URL(string: baseURLString) else {
             throw BIRGEAPIError.invalidBaseURL()
         }
         for component in path {
@@ -518,7 +593,9 @@ private actor LiveAPITransport {
         return url
     }
 
-    private static var baseURLString: String {
+    static let authExpiredMessage = "Сессия истекла. Войдите снова."
+
+    static var defaultBaseURLString: String {
         #if DEBUG
         "http://localhost:8080/api/v1"
         #else
@@ -542,17 +619,20 @@ private struct HTTPStatusError: Error, Sendable {
 public struct TokenRefreshClient: Sendable {
     public var currentAccessToken: @Sendable () async throws -> String?
     public var storeTokens: @Sendable (_ accessToken: String, _ refreshToken: String) async throws -> Void
+    public var refreshTokens: @Sendable () async throws -> TokenPair
     public var refreshAccessToken: @Sendable () async throws -> String
     public var clearTokens: @Sendable () async throws -> Void
 
     public init(
         currentAccessToken: @escaping @Sendable () async throws -> String?,
         storeTokens: @escaping @Sendable (_ accessToken: String, _ refreshToken: String) async throws -> Void,
+        refreshTokens: @escaping @Sendable () async throws -> TokenPair,
         refreshAccessToken: @escaping @Sendable () async throws -> String,
         clearTokens: @escaping @Sendable () async throws -> Void
     ) {
         self.currentAccessToken = currentAccessToken
         self.storeTokens = storeTokens
+        self.refreshTokens = refreshTokens
         self.refreshAccessToken = refreshAccessToken
         self.clearTokens = clearTokens
     }
@@ -560,25 +640,21 @@ public struct TokenRefreshClient: Sendable {
 
 extension TokenRefreshClient: DependencyKey {
     public static var liveValue: TokenRefreshClient {
-        let transport = TokenRefreshTransport()
-        return TokenRefreshClient(
-            currentAccessToken: {
-                await AccessTokenStore.shared.token
-            },
-            storeTokens: { accessToken, refreshToken in
-                await AccessTokenStore.shared.setToken(accessToken)
-                try KeychainCredentialStore.live.save(Self.refreshTokenKey, refreshToken)
-            },
-            refreshAccessToken: {
-                try await transport.refreshAccessToken()
-            },
-            clearTokens: {
-                await AccessTokenStore.shared.clear()
-                try KeychainCredentialStore.live.delete(Self.refreshTokenKey)
-                try KeychainCredentialStore.live.delete(Self.legacyAccessTokenKey)
-                try KeychainCredentialStore.live.delete(Self.userIDKey)
+        let accessTokenStore = AccessTokenStore()
+        let transport = TokenRefreshTransport(
+            baseURLString: LiveAPITransport.defaultBaseURLString,
+            credentialStore: .live,
+            sendRequest: { request in
+                try await URLSession.shared.data(for: request)
             }
         )
+        let coordinator = TokenRefreshCoordinator(
+            accessTokenStore: accessTokenStore,
+            credentialStore: .live,
+            transport: transport,
+            authSessionClient: .liveValue
+        )
+        return makeTokenRefreshClient(coordinator: coordinator)
     }
 
     public static var testValue: TokenRefreshClient {
@@ -591,6 +667,18 @@ extension TokenRefreshClient: DependencyKey {
             storeTokens: { newAccessToken, newRefreshToken in
                 accessToken.withValue { $0 = newAccessToken }
                 refreshToken.withValue { $0 = newRefreshToken }
+            },
+            refreshTokens: {
+                guard refreshToken.value != nil else {
+                    throw BIRGEAPIError.missingRefreshToken()
+                }
+                let pair = TokenPair(
+                    accessToken: "test-refreshed-access-token",
+                    refreshToken: "test-refreshed-refresh-token"
+                )
+                accessToken.withValue { $0 = pair.accessToken }
+                refreshToken.withValue { $0 = pair.refreshToken }
+                return pair
             },
             refreshAccessToken: {
                 guard refreshToken.value != nil else {
@@ -614,15 +702,7 @@ extension DependencyValues {
     }
 }
 
-private extension TokenRefreshClient {
-    static let refreshTokenKey = "birge_refresh_token"
-    static let legacyAccessTokenKey = "birge_access_token"
-    static let userIDKey = "birge_user_id"
-}
-
 private actor AccessTokenStore {
-    static let shared = AccessTokenStore()
-
     private var accessToken: String?
 
     var token: String? {
@@ -638,18 +718,120 @@ private actor AccessTokenStore {
     }
 }
 
+private actor TokenRefreshCoordinator {
+    private let accessTokenStore: AccessTokenStore
+    private let credentialStore: TokenCredentialStore
+    private let transport: TokenRefreshTransport
+    private let authSessionClient: AuthSessionClient
+    private var inFlightRefresh: Task<TokenPair, Error>?
+
+    init(
+        accessTokenStore: AccessTokenStore,
+        credentialStore: TokenCredentialStore,
+        transport: TokenRefreshTransport,
+        authSessionClient: AuthSessionClient
+    ) {
+        self.accessTokenStore = accessTokenStore
+        self.credentialStore = credentialStore
+        self.transport = transport
+        self.authSessionClient = authSessionClient
+    }
+
+    func currentAccessToken() async throws -> String? {
+        if let token = await accessTokenStore.token {
+            return token
+        }
+        if let token = try credentialStore.load(TokenCredentialStore.accessTokenKey) {
+            await accessTokenStore.setToken(token)
+            return token
+        }
+        return nil
+    }
+
+    func storeTokens(_ tokens: TokenPair) async throws {
+        await accessTokenStore.setToken(tokens.accessToken)
+        try credentialStore.save(TokenCredentialStore.accessTokenKey, tokens.accessToken)
+        try credentialStore.save(TokenCredentialStore.refreshTokenKey, tokens.refreshToken)
+    }
+
+    func refreshTokens() async throws -> TokenPair {
+        if let inFlightRefresh {
+            return try await inFlightRefresh.value
+        }
+
+        let task = Task { [transport, credentialStore, accessTokenStore] in
+            let tokens = try await transport.refreshTokens()
+            await accessTokenStore.setToken(tokens.accessToken)
+            try credentialStore.save(TokenCredentialStore.accessTokenKey, tokens.accessToken)
+            try credentialStore.save(TokenCredentialStore.refreshTokenKey, tokens.refreshToken)
+            return tokens
+        }
+        inFlightRefresh = task
+
+        do {
+            let tokens = try await task.value
+            inFlightRefresh = nil
+            return tokens
+        } catch {
+            inFlightRefresh = nil
+            try? await clearTokens()
+            await authSessionClient.sendAuthExpired(LiveAPITransport.authExpiredMessage)
+            throw BIRGEAPIError(errorCode: "UNAUTHORIZED", message: "Authentication expired.")
+        }
+    }
+
+    func clearTokens() async throws {
+        await accessTokenStore.clear()
+        try credentialStore.delete(TokenCredentialStore.accessTokenKey)
+        try credentialStore.delete(TokenCredentialStore.refreshTokenKey)
+        try credentialStore.delete(TokenCredentialStore.userIDKey)
+    }
+}
+
+private func makeTokenRefreshClient(coordinator: TokenRefreshCoordinator) -> TokenRefreshClient {
+    TokenRefreshClient(
+        currentAccessToken: {
+            try await coordinator.currentAccessToken()
+        },
+        storeTokens: { accessToken, refreshToken in
+            try await coordinator.storeTokens(
+                TokenPair(accessToken: accessToken, refreshToken: refreshToken)
+            )
+        },
+        refreshTokens: {
+            try await coordinator.refreshTokens()
+        },
+        refreshAccessToken: {
+            try await coordinator.refreshTokens().accessToken
+        },
+        clearTokens: {
+            try await coordinator.clearTokens()
+        }
+    )
+}
+
 private actor TokenRefreshTransport {
+    private let baseURLString: String
+    private let credentialStore: TokenCredentialStore
+    private let sendRequest: HTTPSend
     private let encoder = JSONEncoder()
     private let decoder: JSONDecoder
 
-    init() {
+    init(
+        baseURLString: String,
+        credentialStore: TokenCredentialStore,
+        sendRequest: @escaping HTTPSend
+    ) {
+        self.baseURLString = baseURLString
+        self.credentialStore = credentialStore
+        self.sendRequest = sendRequest
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         self.decoder = decoder
     }
 
-    func refreshAccessToken() async throws -> String {
-        guard let refreshToken = try KeychainCredentialStore.live.load(TokenRefreshClient.refreshTokenKey) else {
+    func refreshTokens() async throws -> TokenPair {
+        guard let refreshToken = try credentialStore.load(TokenCredentialStore.refreshTokenKey) else {
             throw BIRGEAPIError.missingRefreshToken()
         }
 
@@ -659,14 +841,12 @@ private actor TokenRefreshTransport {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(RefreshTokenRequest(refreshToken: refreshToken))
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await sendRequest(request)
         guard let http = response as? HTTPURLResponse else {
             throw BIRGEAPIError.invalidResponse()
         }
 
         guard (200...299).contains(http.statusCode) else {
-            try? KeychainCredentialStore.live.delete(TokenRefreshClient.refreshTokenKey)
-            await AccessTokenStore.shared.clear()
             if let apiError = try? decoder.decode(BIRGEAPIError.self, from: data) {
                 throw apiError
             }
@@ -677,16 +857,11 @@ private actor TokenRefreshTransport {
         }
 
         let responseData = data.isEmpty ? Data("{}".utf8) : data
-        let refreshResponse = try decoder.decode(RefreshTokenResponse.self, from: responseData)
-        await AccessTokenStore.shared.setToken(refreshResponse.accessToken)
-        if let rotatedRefreshToken = refreshResponse.refreshToken {
-            try KeychainCredentialStore.live.save(TokenRefreshClient.refreshTokenKey, rotatedRefreshToken)
-        }
-        return refreshResponse.accessToken
+        return try decoder.decode(TokenPair.self, from: responseData)
     }
 
     private func refreshURL() throws -> URL {
-        guard var url = URL(string: Self.baseURLString) else {
+        guard var url = URL(string: baseURLString) else {
             throw BIRGEAPIError.invalidBaseURL()
         }
         url.appendPathComponent("auth")
@@ -694,13 +869,6 @@ private actor TokenRefreshTransport {
         return url
     }
 
-    private static var baseURLString: String {
-        #if DEBUG
-        "http://localhost:8080/api/v1"
-        #else
-        "https://api.birge.kz/api/v1"
-        #endif
-    }
 }
 
 private struct RefreshTokenRequest: Encodable {
@@ -718,31 +886,16 @@ private struct RefreshTokenRequest: Encodable {
     }
 }
 
-private struct RefreshTokenResponse: Decodable, Sendable {
-    let accessToken: String
-    let refreshToken: String?
+struct TokenCredentialStore: Sendable {
+    static let accessTokenKey = "birge_access_token"
+    static let refreshTokenKey = "birge_refresh_token"
+    static let userIDKey = "birge_user_id"
 
-    private enum CodingKeys: String, CodingKey {
-        case accessToken
-        case accessTokenSnake = "access_token"
-        case refreshToken
-        case refreshTokenSnake = "refresh_token"
-    }
-
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.accessToken = try container.decodeFlexibleString(.accessTokenSnake, .accessToken)
-        self.refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshTokenSnake)
-            ?? container.decodeIfPresent(String.self, forKey: .refreshToken)
-    }
-}
-
-private struct KeychainCredentialStore: Sendable {
     var save: @Sendable (_ key: String, _ value: String) throws -> Void
     var load: @Sendable (_ key: String) throws -> String?
     var delete: @Sendable (_ key: String) throws -> Void
 
-    static let live = KeychainCredentialStore(
+    static let live = TokenCredentialStore(
         save: { key, value in
             guard let data = value.data(using: .utf8) else {
                 throw BIRGEAPIError(errorCode: "KEYCHAIN_DATA_CONVERSION_FAILED", message: "Could not encode token.")

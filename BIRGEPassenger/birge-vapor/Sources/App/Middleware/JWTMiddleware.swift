@@ -4,7 +4,13 @@ import Vapor
 
 struct JWTMiddleware: AsyncMiddleware {
     func respond(to req: Request, chainingTo next: AsyncResponder) async throws -> Response {
-        let payload = try req.jwt.verify(as: BIRGEJWTPayload.self)
+        let payload: BIRGEJWTPayload
+        do {
+            payload = try req.jwt.verify(as: BIRGEJWTPayload.self)
+        } catch {
+            throw Abort(.unauthorized, reason: "Invalid or expired token")
+        }
+
         guard payload.type == .access else {
             throw Abort(.unauthorized, reason: "Invalid token type")
         }

@@ -18,8 +18,46 @@ struct KeychainClient: Sendable {
 
     enum Keys {
         static let accessToken = "birge_access_token"
-        static let refreshToken = "birge.refreshToken"
-        static let userID = "birge.userID"
+        static let refreshToken = "birge_refresh_token"
+        static let userID = "birge_user_id"
+    }
+
+    func saveAccessToken(_ token: String) throws {
+        try save(Keys.accessToken, token)
+    }
+
+    func loadAccessToken() throws -> String? {
+        try load(Keys.accessToken)
+    }
+
+    func deleteAccessToken() throws {
+        try delete(Keys.accessToken)
+    }
+
+    func saveRefreshToken(_ token: String) throws {
+        try save(Keys.refreshToken, token)
+    }
+
+    func loadRefreshToken() throws -> String? {
+        try load(Keys.refreshToken)
+    }
+
+    func deleteRefreshToken() throws {
+        try delete(Keys.refreshToken)
+    }
+
+    func saveUserID(_ userID: String) throws {
+        try save(Keys.userID, userID)
+    }
+
+    func deleteUserID() throws {
+        try delete(Keys.userID)
+    }
+
+    func clearAuthTokens() throws {
+        try deleteAccessToken()
+        try deleteRefreshToken()
+        try deleteUserID()
     }
 }
 

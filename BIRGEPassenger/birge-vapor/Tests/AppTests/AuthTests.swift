@@ -1,7 +1,39 @@
 import XCTest
+import JWT
 @testable import App
 
 final class AuthTests: XCTestCase {
+    func testAuthResponseDTOEncodesAccessAndRefreshTokens() throws {
+        let dto = AuthResponseDTO(
+            accessToken: "access.jwt",
+            refreshToken: "refresh.jwt",
+            role: "passenger",
+            userId: "user-123"
+        )
+        let data = try JSONEncoder().encode(dto)
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+
+        XCTAssertEqual(object["accessToken"] as? String, "access.jwt")
+        XCTAssertEqual(object["refreshToken"] as? String, "refresh.jwt")
+        XCTAssertEqual(object["role"] as? String, "passenger")
+        XCTAssertEqual(object["userId"] as? String, "user-123")
+    }
+
+    func testExpiredAccessPayloadFailsVerification() throws {
+        let payload = BIRGEJWTPayload(
+            userID: UUID().uuidString,
+            role: User.UserRole.passenger.rawValue,
+            type: .access,
+            expiration: Date().addingTimeInterval(-60)
+        )
+
+        XCTAssertThrowsError(
+            try payload.verify(using: JWTSigner.hs256(key: "test-secret"))
+        )
+    }
+
     func testUserResponseDTOEncodesProfileFields() throws {
         let userID = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
         let createdAt = Date(timeIntervalSince1970: 1_735_689_600)
