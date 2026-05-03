@@ -8,19 +8,15 @@ import Vapor
 public func configure(_ app: Application) async throws {
     app.logger.logLevel = .info
 
-    app.databases.use(
-        .postgres(
-            configuration: .init(
-                hostname: Environment.get("DB_HOST") ?? "localhost",
-                port: Environment.get("DB_PORT").flatMap(Int.init) ?? 5432,
-                username: Environment.get("DB_USER") ?? "birge",
-                password: Environment.get("DB_PASS") ?? "birge",
-                database: Environment.get("DB_NAME") ?? "birge_dev",
-                tls: .disable
-            )
-        ),
-        as: .psql
+    let postgresConfiguration = SQLPostgresConfiguration(
+        hostname: Environment.get("DB_HOST") ?? "localhost",
+        port: Environment.get("DB_PORT").flatMap(Int.init) ?? 5432,
+        username: Environment.get("DB_USER") ?? "birge",
+        password: Environment.get("DB_PASS") ?? "birge",
+        database: Environment.get("DB_NAME") ?? "birge_dev",
+        tls: .disable
     )
+    app.databases.use(.postgres(configuration: postgresConfiguration), as: .psql)
 
     app.redis.configuration = try .init(
         hostname: Environment.get("REDIS_HOST") ?? "localhost",

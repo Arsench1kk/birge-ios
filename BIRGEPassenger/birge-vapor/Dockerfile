@@ -1,10 +1,10 @@
-FROM swift:5.10 AS builder
+FROM swift:6.0 AS builder
 
 WORKDIR /app
 COPY . .
 RUN swift build -c release
 
-FROM swift:5.10-slim
+FROM swift:6.0-slim
 
 WORKDIR /app
 COPY --from=builder /app/.build/release/App .
