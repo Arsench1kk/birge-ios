@@ -3,7 +3,6 @@ import SwiftUI
 
 // MARK: - SplashView
 
-@ViewAction(for: SplashFeature.self)
 struct SplashView: View {
     let store: StoreOf<SplashFeature>
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -75,7 +74,7 @@ struct SplashView: View {
             if !reduceMotion {
                 isAnimating = true
             }
-            send(.onAppear)
+            store.send(.onAppear)
         }
     }
 

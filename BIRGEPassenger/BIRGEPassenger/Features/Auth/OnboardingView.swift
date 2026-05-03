@@ -33,7 +33,6 @@ private let slides: [OnboardingSlide] = [
 
 // MARK: - OnboardingView
 
-@ViewAction(for: OnboardingFeature.self)
 struct OnboardingView: View {
     @Bindable var store: StoreOf<OnboardingFeature>
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -46,7 +45,7 @@ struct OnboardingView: View {
                 // ── Slides via TabView
                 TabView(selection: Binding(
                     get: { store.currentPage },
-                    set: { send(.pageChanged($0)) }
+                    set: { store.send(.pageChanged($0)) }
                 )) {
                     ForEach(slides.indices, id: \.self) { index in
                         slideContent(slides[index])
@@ -134,13 +133,13 @@ struct OnboardingView: View {
                 title: isLast ? "Начать" : "Далее"
             ) {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
-                    send(.nextTapped)
+                    _ = store.send(.nextTapped)
                 }
             }
 
             if !isLast {
                 Button("Пропустить") {
-                    send(.skipTapped)
+                    store.send(.skipTapped)
                 }
                 .font(BIRGEFonts.body)
                 .foregroundStyle(BIRGEColors.textSecondary)
