@@ -5,6 +5,8 @@ public struct CreateRideRequest: Codable, Equatable, Sendable {
     public let originLng: Double
     public let destinationLat: Double
     public let destinationLng: Double
+    public let originName: String?
+    public let destinationName: String?
     public let tier: String
 
     public init(
@@ -12,12 +14,16 @@ public struct CreateRideRequest: Codable, Equatable, Sendable {
         originLng: Double,
         destinationLat: Double,
         destinationLng: Double,
+        originName: String? = nil,
+        destinationName: String? = nil,
         tier: String
     ) {
         self.originLat = originLat
         self.originLng = originLng
         self.destinationLat = destinationLat
         self.destinationLng = destinationLng
+        self.originName = originName
+        self.destinationName = destinationName
         self.tier = tier
     }
 }
@@ -30,6 +36,8 @@ public struct RideDTO: Codable, Equatable, Sendable {
     public let originLng: Double
     public let destinationLat: Double
     public let destinationLng: Double
+    public let originName: String?
+    public let destinationName: String?
     public let tier: String
     public let estimatedFare: Double?
     public let createdAt: Date
@@ -54,6 +62,8 @@ public struct RideDTO: Codable, Equatable, Sendable {
         originLng: Double = 0,
         destinationLat: Double = 0,
         destinationLng: Double = 0,
+        originName: String? = nil,
+        destinationName: String? = nil,
         tier: String = "on_demand",
         estimatedFare: Double? = nil,
         createdAt: Date = Date(timeIntervalSince1970: 0),
@@ -72,6 +82,8 @@ public struct RideDTO: Codable, Equatable, Sendable {
         self.originLng = originLng
         self.destinationLat = destinationLat
         self.destinationLng = destinationLng
+        self.originName = originName
+        self.destinationName = destinationName
         self.tier = tier
         self.estimatedFare = estimatedFare
         self.createdAt = createdAt
@@ -122,6 +134,10 @@ public struct RideDTO: Codable, Equatable, Sendable {
         case destinationLng
         case destLat
         case destLng
+        case originName
+        case originNameSnake = "origin_name"
+        case destinationName
+        case destinationNameSnake = "destination_name"
         case tier
         case estimatedFare
         case estimatedFareSnake = "estimated_fare"
@@ -151,6 +167,10 @@ public struct RideDTO: Codable, Equatable, Sendable {
             ?? container.decode(Double.self, forKey: .destLat)
         self.destinationLng = try container.decodeIfPresent(Double.self, forKey: .destinationLng)
             ?? container.decode(Double.self, forKey: .destLng)
+        self.originName = try container.decodeIfPresent(String.self, forKey: .originName)
+            ?? container.decodeIfPresent(String.self, forKey: .originNameSnake)
+        self.destinationName = try container.decodeIfPresent(String.self, forKey: .destinationName)
+            ?? container.decodeIfPresent(String.self, forKey: .destinationNameSnake)
         self.tier = try container.decodeIfPresent(String.self, forKey: .tier) ?? "on_demand"
         self.estimatedFare = try container.decodeIfPresent(Double.self, forKey: .estimatedFare)
             ?? container.decodeIfPresent(Double.self, forKey: .estimatedFareSnake)
@@ -178,6 +198,8 @@ public struct RideDTO: Codable, Equatable, Sendable {
         try container.encode(originLng, forKey: .originLng)
         try container.encode(destinationLat, forKey: .destinationLat)
         try container.encode(destinationLng, forKey: .destinationLng)
+        try container.encodeIfPresent(originName, forKey: .originName)
+        try container.encodeIfPresent(destinationName, forKey: .destinationName)
         try container.encode(tier, forKey: .tier)
         try container.encodeIfPresent(estimatedFare, forKey: .estimatedFare)
         try container.encode(createdAt, forKey: .createdAt)

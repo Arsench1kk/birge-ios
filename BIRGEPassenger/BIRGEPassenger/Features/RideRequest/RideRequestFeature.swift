@@ -69,6 +69,8 @@ import Foundation
                     originLng: 76.945,
                     destinationLat: 43.262,
                     destinationLng: 76.912,
+                    originName: state.origin,
+                    destinationName: state.destination,
                     tier: state.selectedTier.apiTier
                 )
                 return .run { send in

@@ -79,4 +79,25 @@ final class LocationBroadcastTests: XCTestCase {
         XCTAssertEqual(payload["driver_vehicle"] as? String, "Toyota Camry 2018")
         XCTAssertEqual(payload["driver_plate"] as? String, "123 ABC 02")
     }
+
+    func testDriverRideOfferUsesStoredAddressLabels() throws {
+        let ride = Ride(
+            id: UUID(uuidString: "55555555-5555-5555-5555-555555555555")!,
+            passengerID: UUID(uuidString: "66666666-6666-6666-6666-666666666666")!,
+            status: .requested,
+            originLat: 43.238,
+            originLng: 76.945,
+            destLat: 43.262,
+            destLng: 76.912,
+            originName: "ЖК Алатау, пр. Аль-Фараби",
+            destinationName: "Есентай Молл",
+            tier: "shared"
+        )
+
+        let dto = try DriverRideOfferDTO(ride: ride)
+
+        XCTAssertEqual(dto.pickup, "ЖК Алатау, пр. Аль-Фараби")
+        XCTAssertEqual(dto.destination, "Есентай Молл")
+        XCTAssertEqual(dto.status, "requested")
+    }
 }

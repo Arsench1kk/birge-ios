@@ -20,6 +20,8 @@ struct RidesService {
             originLng: dto.originLng,
             destLat: dto.destinationLat,
             destLng: dto.destinationLng,
+            originName: normalized(dto.originName),
+            destinationName: normalized(dto.destinationName),
             tier: dto.tier
         )
 
@@ -125,6 +127,11 @@ struct RidesService {
         }
 
         throw Abort(.forbidden, reason: "Ride does not belong to authenticated user")
+    }
+
+    private func normalized(_ value: String?) -> String? {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == true ? nil : trimmed
     }
 
     private func requireDriver() throws {

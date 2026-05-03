@@ -10,6 +10,8 @@ struct CreateRideDTO: Content {
     let originLng: Double
     let destinationLat: Double
     let destinationLng: Double
+    let originName: String?
+    let destinationName: String?
     let tier: String
 
     static let allowedTiers: Set<String> = ["on_demand", "shared", "subscription"]
@@ -19,12 +21,16 @@ struct CreateRideDTO: Content {
         originLng: Double,
         destinationLat: Double,
         destinationLng: Double,
+        originName: String? = nil,
+        destinationName: String? = nil,
         tier: String
     ) {
         self.originLat = originLat
         self.originLng = originLng
         self.destinationLat = destinationLat
         self.destinationLng = destinationLng
+        self.originName = originName
+        self.destinationName = destinationName
         self.tier = tier
     }
 
@@ -33,6 +39,10 @@ struct CreateRideDTO: Content {
         case originLng
         case destinationLat
         case destinationLng
+        case originName
+        case originNameSnake = "origin_name"
+        case destinationName
+        case destinationNameSnake = "destination_name"
         case origin
         case destination
         case tier
@@ -48,6 +58,10 @@ struct CreateRideDTO: Content {
             self.originLng = originLng
             self.destinationLat = destinationLat
             self.destinationLng = destinationLng
+            self.originName = try container.decodeIfPresent(String.self, forKey: .originName)
+                ?? container.decodeIfPresent(String.self, forKey: .originNameSnake)
+            self.destinationName = try container.decodeIfPresent(String.self, forKey: .destinationName)
+                ?? container.decodeIfPresent(String.self, forKey: .destinationNameSnake)
             self.tier = try container.decode(String.self, forKey: .tier)
             return
         }
@@ -58,6 +72,10 @@ struct CreateRideDTO: Content {
         self.originLng = origin.lng
         self.destinationLat = destination.lat
         self.destinationLng = destination.lng
+        self.originName = try container.decodeIfPresent(String.self, forKey: .originName)
+            ?? container.decodeIfPresent(String.self, forKey: .originNameSnake)
+        self.destinationName = try container.decodeIfPresent(String.self, forKey: .destinationName)
+            ?? container.decodeIfPresent(String.self, forKey: .destinationNameSnake)
 
         if let tier = try? container.decode(String.self, forKey: .tier) {
             self.tier = tier
@@ -73,6 +91,8 @@ struct CreateRideDTO: Content {
         try container.encode(originLng, forKey: .originLng)
         try container.encode(destinationLat, forKey: .destinationLat)
         try container.encode(destinationLng, forKey: .destinationLng)
+        try container.encodeIfPresent(originName, forKey: .originName)
+        try container.encodeIfPresent(destinationName, forKey: .destinationName)
         try container.encode(tier, forKey: .tier)
     }
 
@@ -96,6 +116,8 @@ struct RideDTO: Content {
     let originLng: Double
     let destinationLat: Double
     let destinationLng: Double
+    let originName: String?
+    let destinationName: String?
     let tier: String
     let estimatedFare: Double?
     let createdAt: Date
@@ -109,6 +131,8 @@ struct RideDTO: Content {
         self.originLng = ride.originLng
         self.destinationLat = ride.destLat
         self.destinationLng = ride.destLng
+        self.originName = ride.originName
+        self.destinationName = ride.destinationName
         self.tier = ride.tier ?? "on_demand"
         self.estimatedFare = ride.fareTenge.map(Double.init)
         self.createdAt = ride.createdAt ?? ride.requestedAt ?? Date()
@@ -133,8 +157,18 @@ struct DriverRideOfferDTO: Content, Equatable {
     init(ride: Ride, passenger: User? = nil) throws {
         self.rideID = try ride.requireID()
         self.passengerName = passenger?.name ?? "Пассажир BIRGE"
-        self.pickup = "Подача: \(String(format: "%.4f", ride.originLat)), \(String(format: "%.4f", ride.originLng))"
-        self.destination = "Назначение: \(String(format: "%.4f", ride.destLat)), \(String(format: "%.4f", ride.destLng))"
+        self.pickup = Self.label(
+            ride.originName,
+            fallbackPrefix: "Подача",
+            lat: ride.originLat,
+            lng: ride.originLng
+        )
+        self.destination = Self.label(
+            ride.destinationName,
+            fallbackPrefix: "Назначение",
+            lat: ride.destLat,
+            lng: ride.destLng
+        )
         self.fare = ride.fareTenge ?? Self.estimatedFare(for: ride)
         self.distanceKm = Self.distanceKm(for: ride)
         self.etaMinutes = Self.etaMinutes(for: ride.status)
@@ -162,6 +196,14 @@ struct DriverRideOfferDTO: Content, Equatable {
         let latKm = (ride.destLat - ride.originLat) * 111.0
         let lngKm = (ride.destLng - ride.originLng) * 85.0
         return max(1.0, (latKm * latKm + lngKm * lngKm).squareRoot())
+    }
+
+    private static func label(_ value: String?, fallbackPrefix: String, lat: Double, lng: Double) -> String {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmed, !trimmed.isEmpty {
+            return trimmed
+        }
+        return "\(fallbackPrefix): \(String(format: "%.4f", lat)), \(String(format: "%.4f", lng))"
     }
 }
 
