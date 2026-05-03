@@ -21,6 +21,7 @@ import Foundation
         case corridorList(CorridorListFeature)
         case corridorDetail(CorridorDetailFeature)
         case aiExplanation(AIExplanationFeature)
+        case subscriptions(SubscriptionsFeature)
         #if DEBUG
         case activeRide(ActiveRideFeature)
         #endif
@@ -87,6 +88,7 @@ import Foundation
 
             // Home → Subscription (stub)
             case .home(.delegate(.openSubscription)):
+                state.path.append(.subscriptions(SubscriptionsFeature.State()))
                 return .none
 
             // RideRequest → Searching

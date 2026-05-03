@@ -44,6 +44,21 @@ final class PassengerAppFeatureTests: XCTestCase {
         }
     }
 
+    func testHomeSubscriptionOpensSubscriptionsScreen() async {
+        let store = TestStore(initialState: PassengerAppFeature.State()) {
+            PassengerAppFeature()
+        }
+
+        await store.send(.home(.delegate(.openSubscription)))
+
+        let path = Array(store.state.path)
+        XCTAssertEqual(path.count, 1)
+        guard case .subscriptions = path.last else {
+            XCTFail("Expected SubscriptionsFeature at the top of the stack")
+            return
+        }
+    }
+
     func testRideMatchedNavigatesToOfferFoundWithDriverInfo() async {
         var initialState = PassengerAppFeature.State()
         initialState.path.append(.searching(SearchingFeature.State(rideId: "ride-123")))
