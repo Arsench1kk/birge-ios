@@ -633,6 +633,6 @@ private extension DriverAppFeature.State {
         }
 
         let hasCoreRegistration = profile.firstName?.isEmpty == false && profile.vehicleModel?.isEmpty == false
-        isRegistrationComplete = profile.kycStatus != "draft" || hasCoreRegistration
+        isRegistrationComplete = hasCoreRegistration
     }
 }
