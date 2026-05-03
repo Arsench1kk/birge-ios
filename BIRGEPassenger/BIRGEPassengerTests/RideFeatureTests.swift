@@ -39,6 +39,8 @@ final class RideFeatureTests: XCTestCase {
 
     // MARK: - Test 1: Initial State Is Requested
 
+    private let zeroPickupLocation = Coordinate(latitude: 0, longitude: 0)
+
     /// Confirms the default state starts with `.requested` status.
     func testInitialStateIsRequested() {
         let state = RideFeature.State(rideId: "ride-123")
@@ -212,6 +214,7 @@ final class RideFeatureTests: XCTestCase {
             RideResponse(rideId: "ride-123", status: "driver_arriving", etaSeconds: 120)
         ) {
             $0.etaSeconds = 120
+            $0.pickupLocation = self.zeroPickupLocation
         }
 
         XCTAssertTrue(fetchCalled.value, "apiClient.fetchRide should have been called on reconnect")
@@ -258,6 +261,7 @@ final class RideFeatureTests: XCTestCase {
             )
         ) {
             $0.verificationCode = "1234"
+            $0.pickupLocation = self.zeroPickupLocation
         }
 
         await store.receive(\.rideStatusChanged, .passengerWait) {
@@ -301,7 +305,9 @@ final class RideFeatureTests: XCTestCase {
         await store.receive(
             \.rideLoadedFromServer,
             RideResponse(rideId: "ride-123", status: "matched")
-        )
+        ) {
+            $0.pickupLocation = self.zeroPickupLocation
+        }
     }
 
     // MARK: - Test 9: Server Recovery Preserves Match Driver Info
@@ -324,6 +330,8 @@ final class RideFeatureTests: XCTestCase {
             RideFeature()
         }
 
-        await store.send(.rideLoadedFromServer(RideResponse(rideId: "ride-123", status: "matched")))
+        await store.send(.rideLoadedFromServer(RideResponse(rideId: "ride-123", status: "matched"))) {
+            $0.pickupLocation = self.zeroPickupLocation
+        }
     }
 }

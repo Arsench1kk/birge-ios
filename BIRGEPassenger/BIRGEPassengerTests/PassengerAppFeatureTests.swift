@@ -32,16 +32,20 @@ final class PassengerAppFeatureTests: XCTestCase {
                     )
                 )
             )
-        ) {
-            $0.path.append(.ride(RideFeature.State(
-                rideId: "ride-123",
-                status: .matched,
-                etaSeconds: 240,
-                driverName: "Асан Бекович",
-                driverRating: 4.9,
-                driverVehicle: "Chevrolet Nexia",
-                driverPlate: "777 ABA 02"
-            )))
+        )
+
+        let path = Array(store.state.path)
+        XCTAssertEqual(path.count, 2)
+        guard case let .ride(rideState) = path.last else {
+            XCTFail("Expected RideFeature at the top of the stack")
+            return
         }
+        XCTAssertEqual(rideState.rideId, "ride-123")
+        XCTAssertEqual(rideState.status, .matched)
+        XCTAssertEqual(rideState.etaSeconds, 240)
+        XCTAssertEqual(rideState.driverName, "Асан Бекович")
+        XCTAssertEqual(rideState.driverRating, 4.9)
+        XCTAssertEqual(rideState.driverVehicle, "Chevrolet Nexia")
+        XCTAssertEqual(rideState.driverPlate, "777 ABA 02")
     }
 }

@@ -7,6 +7,7 @@
 
 import ComposableArchitecture
 import Foundation
+import Security
 import XCTest
 @testable import BIRGEPassenger
 
@@ -253,7 +254,11 @@ final class OTPFlowE2ETests: XCTestCase {
     func testOTPKeychainPersistence() async throws {
         // 1. Save dummy token mimicking successful login
         let mockToken = "mock_persisted_token_123"
-        try KeychainClient.liveValue.save("birge_access_token", mockToken)
+        do {
+            try KeychainClient.liveValue.save("birge_access_token", mockToken)
+        } catch KeychainError.saveFailed(let status) where status == errSecMissingEntitlement {
+            throw XCTSkip("Simulator keychain is unavailable without the test host entitlement.")
+        }
         
         // 2. Simulate Cold Boot (AppFeature.init reads Keychain synchronously)
         let appState = AppFeature.State()

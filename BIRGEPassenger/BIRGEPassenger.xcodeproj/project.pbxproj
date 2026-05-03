@@ -254,6 +254,7 @@
 				AA000010AAAA001000000001 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				AA000011AAAA001100000001 /* XCRemoteSwiftPackageReference "swift-case-paths" */,
 				AA000012AAAA001200000001 /* XCRemoteSwiftPackageReference "swift-concurrency-extras" */,
+				AA000018AAAA001800000001 /* XCRemoteSwiftPackageReference "swift-navigation" */,
 				04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -700,6 +701,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.3.2;
+			};
+		};
+		AA000018AAAA001800000001 /* XCRemoteSwiftPackageReference "swift-navigation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-navigation";
+			requirement = {
+				kind = exactVersion;
+				version = 2.7.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

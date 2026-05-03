@@ -72,9 +72,13 @@ final class SearchingFeatureTests: XCTestCase {
             XCTFail("Expected text subscribe message")
             return
         }
-        XCTAssertTrue(text.contains("\"type\":\"subscribe\""))
-        XCTAssertTrue(text.contains("\"channel\":\"ride/ride-123\""))
-        XCTAssertTrue(text.contains("\"ride_id\":\"ride-123\""))
+        let data = try XCTUnwrap(text.data(using: .utf8))
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: String]
+        )
+        XCTAssertEqual(payload["type"], "subscribe")
+        XCTAssertEqual(payload["channel"], "ride/ride-123")
+        XCTAssertEqual(payload["ride_id"], "ride-123")
     }
 
     func testFlatRideMatchedEventDelegatesDriverInfo() async {
