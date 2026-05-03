@@ -35,6 +35,7 @@ struct LocationsService {
         }
 
         try await records.create(on: req.db)
+        try await broadcastLatestLocation(rideID: rideID, records: dto.records)
         return LocationBulkResponseDTO(message: "Locations synced", count: records.count)
     }
 
@@ -54,5 +55,26 @@ struct LocationsService {
         if let accuracy = record.accuracy, accuracy < 0 {
             throw Abort(.badRequest, reason: "Invalid accuracy")
         }
+    }
+
+    private func broadcastLatestLocation(
+        rideID: String,
+        records: [LocationRecordDTO]
+    ) async throws {
+        guard let latest = records.max(by: { $0.timestamp < $1.timestamp }) else {
+            return
+        }
+
+        let payload = RideLocationBroadcastDTO(
+            rideID: rideID,
+            record: latest,
+            etaSeconds: nil
+        )
+        let data = try JSONEncoder().encode(payload)
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw Abort(.internalServerError, reason: "Could not encode location update event")
+        }
+
+        await req.application.wsHub.broadcast(to: "ride/\(rideID)", text: text)
     }
 }
