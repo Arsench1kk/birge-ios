@@ -54,7 +54,14 @@ struct DriverAppView: View {
             }
 
             if let ride = store.activeRide {
-                activeRideBanner(ride)
+                activeRideSheet(ride)
+                    .padding(.bottom, 32)
+                    .padding(.horizontal, 20)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            if let summary = store.completedRideSummary {
+                completedRideSheet(summary)
                     .padding(.bottom, 32)
                     .padding(.horizontal, 20)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -62,6 +69,7 @@ struct DriverAppView: View {
         }
         .animation(reduceMotion ? nil : .spring(duration: 0.45), value: store.currentOffer != nil)
         .animation(reduceMotion ? nil : .spring(duration: 0.45), value: store.activeRide != nil)
+        .animation(reduceMotion ? nil : .spring(duration: 0.45), value: store.completedRideSummary != nil)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: store.isOnline)
         .onChange(of: store.currentOffer != nil) { _, hasOffer in
             if hasOffer {
@@ -123,14 +131,14 @@ struct DriverAppView: View {
                 .rotationEffect(.degrees(-22))
                 .offset(x: 96, y: -120)
 
-            if store.isOnline && store.activeRide == nil {
+            if store.isOnline {
                 ZStack {
                     Circle()
-                        .stroke(BIRGEColors.success.opacity(0.16), lineWidth: 24)
-                        .frame(width: 280, height: 280)
+                        .stroke((store.activeRide == nil ? BIRGEColors.success : BIRGEColors.brandPrimary).opacity(0.16), lineWidth: 24)
+                        .frame(width: store.activeRide == nil ? 280 : 190, height: store.activeRide == nil ? 280 : 190)
                     Circle()
-                        .fill(BIRGEColors.success.opacity(0.08))
-                        .frame(width: 210, height: 210)
+                        .fill((store.activeRide == nil ? BIRGEColors.success : BIRGEColors.brandPrimary).opacity(0.08))
+                        .frame(width: store.activeRide == nil ? 210 : 136, height: store.activeRide == nil ? 210 : 136)
                     Image(systemName: "car.fill")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(BIRGEColors.textOnBrand)
@@ -191,9 +199,8 @@ struct DriverAppView: View {
 
     @ViewBuilder
     private var centerContent: some View {
-        if store.activeRide != nil {
-            // Active ride dominates center — banner handles all
-            Spacer()
+        if let ride = store.activeRide {
+            activeRouteStatus(ride)
         } else if !store.isOnline {
             offlineCenter
         } else {
@@ -496,28 +503,83 @@ struct DriverAppView: View {
             .overlay(Circle().stroke(BIRGEColors.background.opacity(0.72), lineWidth: 2))
     }
 
-    // MARK: - Active Ride Banner
+    // MARK: - Active Ride
 
-    private func activeRideBanner(_ ride: DriverAppFeature.DriverActiveRide) -> some View {
+    private func activeRouteStatus(_ ride: DriverAppFeature.DriverActiveRide) -> some View {
         VStack(spacing: BIRGELayout.xs) {
-            HStack {
-                Circle()
-                    .fill(statusColor(for: ride.status))
-                    .frame(width: 10, height: 10)
-                Text(statusText(for: ride.status))
-                    .font(BIRGEFonts.sectionTitle)
-                    .foregroundStyle(BIRGEColors.textPrimary)
+            Label(statusText(for: ride.status), systemImage: statusIcon(for: ride.status))
+                .font(BIRGEFonts.captionBold)
+                .foregroundStyle(statusColor(for: ride.status))
+                .padding(.horizontal, BIRGELayout.s)
+                .padding(.vertical, BIRGELayout.xs)
+                .liquidGlass(.pill, tint: statusColor(for: ride.status).opacity(0.08))
+
+            HStack(spacing: BIRGELayout.xs) {
+                metricChip(icon: "clock.fill", value: ride.status == .pickingUp ? "\(ride.etaMinutes) мин" : "~\(ride.etaMinutes) мин")
+                metricChip(icon: "ruler.fill", value: String(format: "%.1f км", ride.distanceKm))
+            }
+        }
+        .padding(.top, 72)
+    }
+
+    private func activeRideSheet(_ ride: DriverAppFeature.DriverActiveRide) -> some View {
+        VStack(alignment: .leading, spacing: BIRGELayout.s) {
+            HStack(spacing: BIRGELayout.xs) {
+                Image(systemName: statusIcon(for: ride.status))
+                    .font(BIRGEFonts.bodyMedium)
+                    .foregroundStyle(BIRGEColors.textOnBrand)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(statusColor(for: ride.status)))
+
+                VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                    Text(statusText(for: ride.status))
+                        .font(BIRGEFonts.sectionTitle)
+                        .foregroundStyle(BIRGEColors.textPrimary)
+                    Text(statusSubtitle(for: ride))
+                        .font(BIRGEFonts.caption)
+                        .foregroundStyle(BIRGEColors.textSecondary)
+                }
+
                 Spacer()
+
+                Button {} label: {
+                    Image(systemName: "phone.fill")
+                        .font(BIRGEFonts.bodyMedium)
+                        .foregroundStyle(BIRGEColors.brandPrimary)
+                        .frame(width: 42, height: 42)
+                        .liquidGlass(.button, tint: BIRGEColors.brandPrimary.opacity(0.08), isInteractive: true)
+                }
+                .accessibilityLabel("Позвонить пассажиру")
             }
 
-            HStack(spacing: 10) {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundStyle(BIRGEColors.danger)
-                Text(ride.destination)
-                    .font(BIRGEFonts.subtext)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-                    .lineLimit(2)
-                Spacer()
+            routeProgress(for: ride.status)
+
+            VStack(spacing: BIRGELayout.xxs) {
+                routeRow(
+                    icon: "location.circle.fill",
+                    color: BIRGEColors.success,
+                    label: ride.status == .pickingUp ? "Точка посадки" : "Посадка завершена",
+                    address: ride.pickup
+                )
+                routeRow(
+                    icon: "mappin.circle.fill",
+                    color: BIRGEColors.danger,
+                    label: "Назначение",
+                    address: ride.destination
+                )
+            }
+            .padding(BIRGELayout.s)
+            .liquidGlass(.card, tint: statusColor(for: ride.status).opacity(0.04))
+
+            if ride.status == .passengerWait {
+                boardingCodesCard
+            } else {
+                passengersCard(inProgress: ride.status == .inProgress)
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: BIRGELayout.xs), count: 2), spacing: BIRGELayout.xs) {
+                metricTile(icon: "clock", label: ride.status == .pickingUp ? "До посадки" : "Осталось", value: ride.status == .pickingUp ? "\(ride.etaMinutes) мин" : "~\(ride.etaMinutes) мин")
+                metricTile(icon: "ruler", label: "Маршрут", value: String(format: "%.1f км", ride.distanceKm))
             }
 
             BIRGEPrimaryButton(title: actionText(for: ride.status)) {
@@ -535,6 +597,161 @@ struct DriverAppView: View {
         .liquidGlass(.card, tint: statusColor(for: ride.status).opacity(0.06), isInteractive: true)
     }
 
+    private func passengersCard(inProgress: Bool) -> some View {
+        VStack(alignment: .leading, spacing: BIRGELayout.xs) {
+            HStack {
+                Text(inProgress ? "ПАССАЖИРЫ В САЛОНЕ" : "ПАССАЖИРЫ")
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                Spacer()
+                Text(inProgress ? "Полный" : "4 места")
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.success)
+                    .padding(.horizontal, BIRGELayout.xs)
+                    .padding(.vertical, BIRGELayout.xxxs)
+                    .background(Capsule().fill(BIRGEColors.success.opacity(0.12)))
+            }
+
+            HStack(spacing: -8) {
+                ForEach(Array(["А", "М", "Д", "А"].enumerated()), id: \.offset) { _, initial in
+                    Text(initial)
+                        .font(BIRGEFonts.captionBold)
+                        .foregroundStyle(BIRGEColors.textOnBrand)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(avatarColor(for: initial)))
+                        .overlay(Circle().stroke(BIRGEColors.background.opacity(0.8), lineWidth: 2))
+                }
+                Spacer()
+                Label("Рейтинг 4.9", systemImage: "star.fill")
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.warning)
+            }
+        }
+        .padding(BIRGELayout.s)
+        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.025))
+    }
+
+    private var boardingCodesCard: some View {
+        VStack(alignment: .leading, spacing: BIRGELayout.xs) {
+            Text("КОДЫ ПОСАДКИ")
+                .font(BIRGEFonts.captionBold)
+                .foregroundStyle(BIRGEColors.textSecondary)
+
+            ForEach(["АС 142", "МК 809", "ДБ 317", "АМ 551"], id: \.self) { code in
+                HStack {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(BIRGEColors.success)
+                    Text(code)
+                        .font(BIRGEFonts.bodyMedium)
+                        .foregroundStyle(BIRGEColors.textPrimary)
+                    Spacer()
+                    Text("готов")
+                        .font(BIRGEFonts.caption)
+                        .foregroundStyle(BIRGEColors.textSecondary)
+                }
+            }
+        }
+        .padding(BIRGELayout.s)
+        .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.04))
+    }
+
+    private func completedRideSheet(_ summary: DriverAppFeature.CompletedRideSummary) -> some View {
+        VStack(spacing: BIRGELayout.s) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 54, weight: .bold))
+                .foregroundStyle(BIRGEColors.success)
+
+            VStack(spacing: BIRGELayout.xxxs) {
+                Text("Поездка завершена")
+                    .font(BIRGEFonts.title)
+                    .foregroundStyle(BIRGEColors.textPrimary)
+                Text("Отличная работа")
+                    .font(BIRGEFonts.subtext)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+            }
+
+            VStack(spacing: BIRGELayout.s) {
+                Text("\(summary.fare)₸")
+                    .font(BIRGEFonts.heroNumber)
+                    .foregroundStyle(BIRGEColors.success)
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: BIRGELayout.xs), count: 3), spacing: BIRGELayout.xs) {
+                    completionStat(value: "\(summary.durationMinutes) мин", label: "Время")
+                    completionStat(value: String(format: "%.1f км", summary.distanceKm), label: "Дистанция")
+                    completionStat(value: "\(summary.passengers) чел", label: "Пассажиры")
+                }
+            }
+            .padding(BIRGELayout.s)
+            .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.04))
+
+            Label("\(summary.todayTenge)₸ · \(summary.todayRides) поездок сегодня", systemImage: "chart.line.uptrend.xyaxis")
+                .font(BIRGEFonts.captionBold)
+                .foregroundStyle(BIRGEColors.brandPrimary)
+                .padding(.horizontal, BIRGELayout.s)
+                .padding(.vertical, BIRGELayout.xs)
+                .liquidGlass(.pill, tint: BIRGEColors.brandPrimary.opacity(0.08))
+
+            VStack(spacing: BIRGELayout.xs) {
+                BIRGEPrimaryButton(title: "Следующая поездка") {
+                    store.send(.findNextRide)
+                }
+
+                BIRGESecondaryButton(title: "Готово") {
+                    store.send(.dismissCompletedRide)
+                }
+            }
+        }
+        .padding(BIRGELayout.m)
+        .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.06), isInteractive: true)
+    }
+
+    private func routeProgress(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> some View {
+        VStack(spacing: BIRGELayout.xxs) {
+            HStack {
+                Text(progressLabel(for: status))
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                Spacer()
+                Text(progressValue(for: status))
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(statusColor(for: status))
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(BIRGEColors.surfaceElevated)
+                    Capsule()
+                        .fill(statusColor(for: status))
+                        .frame(width: proxy.size.width * progressAmount(for: status))
+                }
+            }
+            .frame(height: 8)
+        }
+    }
+
+    private func completionStat(value: String, label: String) -> some View {
+        VStack(spacing: BIRGELayout.xxxs) {
+            Text(value)
+                .font(BIRGEFonts.captionBold)
+                .foregroundStyle(BIRGEColors.textPrimary)
+            Text(label)
+                .font(BIRGEFonts.caption)
+                .foregroundStyle(BIRGEColors.textSecondary)
+        }
+    }
+
+    private func metricChip(icon: String, value: String) -> some View {
+        HStack(spacing: BIRGELayout.xxxs) {
+            Image(systemName: icon)
+            Text(value)
+        }
+        .font(BIRGEFonts.captionBold)
+        .foregroundStyle(BIRGEColors.textPrimary)
+        .padding(.horizontal, BIRGELayout.xs)
+        .padding(.vertical, BIRGELayout.xxs)
+        .liquidGlass(.pill, tint: BIRGEColors.brandPrimary.opacity(0.05))
+    }
+
     private func statusText(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
         switch status {
         case .pickingUp:
@@ -546,6 +763,61 @@ struct DriverAppView: View {
         }
     }
 
+    private func statusSubtitle(for ride: DriverAppFeature.DriverActiveRide) -> String {
+        switch ride.status {
+        case .pickingUp:
+            return "Точка посадки · \(ride.etaMinutes) мин · 1.2 км"
+        case .passengerWait:
+            return "Проверьте коды посадки и начните маршрут"
+        case .inProgress:
+            return "\(ride.destination) · ~\(ride.etaMinutes) мин"
+        }
+    }
+
+    private func statusIcon(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return "car.fill"
+        case .passengerWait:
+            return "mappin.circle.fill"
+        case .inProgress:
+            return "arrow.triangle.turn.up.right.circle.fill"
+        }
+    }
+
+    private func progressLabel(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return "Подача"
+        case .passengerWait:
+            return "Посадка"
+        case .inProgress:
+            return "Маршрут"
+        }
+    }
+
+    private func progressValue(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
+        switch status {
+        case .pickingUp:
+            return "35%"
+        case .passengerWait:
+            return "60%"
+        case .inProgress:
+            return "72%"
+        }
+    }
+
+    private func progressAmount(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> CGFloat {
+        switch status {
+        case .pickingUp:
+            return 0.35
+        case .passengerWait:
+            return 0.60
+        case .inProgress:
+            return 0.72
+        }
+    }
+
     private func actionText(for status: DriverAppFeature.DriverActiveRide.RideStatus) -> String {
         switch status {
         case .pickingUp:
@@ -554,6 +826,17 @@ struct DriverAppView: View {
             return Texts.startRide
         case .inProgress:
             return Texts.completeRide
+        }
+    }
+
+    private func avatarColor(for initial: String) -> Color {
+        switch initial {
+        case "М":
+            return BIRGEColors.success
+        case "Д":
+            return BIRGEColors.warning
+        default:
+            return BIRGEColors.brandPrimary
         }
     }
 
