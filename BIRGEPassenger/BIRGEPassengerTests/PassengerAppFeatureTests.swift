@@ -4,6 +4,46 @@ import XCTest
 
 @MainActor
 final class PassengerAppFeatureTests: XCTestCase {
+    func testHomeAIExplanationOpensExplanationScreen() async {
+        let store = TestStore(initialState: PassengerAppFeature.State()) {
+            PassengerAppFeature()
+        }
+
+        await store.send(.home(.delegate(.openAIExplanation)))
+
+        let path = Array(store.state.path)
+        XCTAssertEqual(path.count, 1)
+        guard case .aiExplanation = path.last else {
+            XCTFail("Expected AIExplanationFeature at the top of the stack")
+            return
+        }
+    }
+
+    func testAIExplanationTryCorridorsOpensCorridorList() async {
+        var initialState = PassengerAppFeature.State()
+        initialState.path.append(.aiExplanation(AIExplanationFeature.State()))
+
+        let store = TestStore(initialState: initialState) {
+            PassengerAppFeature()
+        }
+
+        await store.send(
+            .path(
+                .element(
+                    id: 0,
+                    action: .aiExplanation(.delegate(.openCorridorList))
+                )
+            )
+        )
+
+        let path = Array(store.state.path)
+        XCTAssertEqual(path.count, 2)
+        guard case .corridorList = path.last else {
+            XCTFail("Expected CorridorListFeature at the top of the stack")
+            return
+        }
+    }
+
     func testRideMatchedNavigatesToOfferFoundWithDriverInfo() async {
         var initialState = PassengerAppFeature.State()
         initialState.path.append(.searching(SearchingFeature.State(rideId: "ride-123")))

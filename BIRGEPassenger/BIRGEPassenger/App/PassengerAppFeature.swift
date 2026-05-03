@@ -20,6 +20,7 @@ import Foundation
         case offerFound(OfferFoundFeature)
         case corridorList(CorridorListFeature)
         case corridorDetail(CorridorDetailFeature)
+        case aiExplanation(AIExplanationFeature)
         #if DEBUG
         case activeRide(ActiveRideFeature)
         #endif
@@ -62,6 +63,16 @@ import Foundation
 
             // Home → Corridor List
             case .home(.delegate(.openCorridorList)):
+                state.path.append(.corridorList(CorridorListFeature.State()))
+                return .none
+
+            // Home → AI Explanation
+            case .home(.delegate(.openAIExplanation)):
+                state.path.append(.aiExplanation(AIExplanationFeature.State()))
+                return .none
+
+            // AI Explanation → Corridor List
+            case .path(.element(_, action: .aiExplanation(.delegate(.openCorridorList)))):
                 state.path.append(.corridorList(CorridorListFeature.State()))
                 return .none
 

@@ -23,6 +23,8 @@ struct PassengerAppView: View {
                 CorridorListView(store: store)
             case .corridorDetail(let store):
                 CorridorDetailView(store: store)
+            case .aiExplanation(let store):
+                AIExplanationView(store: store)
             #if DEBUG
             case .activeRide(let store):
                 ActiveRideView(store: store)

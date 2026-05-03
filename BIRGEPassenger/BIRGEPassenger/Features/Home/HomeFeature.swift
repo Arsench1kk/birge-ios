@@ -26,6 +26,7 @@ import SwiftUI
             case callTaxiTapped
             case corridorTapped(CorridorOption)
             case showAllCorridorsTapped
+            case aiExplanationTapped
             case profileButtonTapped
             case rideHistoryTapped
             case subscriptionTapped
@@ -36,6 +37,7 @@ import SwiftUI
             case openRideRequest
             case openCorridor(CorridorOption)
             case openCorridorList
+            case openAIExplanation
             case openProfile
             case openRideHistory
             case openSubscription
@@ -65,6 +67,8 @@ import SwiftUI
                 return .send(.delegate(.openCorridor(corridor)))
             case .view(.showAllCorridorsTapped):
                 return .send(.delegate(.openCorridorList))
+            case .view(.aiExplanationTapped):
+                return .send(.delegate(.openAIExplanation))
             case .view(.profileButtonTapped):
                 return .send(.delegate(.openProfile))
             case .view(.rideHistoryTapped):

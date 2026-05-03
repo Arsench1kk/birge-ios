@@ -72,8 +72,14 @@ struct HomeView: View {
             .onTapGesture { send(.searchBarTapped) }
 
             // AI Pill
+            Button {
+                send(.aiExplanationTapped)
+            } label: {
                 BIRGEAIPill("AI нашёл \(store.aiMatchCount) коридора рядом")
-                    .padding(.leading, BIRGELayout.s)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, BIRGELayout.s)
+            .accessibilityLabel("Как AI подбирает коридоры")
 
             if let corridorError = store.corridorError {
                 BIRGEToast(message: corridorError, style: .warning)
