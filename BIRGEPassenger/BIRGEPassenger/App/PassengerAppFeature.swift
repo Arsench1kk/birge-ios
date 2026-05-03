@@ -58,6 +58,19 @@ import Foundation
                 state.path.append(.profile(ProfileFeature.State()))
                 return .none
 
+            // Home → Corridor List
+            case .home(.delegate(.openCorridorList)):
+                state.path.append(.corridor(CorridorFeature.State(corridor: CorridorOption.mock[0])))
+                return .none
+
+            // Home → Ride History (stub — profile for now)
+            case .home(.delegate(.openRideHistory)):
+                return .none
+
+            // Home → Subscription (stub)
+            case .home(.delegate(.openSubscription)):
+                return .none
+
             // RideRequest → Searching
             case .path(.element(_, action: .rideRequest(.delegate(.rideCreated(let rideId))))):
                 state.path.append(.searching(SearchingFeature.State(rideId: rideId)))
