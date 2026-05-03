@@ -80,6 +80,11 @@ struct AuthService {
             .first() != nil {
             throw Abort(.conflict, reason: "Email already registered")
         }
+        if try await User.query(on: req.db)
+            .filter(\.$phone == normalizedPhone)
+            .first() != nil {
+            throw Abort(.conflict, reason: "Phone already registered")
+        }
 
         let role = User.UserRole(rawValue: dto.role.lowercased()) ?? .passenger
         let user = User(

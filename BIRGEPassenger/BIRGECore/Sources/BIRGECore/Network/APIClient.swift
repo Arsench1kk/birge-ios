@@ -29,13 +29,15 @@ public struct BIRGEAPIError: Error, Decodable, Equatable, Sendable, LocalizedErr
     private enum CodingKeys: String, CodingKey {
         case errorCode = "error_code"
         case message
+        case reason
         case requestID = "request_id"
     }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.errorCode = try container.decode(String.self, forKey: .errorCode)
-        self.message = try container.decodeIfPresent(String.self, forKey: .message) ?? errorCode
+        let reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        self.errorCode = try container.decodeIfPresent(String.self, forKey: .errorCode) ?? "API_ERROR"
+        self.message = try container.decodeIfPresent(String.self, forKey: .message) ?? reason ?? errorCode
         self.requestID = try container.decodeIfPresent(String.self, forKey: .requestID)
     }
 
@@ -105,6 +107,7 @@ public struct APIAuthResponse: Equatable, Sendable, Decodable {
         case accessToken
         case refreshToken
         case userID
+        case userId
         case accessTokenSnake = "access_token"
         case refreshTokenSnake = "refresh_token"
         case userIDSnake = "user_id"
@@ -122,7 +125,7 @@ public struct APIAuthResponse: Equatable, Sendable, Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.accessToken = try container.decodeFlexibleString(.accessTokenSnake, .accessToken)
         self.refreshToken = try container.decodeFlexibleString(.refreshTokenSnake, .refreshToken)
-        self.userID = try container.decodeFlexibleString(.userIDSnake, .userID)
+        self.userID = try container.decodeFlexibleString(.userIDSnake, .userID, .userId)
         self.role = try container.decode(String.self, forKey: .role)
     }
 }
@@ -1436,7 +1439,7 @@ private actor LiveAPITransport {
         }
 
         guard (200...299).contains(http.statusCode) else {
-            if http.statusCode == 401 {
+            if http.statusCode == 401, bearerToken != nil {
                 throw HTTPStatusError(statusCode: http.statusCode)
             }
             throw decodeAPIError(from: data, statusCode: http.statusCode)
