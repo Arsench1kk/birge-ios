@@ -330,10 +330,27 @@ public struct CorridorListResponse: Equatable, Sendable, Decodable {
 public struct CorridorBookingResponse: Equatable, Sendable, Decodable {
     public let corridor: CorridorDTO
     public let message: String
+    public let bookingID: String?
 
-    public init(corridor: CorridorDTO, message: String) {
+    private enum CodingKeys: String, CodingKey {
+        case corridor
+        case message
+        case bookingID
+        case bookingIDSnake = "booking_id"
+    }
+
+    public init(corridor: CorridorDTO, message: String, bookingID: String? = nil) {
         self.corridor = corridor
         self.message = message
+        self.bookingID = bookingID
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.corridor = try container.decode(CorridorDTO.self, forKey: .corridor)
+        self.message = try container.decode(String.self, forKey: .message)
+        self.bookingID = try container.decodeIfPresent(String.self, forKey: .bookingID)
+            ?? container.decodeIfPresent(String.self, forKey: .bookingIDSnake)
     }
 }
 

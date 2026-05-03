@@ -6,18 +6,21 @@ import Foundation
 struct CorridorDetailFeature {
     @ObservableState
     struct State: Equatable {
-        let corridor: CorridorOption
+        var corridor: CorridorOption
         var isJoining = false
+        var isJoined = false
+        var bookingID: String?
+        var statusMessage: String?
         var errorMessage: String?
     }
 
-    enum Action: Sendable {
+    enum Action: Equatable, Sendable {
         case joinTapped
-        case joinFinished
+        case joinFinished(CorridorBookingResponse)
         case joinFailed(String)
         case delegate(Delegate)
 
-        enum Delegate: Sendable {
+        enum Delegate: Equatable, Sendable {
             case joined
         }
     }
@@ -33,16 +36,22 @@ struct CorridorDetailFeature {
                 let corridorID = state.corridor.id
                 return .run { send in
                     do {
-                        _ = try await apiClient.bookCorridor(corridorID)
-                        await send(.joinFinished)
+                        let response = try await apiClient.bookCorridor(corridorID)
+                        await send(.joinFinished(response))
                         await send(.delegate(.joined))
                     } catch {
                         await send(.joinFailed(error.localizedDescription))
                     }
                 }
 
-            case .joinFinished:
+            case .joinFinished(let response):
                 state.isJoining = false
+                state.isJoined = true
+                state.bookingID = response.bookingID
+                state.statusMessage = response.message == "Corridor already booked"
+                    ? "Вы уже в этом коридоре"
+                    : "Место забронировано"
+                state.corridor = CorridorOption(dto: response.corridor)
                 return .none
 
             case .joinFailed(let message):

@@ -77,21 +77,55 @@ struct CorridorDetailView: View {
 
             passengerRow
 
+            if store.isJoined {
+                joinedCard
+            }
+
             if let errorMessage = store.errorMessage {
                 BIRGEToast(message: errorMessage, style: .error)
             }
 
             BIRGEPrimaryButton(
-                title: store.isJoining ? "Присоединяемся..." : "Присоединиться · \(store.corridor.price)₸",
+                title: primaryButtonTitle,
                 isLoading: store.isJoining
             ) {
                 store.send(.joinTapped)
             }
-            .disabled(store.isJoining || store.corridor.seatsLeft == 0)
+            .disabled(store.isJoining || store.isJoined || store.corridor.seatsLeft == 0)
             .padding(.top, BIRGELayout.xxs)
         }
         .padding(.horizontal, BIRGELayout.m)
         .padding(.bottom, BIRGELayout.m)
+    }
+
+    private var primaryButtonTitle: String {
+        if store.isJoined { return "Вы уже в коридоре" }
+        if store.isJoining { return "Присоединяемся..." }
+        if store.corridor.seatsLeft == 0 { return "Мест нет" }
+        return "Присоединиться · \(store.corridor.price)₸"
+    }
+
+    private var joinedCard: some View {
+        HStack(spacing: BIRGELayout.xs) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(BIRGEFonts.sectionTitle)
+                .foregroundStyle(BIRGEColors.success)
+                .frame(width: 40, height: 40)
+                .liquidGlass(.button, tint: BIRGEColors.success.opacity(0.08))
+
+            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                Text(store.statusMessage ?? "Место забронировано")
+                    .font(BIRGEFonts.bodyMedium)
+                    .foregroundStyle(BIRGEColors.textPrimary)
+                Text(store.bookingID.map { "Бронь \($0.prefix(8))" } ?? "Подтверждение сохранено")
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+            }
+
+            Spacer()
+        }
+        .padding(BIRGELayout.s)
+        .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.06), isInteractive: true)
     }
 
     private var aiExplanationCard: some View {
