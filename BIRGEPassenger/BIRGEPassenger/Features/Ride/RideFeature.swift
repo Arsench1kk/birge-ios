@@ -397,31 +397,37 @@ struct RideFeature {
         switch event.event {
         case RideEvent.EventType.statusChanged:
             guard let statusString = event.payload.status,
-                  let status = RideStatus(rawValue: statusString) else {
+                  let status = Self.rideStatus(from: statusString) else {
                 return .none
             }
 
-            // Extract driver info from status_changed payload (on matched/accepted)
-            if let name = event.payload.driverName {
-                state.driverName = name
-            }
-            if let rating = event.payload.driverRating {
-                state.driverRating = rating
-            }
-            if let vehicle = event.payload.driverVehicle {
-                state.driverVehicle = vehicle
-            }
-            if let plate = event.payload.driverPlate {
-                state.driverPlate = plate
-            }
-            if let code = event.payload.verificationCode {
-                state.verificationCode = code
-            }
-            if let reason = event.payload.cancellationReason {
-                state.cancellationReason = reason
-            }
+            applyLifecyclePayload(event.payload, to: &state)
 
             return .send(.rideStatusChanged(status))
+
+        case RideEvent.EventType.driverAccepted:
+            applyLifecyclePayload(event.payload, to: &state)
+            return .send(.rideStatusChanged(.driverAccepted))
+
+        case RideEvent.EventType.driverArriving:
+            applyLifecyclePayload(event.payload, to: &state)
+            return .send(.rideStatusChanged(.driverArriving))
+
+        case RideEvent.EventType.driverArrived:
+            applyLifecyclePayload(event.payload, to: &state)
+            return .send(.rideStatusChanged(.passengerWait))
+
+        case RideEvent.EventType.rideStarted:
+            applyLifecyclePayload(event.payload, to: &state)
+            return .send(.rideStatusChanged(.inProgress))
+
+        case RideEvent.EventType.rideCompleted:
+            applyLifecyclePayload(event.payload, to: &state)
+            return .send(.rideStatusChanged(.completed))
+
+        case RideEvent.EventType.rideCancelled:
+            applyLifecyclePayload(event.payload, to: &state)
+            return .send(.rideStatusChanged(.cancelled))
 
         case RideEvent.EventType.locationUpdate:
             guard let lat = event.payload.lat,
@@ -447,6 +453,53 @@ struct RideFeature {
 
         default:
             return .none
+        }
+    }
+
+    private func applyLifecyclePayload(_ payload: RideEventPayload, to state: inout State) {
+        if let name = payload.driverName {
+            state.driverName = name
+        }
+        if let rating = payload.driverRating {
+            state.driverRating = rating
+        }
+        if let vehicle = payload.driverVehicle {
+            state.driverVehicle = vehicle
+        }
+        if let plate = payload.driverPlate {
+            state.driverPlate = plate
+        }
+        if let code = payload.verificationCode {
+            state.verificationCode = code
+        }
+        if let reason = payload.cancellationReason {
+            state.cancellationReason = reason
+        }
+        if let etaSeconds = payload.etaSeconds {
+            state.etaSeconds = etaSeconds
+        }
+    }
+
+    nonisolated private static func rideStatus(from rawValue: String) -> RideStatus? {
+        switch rawValue {
+        case RideStatus.requested.rawValue:
+            return .requested
+        case RideStatus.matched.rawValue:
+            return .matched
+        case RideStatus.driverAccepted.rawValue, "driver_accepted":
+            return .driverAccepted
+        case RideStatus.driverArriving.rawValue, "driver_arriving":
+            return .driverArriving
+        case RideStatus.passengerWait.rawValue, "driver_arrived", "passenger_wait":
+            return .passengerWait
+        case RideStatus.inProgress.rawValue, "ride_started", "started", "in_progress":
+            return .inProgress
+        case RideStatus.completed.rawValue, "ride_completed":
+            return .completed
+        case RideStatus.cancelled.rawValue, "ride_cancelled":
+            return .cancelled
+        default:
+            return nil
         }
     }
 

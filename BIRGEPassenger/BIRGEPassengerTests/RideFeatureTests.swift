@@ -334,4 +334,51 @@ final class RideFeatureTests: XCTestCase {
             $0.pickupLocation = self.zeroPickupLocation
         }
     }
+
+    // MARK: - Test 10: Production Lifecycle Event Aliases
+
+    /// Confirms direct production WebSocket lifecycle events map into
+    /// the same passenger ride FSM as canonical `ride.status_changed`.
+    func testProductionLifecycleEventAliases() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .driverArriving,
+                etaSeconds: 120
+            )
+        ) {
+            RideFeature()
+        }
+
+        let arrivedJSON = makeEventJSON(
+            event: RideEvent.EventType.driverArrived,
+            payload: [
+                "verification_code": "4821"
+            ]
+        )
+
+        await store.send(.webSocketEventReceived(.message(.text(arrivedJSON)))) {
+            $0.verificationCode = "4821"
+        }
+
+        await store.receive(\.rideStatusChanged, .passengerWait) {
+            $0.status = .passengerWait
+            $0.waitCountdownSeconds = 180
+        }
+
+        let startedJSON = makeEventJSON(
+            event: RideEvent.EventType.rideStarted,
+            payload: [
+                "eta_seconds": 900
+            ]
+        )
+
+        await store.send(.webSocketEventReceived(.message(.text(startedJSON)))) {
+            $0.etaSeconds = 900
+        }
+
+        await store.receive(\.rideStatusChanged, .inProgress) {
+            $0.status = .inProgress
+        }
+    }
 }

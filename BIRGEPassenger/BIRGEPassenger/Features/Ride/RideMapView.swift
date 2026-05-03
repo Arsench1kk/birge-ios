@@ -26,7 +26,8 @@ struct RideMapView: View {
 
     private enum Texts {
         static let loading = "Обновляем поездку"
-        static let connectionLost = "Нет соединения — восстанавливаем..."
+        static let connectionTitle = "Нет соединения"
+        static let connectionRecovering = "Восстанавливаем и сверяем статус поездки"
     }
 
     @State private var position: MapCameraPosition = .region(
@@ -108,8 +109,42 @@ struct RideMapView: View {
     }
 
     private var connectionLostBanner: some View {
-        BIRGEToast(message: Texts.connectionLost, style: .warning)
-            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        HStack(spacing: BIRGELayout.xs) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(BIRGEFonts.bodyMedium)
+                .foregroundStyle(BIRGEColors.warning)
+                .frame(width: 34, height: 34)
+                .liquidGlass(.pill, tint: BIRGEColors.warning.opacity(0.08))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Texts.connectionTitle)
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.textPrimary)
+
+                Text(connectionSubtitle)
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: BIRGELayout.xxs)
+
+            ProgressView()
+                .scaleEffect(0.82)
+                .tint(BIRGEColors.warning)
+        }
+        .padding(.horizontal, BIRGELayout.xs)
+        .padding(.vertical, BIRGELayout.xxs)
+        .liquidGlass(.card, tint: BIRGEColors.warning.opacity(0.06), isInteractive: true)
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var connectionSubtitle: String {
+        guard store.webSocketReconnectAttempts > 0 else {
+            return Texts.connectionRecovering
+        }
+        return "\(Texts.connectionRecovering) · попытка \(store.webSocketReconnectAttempts)"
     }
 
     private func errorToast(_ message: String) -> some View {
