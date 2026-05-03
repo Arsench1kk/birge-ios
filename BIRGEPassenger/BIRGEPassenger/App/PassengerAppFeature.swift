@@ -17,7 +17,8 @@ import Foundation
     enum Path {
         case rideRequest(RideRequestFeature)
         case searching(SearchingFeature)
-        case corridor(CorridorFeature)
+        case corridorList(CorridorListFeature)
+        case corridorDetail(CorridorDetailFeature)
         #if DEBUG
         case activeRide(ActiveRideFeature)
         #endif
@@ -48,9 +49,9 @@ import Foundation
                 state.path.append(.rideRequest(RideRequestFeature.State()))
                 return .none
 
-            // Home → Corridor placeholder
+            // Home → Corridor detail
             case .home(.delegate(.openCorridor(let corridor))):
-                state.path.append(.corridor(CorridorFeature.State(corridor: corridor)))
+                state.path.append(.corridorDetail(CorridorDetailFeature.State(corridor: corridor)))
                 return .none
             
             // Home → Profile
@@ -60,7 +61,12 @@ import Foundation
 
             // Home → Corridor List
             case .home(.delegate(.openCorridorList)):
-                state.path.append(.corridor(CorridorFeature.State(corridor: CorridorOption.mock[0])))
+                state.path.append(.corridorList(CorridorListFeature.State()))
+                return .none
+
+            // Corridor List → Corridor Detail
+            case .path(.element(_, action: .corridorList(.delegate(.corridorSelected(let corridor))))):
+                state.path.append(.corridorDetail(CorridorDetailFeature.State(corridor: corridor)))
                 return .none
 
             // Home → Ride History (stub — profile for now)
@@ -135,19 +141,5 @@ import Foundation
             }
         }
         .forEach(\.path, action: \.path)
-    }
-}
-
-@Reducer
-struct CorridorFeature {
-    @ObservableState
-    struct State: Equatable {
-        var corridor: CorridorOption
-    }
-
-    enum Action: Sendable {}
-
-    var body: some Reducer<State, Action> {
-        EmptyReducer()
     }
 }
