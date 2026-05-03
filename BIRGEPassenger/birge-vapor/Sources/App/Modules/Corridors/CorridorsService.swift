@@ -22,6 +22,21 @@ struct CorridorsService {
             throw Abort(.forbidden, reason: "Only passengers can book corridors")
         }
 
+        let passengerID = try req.authenticatedUserID
+
+        if let existingBooking = try await CorridorBooking.query(on: req.db)
+            .filter(\.$corridor.$id == corridorID)
+            .filter(\.$passenger.$id == passengerID)
+            .filter(\.$status != "cancelled")
+            .first(),
+           let corridor = try await Corridor.find(corridorID, on: req.db) {
+            return try CorridorBookingDTO(
+                corridor: CorridorDTO(corridor: corridor),
+                message: "Corridor already booked",
+                bookingID: existingBooking.requireID()
+            )
+        }
+
         guard let corridor = try await Corridor.find(corridorID, on: req.db) else {
             throw Abort(.notFound, reason: "Corridor not found")
         }
@@ -34,12 +49,19 @@ struct CorridorsService {
             throw Abort(.conflict, reason: "Corridor is full")
         }
 
+        let booking = CorridorBooking(
+            corridorID: corridorID,
+            passengerID: passengerID
+        )
+        try await booking.save(on: req.db)
+
         corridor.seatsLeft -= 1
         try await corridor.save(on: req.db)
 
         return try CorridorBookingDTO(
             corridor: CorridorDTO(corridor: corridor),
-            message: "Corridor booked"
+            message: "Corridor booked",
+            bookingID: booking.requireID()
         )
     }
 

@@ -49,4 +49,5 @@ struct CorridorListDTO: Content {
 struct CorridorBookingDTO: Content {
     let corridor: CorridorDTO
     let message: String
+    let bookingID: UUID?
 }
