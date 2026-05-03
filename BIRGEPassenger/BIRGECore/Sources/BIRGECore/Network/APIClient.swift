@@ -724,6 +724,61 @@ public struct DriverTodayCorridorsResponse: Codable, Equatable, Sendable {
     }
 }
 
+public struct DriverRideOfferDTO: Codable, Equatable, Identifiable, Sendable {
+    public var id: UUID { rideID }
+    public let rideID: UUID
+    public let passengerName: String
+    public let pickup: String
+    public let destination: String
+    public let fare: Int
+    public let distanceKm: Double
+    public let etaMinutes: Int
+    public let status: String
+
+    public init(
+        rideID: UUID,
+        passengerName: String,
+        pickup: String,
+        destination: String,
+        fare: Int,
+        distanceKm: Double,
+        etaMinutes: Int,
+        status: String
+    ) {
+        self.rideID = rideID
+        self.passengerName = passengerName
+        self.pickup = pickup
+        self.destination = destination
+        self.fare = fare
+        self.distanceKm = distanceKm
+        self.etaMinutes = etaMinutes
+        self.status = status
+    }
+}
+
+public struct DriverRideOffersResponse: Codable, Equatable, Sendable {
+    public let offers: [DriverRideOfferDTO]
+
+    public init(offers: [DriverRideOfferDTO]) {
+        self.offers = offers
+    }
+}
+
+public extension DriverRideOfferDTO {
+    static func demo(rideID: String = UUID().uuidString, status: String = "requested") -> DriverRideOfferDTO {
+        DriverRideOfferDTO(
+            rideID: UUID(uuidString: rideID) ?? UUID(),
+            passengerName: "Арсен А.",
+            pickup: "Алатау, ул. Момышулы 15",
+            destination: "Есентай Молл",
+            fare: 1850,
+            distanceKm: 7.2,
+            etaMinutes: status == "passenger_wait" ? 35 : 6,
+            status: status
+        )
+    }
+}
+
 public extension SubscriptionPlanDTO {
     static let defaults: [SubscriptionPlanDTO] = [
         SubscriptionPlanDTO(
@@ -854,6 +909,11 @@ public struct APIClient: Sendable {
     public var fetchDriverProfile: @Sendable () async throws -> DriverProfileDTO
     public var updateDriverProfile: @Sendable (_ request: UpdateDriverProfileRequest) async throws -> DriverProfileDTO
     public var fetchDriverTodayCorridors: @Sendable () async throws -> DriverTodayCorridorsResponse
+    public var fetchDriverRideOffers: @Sendable () async throws -> DriverRideOffersResponse
+    public var acceptDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
+    public var markDriverArrived: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
+    public var startDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
+    public var completeDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
 
     public init(
         fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideDTO = { _ in
@@ -976,6 +1036,21 @@ public struct APIClient: Sendable {
         },
         fetchDriverTodayCorridors: @escaping @Sendable () async throws -> DriverTodayCorridorsResponse = {
             DriverTodayCorridorsResponse(corridors: [], todayEarningsEstimate: 0)
+        },
+        fetchDriverRideOffers: @escaping @Sendable () async throws -> DriverRideOffersResponse = {
+            DriverRideOffersResponse(offers: [])
+        },
+        acceptDriverRide: @escaping @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO = { rideID in
+            DriverRideOfferDTO.demo(rideID: rideID, status: "driver_accepted")
+        },
+        markDriverArrived: @escaping @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO = { rideID in
+            DriverRideOfferDTO.demo(rideID: rideID, status: "passenger_wait")
+        },
+        startDriverRide: @escaping @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO = { rideID in
+            DriverRideOfferDTO.demo(rideID: rideID, status: "in_progress")
+        },
+        completeDriverRide: @escaping @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO = { rideID in
+            DriverRideOfferDTO.demo(rideID: rideID, status: "completed")
         }
     ) {
         self.requestOTP = requestOTP
@@ -996,6 +1071,11 @@ public struct APIClient: Sendable {
         self.fetchDriverProfile = fetchDriverProfile
         self.updateDriverProfile = updateDriverProfile
         self.fetchDriverTodayCorridors = fetchDriverTodayCorridors
+        self.fetchDriverRideOffers = fetchDriverRideOffers
+        self.acceptDriverRide = acceptDriverRide
+        self.markDriverArrived = markDriverArrived
+        self.startDriverRide = startDriverRide
+        self.completeDriverRide = completeDriverRide
     }
 }
 
@@ -1146,6 +1226,41 @@ extension APIClient: DependencyKey {
                     path: ["drivers", "corridors", "today"],
                     method: "GET",
                     responseType: DriverTodayCorridorsResponse.self
+                )
+            },
+            fetchDriverRideOffers: {
+                try await transport.sendAuthenticated(
+                    path: ["rides", "driver", "offers"],
+                    method: "GET",
+                    responseType: DriverRideOffersResponse.self
+                )
+            },
+            acceptDriverRide: { rideID in
+                try await transport.sendAuthenticated(
+                    path: ["rides", rideID, "driver", "accept"],
+                    method: "POST",
+                    responseType: DriverRideOfferDTO.self
+                )
+            },
+            markDriverArrived: { rideID in
+                try await transport.sendAuthenticated(
+                    path: ["rides", rideID, "driver", "arrived"],
+                    method: "POST",
+                    responseType: DriverRideOfferDTO.self
+                )
+            },
+            startDriverRide: { rideID in
+                try await transport.sendAuthenticated(
+                    path: ["rides", rideID, "driver", "start"],
+                    method: "POST",
+                    responseType: DriverRideOfferDTO.self
+                )
+            },
+            completeDriverRide: { rideID in
+                try await transport.sendAuthenticated(
+                    path: ["rides", rideID, "driver", "complete"],
+                    method: "POST",
+                    responseType: DriverRideOfferDTO.self
                 )
             }
         )

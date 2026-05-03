@@ -13,12 +13,25 @@ struct DriverAppFeature {
     // MARK: - Nested Models
 
     struct RideOffer: Equatable, Sendable {
+        var rideID: String
         var passengerName: String
         var pickup: String
         var destination: String
         var fare: Int
         var distanceKm: Double
         var etaMinutes: Int
+
+        nonisolated init(dto: DriverRideOfferDTO) {
+            self.rideID = dto.rideID.uuidString
+            self.passengerName = dto.passengerName
+            self.pickup = dto.pickup
+            self.destination = dto.destination
+            self.fare = dto.fare
+            self.distanceKm = dto.distanceKm
+            self.etaMinutes = dto.etaMinutes
+        }
+
+        static let demo = RideOffer(dto: .demo())
     }
 
     struct DriverActiveRide: Equatable, Sendable {
@@ -132,6 +145,9 @@ struct DriverAppFeature {
         case task
         case driverProfileResponse(Result<DriverProfileDTO, DriverDashboardError>)
         case todayCorridorsResponse(Result<DriverTodayCorridorsResponse, DriverDashboardError>)
+        case driverOffersResponse(Result<DriverRideOffersResponse, DriverDashboardError>)
+        case acceptRideResponse(Result<DriverRideOfferDTO, DriverDashboardError>)
+        case driverCommandResponse(Result<DriverRideOfferDTO, DriverDashboardError>)
         case toggleOnline
         case offerAppeared
         case acceptOffer
@@ -204,6 +220,42 @@ struct DriverAppFeature {
                 state.todayCorridorsError = error.message
                 return .none
 
+            case .driverOffersResponse(.success(let response)):
+                guard state.isOnline, state.activeRide == nil, state.completedRideSummary == nil else { return .none }
+                state.currentOffer = response.offers.first.map(RideOffer.init)
+                if state.currentOffer == nil {
+                    return pollDriverOffers(after: .seconds(6))
+                }
+                return .none
+
+            case .driverOffersResponse(.failure(let error)):
+                guard state.isOnline, state.activeRide == nil, state.completedRideSummary == nil else { return .none }
+                if error.isMissingAccessToken {
+                    state.currentOffer = .demo
+                }
+                return .none
+
+            case .acceptRideResponse(.success(let offer)):
+                state.currentOffer = nil
+                state.activeRide = DriverActiveRide(offer: offer, status: .pickingUp)
+                return startDriverLocationTracking(rideID: offer.rideID.uuidString)
+
+            case .acceptRideResponse(.failure(let error)):
+                if error.isMissingAccessToken, let offer = state.currentOffer {
+                    state.currentOffer = nil
+                    state.activeRide = DriverActiveRide(offer: offer, status: .pickingUp)
+                    return startDriverLocationTracking(rideID: offer.rideID)
+                }
+                state.currentOffer = nil
+                return pollDriverOffers(after: .seconds(3))
+
+            case .driverCommandResponse(.success(let offer)):
+                state.activeRide?.etaMinutes = offer.etaMinutes
+                return .none
+
+            case .driverCommandResponse(.failure):
+                return .none
+
             case .registration(.delegate(.completed(let profile))):
                 state.isRegistrationComplete = true
                 state.apply(driverProfile: profile)
@@ -230,37 +282,21 @@ struct DriverAppFeature {
                     )
                 }
                 // Going online — simulate offer arriving after 4s
-                return .run { send in
-                    try await Task.sleep(for: .seconds(4))
-                    await send(.offerAppeared)
-                }
+                return pollDriverOffers(after: .seconds(1))
 
             case .offerAppeared:
                 guard state.isOnline, state.activeRide == nil, state.completedRideSummary == nil else { return .none }
-                state.currentOffer = RideOffer(
-                    passengerName: "Арсен А.",
-                    pickup: "Алатау, ул. Момышулы 15",
-                    destination: "Есентай Молл",
-                    fare: 1850,
-                    distanceKm: 7.2,
-                    etaMinutes: 6
-                )
-                return .none
+                return fetchDriverOffers()
 
             case .acceptOffer:
-                state.currentOffer = nil
-                let rideID = UUID().uuidString
-                state.activeRide = DriverActiveRide(
-                    rideID: rideID,
-                    passengerName: "Арсен А.",
-                    pickup: "Алатау, ул. Момышулы 15",
-                    destination: "Есентай Молл",
-                    fare: 1850,
-                    distanceKm: 7.2,
-                    etaMinutes: 6,
-                    status: .pickingUp
-                )
-                return startDriverLocationTracking(rideID: rideID)
+                guard let offer = state.currentOffer else { return .none }
+                return .run { send in
+                    do {
+                        await send(.acceptRideResponse(.success(try await apiClient.acceptDriverRide(offer.rideID))))
+                    } catch {
+                        await send(.acceptRideResponse(.failure(DriverDashboardError(error))))
+                    }
+                }
 
             case .declineOffer:
                 state.currentOffer = nil
@@ -271,14 +307,16 @@ struct DriverAppFeature {
                 }
 
             case .arrivedAtPickup:
+                let rideID = state.activeRide?.rideID
                 state.activeRide?.status = .passengerWait
                 state.activeRide?.etaMinutes = 35
-                return .none
+                return sendDriverCommand(rideID: rideID, command: .arrived)
 
             case .startRide:
+                let rideID = state.activeRide?.rideID
                 state.activeRide?.status = .inProgress
                 state.activeRide?.etaMinutes = 28
-                return .none
+                return sendDriverCommand(rideID: rideID, command: .start)
 
             case .completeRide:
                 let completedRide = state.activeRide
@@ -296,6 +334,7 @@ struct DriverAppFeature {
                     todayRides: state.earnings.todayRides
                 )
                 return .merge(
+                    sendDriverCommand(rideID: completedRide?.rideID, command: .complete),
                     .cancel(id: DriverLocationCancelID.tracking),
                     stopAndSyncDriverLocation(rideID: completedRide?.rideID)
                 )
@@ -306,10 +345,7 @@ struct DriverAppFeature {
 
             case .findNextRide:
                 state.completedRideSummary = nil
-                return .run { send in
-                    try await Task.sleep(for: .seconds(2))
-                    await send(.offerAppeared)
-                }
+                return pollDriverOffers(after: .seconds(2))
 
             case .earningsTapped:
                 state.path.append(.earnings(EarningsFeature.State(
@@ -328,6 +364,12 @@ struct DriverAppFeature {
 
     private enum DriverLocationCancelID {
         static let tracking = "DriverAppFeature.locationTracking"
+    }
+
+    private enum DriverCommand {
+        case arrived
+        case start
+        case complete
     }
 
     private func startDriverLocationTracking(rideID: String) -> Effect<Action> {
@@ -349,12 +391,56 @@ struct DriverAppFeature {
             }
         }
     }
+
+    private func pollDriverOffers(after delay: Duration) -> Effect<Action> {
+        .run { send in
+            try await Task.sleep(for: delay)
+            await send(.offerAppeared)
+        }
+    }
+
+    private func fetchDriverOffers() -> Effect<Action> {
+        .run { send in
+            do {
+                await send(.driverOffersResponse(.success(try await apiClient.fetchDriverRideOffers())))
+            } catch {
+                await send(.driverOffersResponse(.failure(DriverDashboardError(error))))
+            }
+        }
+    }
+
+    private func sendDriverCommand(rideID: String?, command: DriverCommand) -> Effect<Action> {
+        guard let rideID else { return .none }
+        return .run { send in
+            do {
+                let offer: DriverRideOfferDTO
+                switch command {
+                case .arrived:
+                    offer = try await apiClient.markDriverArrived(rideID)
+                case .start:
+                    offer = try await apiClient.startDriverRide(rideID)
+                case .complete:
+                    offer = try await apiClient.completeDriverRide(rideID)
+                }
+                await send(.driverCommandResponse(.success(offer)))
+            } catch {
+                await send(.driverCommandResponse(.failure(DriverDashboardError(error))))
+            }
+        }
+    }
 }
 
 struct DriverDashboardError: Error, Equatable, Sendable {
     let message: String
+    let isMissingAccessToken: Bool
 
     init(_ error: any Error) {
+        if let apiError = error as? BIRGEAPIError {
+            self.isMissingAccessToken = apiError.errorCode == "MISSING_ACCESS_TOKEN"
+        } else {
+            self.isMissingAccessToken = false
+        }
+
         if let localizedError = error as? LocalizedError,
            let description = localizedError.errorDescription,
            !description.isEmpty {
@@ -362,6 +448,30 @@ struct DriverDashboardError: Error, Equatable, Sendable {
         } else {
             self.message = "Не удалось загрузить данные водителя"
         }
+    }
+}
+
+private extension DriverAppFeature.DriverActiveRide {
+    init(offer: DriverRideOfferDTO, status: RideStatus) {
+        self.rideID = offer.rideID.uuidString
+        self.passengerName = offer.passengerName
+        self.pickup = offer.pickup
+        self.destination = offer.destination
+        self.fare = offer.fare
+        self.distanceKm = offer.distanceKm
+        self.etaMinutes = offer.etaMinutes
+        self.status = status
+    }
+
+    init(offer: DriverAppFeature.RideOffer, status: RideStatus) {
+        self.rideID = offer.rideID
+        self.passengerName = offer.passengerName
+        self.pickup = offer.pickup
+        self.destination = offer.destination
+        self.fare = offer.fare
+        self.distanceKm = offer.distanceKm
+        self.etaMinutes = offer.etaMinutes
+        self.status = status
     }
 }
 

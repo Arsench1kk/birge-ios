@@ -27,4 +27,56 @@ final class LocationBroadcastTests: XCTestCase {
         XCTAssertEqual(payload["lng"] as? Double, 76.945)
         XCTAssertEqual(payload["eta_seconds"] as? Int, 240)
     }
+
+    func testRideStatusBroadcastEncodesCanonicalRideEvent() throws {
+        let rideID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        let passengerID = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
+        let driverID = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
+        let ride = Ride(
+            id: rideID,
+            passengerID: passengerID,
+            driverID: driverID,
+            status: .passengerWait,
+            originLat: 43.238,
+            originLng: 76.945,
+            destLat: 43.221,
+            destLng: 76.851,
+            tier: "shared",
+            fareTenge: 1850
+        )
+        let profile = DriverProfile(
+            userID: driverID,
+            vehicleModel: "Camry",
+            licensePlate: "123 ABC 02",
+            kycStatus: "review"
+        )
+        profile.vehicleMake = "Toyota"
+        profile.vehicleYear = "2018"
+        let driver = User(
+            id: driverID,
+            phone: "+77770000001",
+            role: .driver,
+            name: "Асан Б."
+        )
+
+        let dto = try RideStatusBroadcastDTO(
+            ride: ride,
+            driverProfile: profile,
+            driver: driver
+        )
+        let data = try JSONEncoder().encode(dto)
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        let payload = try XCTUnwrap(object["payload"] as? [String: Any])
+
+        XCTAssertEqual(object["event"] as? String, "ride.status_changed")
+        XCTAssertEqual(object["ride_id"] as? String, rideID.uuidString)
+        XCTAssertEqual(payload["status"] as? String, "passenger_wait")
+        XCTAssertEqual(payload["eta_seconds"] as? Int, 2_100)
+        XCTAssertEqual(payload["verification_code"] as? String, "0426")
+        XCTAssertEqual(payload["driver_name"] as? String, "Асан Б.")
+        XCTAssertEqual(payload["driver_vehicle"] as? String, "Toyota Camry 2018")
+        XCTAssertEqual(payload["driver_plate"] as? String, "123 ABC 02")
+    }
 }
