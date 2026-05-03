@@ -11,8 +11,10 @@ struct SubscriptionsFeature {
         var plans = SubscriptionPlan.all
         var activeSince = "Сегодня"
         var isLoading = false
+        var isCheckingOut = false
         var isActivating = false
         var errorMessage: String?
+        var paymentCheckout: KaspiCheckoutResponse?
 
         var currentPlan: SubscriptionPlan {
             plans.first { $0.id == currentPlanID } ?? .free
@@ -30,6 +32,9 @@ struct SubscriptionsFeature {
         case subscriptionsFailed(String)
         case planTapped(SubscriptionPlan.ID)
         case activateSelectedTapped
+        case checkoutCreated(KaspiCheckoutResponse)
+        case checkoutFailed(String)
+        case paymentConfirmedTapped
         case activationSucceeded(ActivateSubscriptionResponse)
         case activationFailed(String)
         case closeDetailTapped
@@ -67,9 +72,38 @@ struct SubscriptionsFeature {
 
             case .planTapped(let id):
                 state.selectedPlanID = id
+                state.paymentCheckout = nil
                 return .none
 
             case .activateSelectedTapped:
+                guard let selectedPlan = state.selectedPlan else { return .none }
+                state.isCheckingOut = true
+                state.errorMessage = nil
+                state.paymentCheckout = nil
+                return .run { send in
+                    do {
+                        let response = try await apiClient.createKaspiCheckout(
+                            "passenger_subscription",
+                            selectedPlan.amountTenge,
+                            selectedPlan.id
+                        )
+                        await send(.checkoutCreated(response))
+                    } catch {
+                        await send(.checkoutFailed(error.localizedDescription))
+                    }
+                }
+
+            case .checkoutCreated(let response):
+                state.isCheckingOut = false
+                state.paymentCheckout = response
+                return .none
+
+            case .checkoutFailed(let message):
+                state.isCheckingOut = false
+                state.errorMessage = message
+                return .none
+
+            case .paymentConfirmedTapped:
                 guard let selectedPlanID = state.selectedPlanID else { return .none }
                 state.isActivating = true
                 state.errorMessage = nil
@@ -87,6 +121,7 @@ struct SubscriptionsFeature {
                 state.currentPlanID = response.currentPlanID
                 state.activeSince = response.activeSince
                 state.selectedPlanID = nil
+                state.paymentCheckout = nil
                 return .none
 
             case .activationFailed(let message):
@@ -96,6 +131,7 @@ struct SubscriptionsFeature {
 
             case .closeDetailTapped:
                 state.selectedPlanID = nil
+                state.paymentCheckout = nil
                 return .none
             }
         }
@@ -110,6 +146,11 @@ struct SubscriptionPlan: Equatable, Identifiable, Sendable {
     let badge: String?
     let isPopular: Bool
     let features: [Feature]
+
+    var amountTenge: Int {
+        let digits = price.prefix { $0 != "/" }.filter(\.isNumber)
+        return Int(String(digits)) ?? 0
+    }
 
     nonisolated init(
         id: String,

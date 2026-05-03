@@ -38,6 +38,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(AddRideRequestAPIFields())
     app.migrations.add(CreateCorridors())
     app.migrations.add(CreatePassengerSubscriptions())
+    app.migrations.add(CreatePaymentEvents())
 
     try await app.autoMigrate()
     try routes(app)

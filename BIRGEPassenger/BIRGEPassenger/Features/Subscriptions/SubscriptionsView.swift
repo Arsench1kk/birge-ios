@@ -1,3 +1,4 @@
+import BIRGECore
 import ComposableArchitecture
 import SwiftUI
 
@@ -351,19 +352,26 @@ struct SubscriptionsView: View {
                     .foregroundStyle(BIRGEColors.textSecondary)
             }
 
-            BIRGEPrimaryButton(
-                title: store.isActivating
-                    ? "Подключаем..."
-                    : store.currentPlanID == plan.id ? "Тариф уже активен" : "Перейти на \(plan.title)"
-            ) {
-                store.send(.activateSelectedTapped)
+            if let checkout = store.paymentCheckout {
+                kaspiCheckoutCard(checkout)
             }
-            .disabled(store.currentPlanID == plan.id || store.isActivating)
+
+            BIRGEPrimaryButton(
+                title: primaryTitle(for: plan),
+                isLoading: store.isCheckingOut || store.isActivating
+            ) {
+                if store.paymentCheckout == nil {
+                    store.send(.activateSelectedTapped)
+                } else {
+                    store.send(.paymentConfirmedTapped)
+                }
+            }
+            .disabled(store.currentPlanID == plan.id || store.isCheckingOut || store.isActivating)
 
             Button("Остаться на \(store.currentPlan.title)") {
                 store.send(.closeDetailTapped)
             }
-            .disabled(store.isActivating)
+            .disabled(store.isCheckingOut || store.isActivating)
             .font(BIRGEFonts.bodyMedium)
             .foregroundStyle(BIRGEColors.textSecondary)
             .frame(height: 44)
@@ -372,6 +380,49 @@ struct SubscriptionsView: View {
         .padding(.top, BIRGELayout.s)
         .padding(.bottom, BIRGELayout.l)
         .background(.ultraThinMaterial)
+    }
+
+    private func primaryTitle(for plan: SubscriptionPlan) -> String {
+        if store.currentPlanID == plan.id {
+            return "Тариф уже активен"
+        }
+        if store.paymentCheckout != nil {
+            return "Я оплатил в Kaspi"
+        }
+        return "Оплатить через Kaspi"
+    }
+
+    private func kaspiCheckoutCard(_ checkout: KaspiCheckoutResponse) -> some View {
+        HStack(spacing: BIRGELayout.xs) {
+            Image(systemName: "creditcard.fill")
+                .font(BIRGEFonts.sectionTitle)
+                .foregroundStyle(BIRGEColors.brandPrimary)
+                .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                Text("Kaspi checkout готов")
+                    .font(BIRGEFonts.bodyMedium)
+                    .foregroundStyle(BIRGEColors.textPrimary)
+                Text("\(checkout.amountTenge)₸ · \(checkout.paymentID.prefix(8))")
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+            }
+
+            Spacer()
+
+            if let url = URL(string: checkout.kaspiDeepLink) {
+                Link(destination: url) {
+                    Image(systemName: "arrow.up.forward.app.fill")
+                        .font(BIRGEFonts.sectionTitle)
+                        .foregroundStyle(BIRGEColors.brandPrimary)
+                        .frame(width: 40, height: 40)
+                        .background(BIRGEColors.brandPrimary.opacity(0.1))
+                        .clipShape(Circle())
+                }
+            }
+        }
+        .padding(BIRGELayout.xs)
+        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04), isInteractive: true)
     }
 }
 

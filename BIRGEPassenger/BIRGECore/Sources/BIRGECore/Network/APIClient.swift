@@ -477,6 +477,53 @@ public struct ActivateSubscriptionResponse: Equatable, Sendable, Decodable {
     }
 }
 
+public struct KaspiCheckoutResponse: Equatable, Sendable, Decodable {
+    public let paymentID: String
+    public let provider: String
+    public let status: String
+    public let amountTenge: Int
+    public let kaspiDeepLink: String
+    public let message: String
+
+    private enum CodingKeys: String, CodingKey {
+        case paymentID
+        case paymentIDSnake = "payment_id"
+        case provider
+        case status
+        case amountTenge
+        case amountTengeSnake = "amount_tenge"
+        case kaspiDeepLink
+        case kaspiDeepLinkSnake = "kaspi_deep_link"
+        case message
+    }
+
+    public init(
+        paymentID: String,
+        provider: String,
+        status: String,
+        amountTenge: Int,
+        kaspiDeepLink: String,
+        message: String
+    ) {
+        self.paymentID = paymentID
+        self.provider = provider
+        self.status = status
+        self.amountTenge = amountTenge
+        self.kaspiDeepLink = kaspiDeepLink
+        self.message = message
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.paymentID = try container.decodeFlexibleString(.paymentID, .paymentIDSnake)
+        self.provider = try container.decode(String.self, forKey: .provider)
+        self.status = try container.decode(String.self, forKey: .status)
+        self.amountTenge = try container.decodeFlexibleInt(.amountTenge, .amountTengeSnake)
+        self.kaspiDeepLink = try container.decodeFlexibleString(.kaspiDeepLink, .kaspiDeepLinkSnake)
+        self.message = try container.decode(String.self, forKey: .message)
+    }
+}
+
 public extension SubscriptionPlanDTO {
     static let defaults: [SubscriptionPlanDTO] = [
         SubscriptionPlanDTO(
@@ -580,6 +627,12 @@ private struct ActivateSubscriptionRequest: Encodable {
     let planID: String
 }
 
+private struct KaspiCheckoutRequest: Encodable {
+    let purpose: String
+    let amountTenge: Int
+    let planID: String?
+}
+
 // MARK: - API Client
 
 public struct APIClient: Sendable {
@@ -596,6 +649,7 @@ public struct APIClient: Sendable {
     public var bookCorridor: @Sendable (_ corridorID: String) async throws -> CorridorBookingResponse
     public var fetchSubscriptions: @Sendable () async throws -> SubscriptionOverviewResponse
     public var activateSubscription: @Sendable (_ planID: String) async throws -> ActivateSubscriptionResponse
+    public var createKaspiCheckout: @Sendable (_ purpose: String, _ amountTenge: Int, _ planID: String?) async throws -> KaspiCheckoutResponse
 
     public init(
         fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideDTO = { _ in
@@ -664,6 +718,16 @@ public struct APIClient: Sendable {
                 activeSince: "Сегодня",
                 message: "Subscription activated"
             )
+        },
+        createKaspiCheckout: @escaping @Sendable (_ purpose: String, _ amountTenge: Int, _ planID: String?) async throws -> KaspiCheckoutResponse = { _, amountTenge, planID in
+            KaspiCheckoutResponse(
+                paymentID: "test-payment-id",
+                provider: "kaspi",
+                status: "checkout_created",
+                amountTenge: amountTenge,
+                kaspiDeepLink: "kaspi://pay?service=birge&payment_id=test-payment-id&amount=\(amountTenge)&plan=\(planID ?? "none")",
+                message: "Open Kaspi to complete payment"
+            )
         }
     ) {
         self.requestOTP = requestOTP
@@ -679,6 +743,7 @@ public struct APIClient: Sendable {
         self.bookCorridor = bookCorridor
         self.fetchSubscriptions = fetchSubscriptions
         self.activateSubscription = activateSubscription
+        self.createKaspiCheckout = createKaspiCheckout
     }
 }
 
@@ -788,6 +853,18 @@ extension APIClient: DependencyKey {
                     method: "POST",
                     body: ActivateSubscriptionRequest(planID: planID),
                     responseType: ActivateSubscriptionResponse.self
+                )
+            },
+            createKaspiCheckout: { purpose, amountTenge, planID in
+                try await transport.sendAuthenticated(
+                    path: ["payments", "kaspi", "checkout"],
+                    method: "POST",
+                    body: KaspiCheckoutRequest(
+                        purpose: purpose,
+                        amountTenge: amountTenge,
+                        planID: planID
+                    ),
+                    responseType: KaspiCheckoutResponse.self
                 )
             }
         )

@@ -49,14 +49,50 @@ final class SubscriptionsFeatureTests: XCTestCase {
                         activeSince: "3 мая 2026",
                         message: "Subscription activated"
                     )
+                },
+                createKaspiCheckout: { _, amountTenge, planID in
+                    KaspiCheckoutResponse(
+                        paymentID: "payment-pro",
+                        provider: "kaspi",
+                        status: "checkout_created",
+                        amountTenge: amountTenge,
+                        kaspiDeepLink: "kaspi://pay?plan=\(planID ?? "none")",
+                        message: "Open Kaspi"
+                    )
                 }
             )
         }
 
         await store.send(.planTapped("pro")) {
             $0.selectedPlanID = "pro"
+            $0.paymentCheckout = nil
         }
         await store.send(.activateSelectedTapped) {
+            $0.isCheckingOut = true
+            $0.errorMessage = nil
+            $0.paymentCheckout = nil
+        }
+        await store.receive(.checkoutCreated(
+            KaspiCheckoutResponse(
+                paymentID: "payment-pro",
+                provider: "kaspi",
+                status: "checkout_created",
+                amountTenge: 1200,
+                kaspiDeepLink: "kaspi://pay?plan=pro",
+                message: "Open Kaspi"
+            )
+        )) {
+            $0.isCheckingOut = false
+            $0.paymentCheckout = KaspiCheckoutResponse(
+                paymentID: "payment-pro",
+                provider: "kaspi",
+                status: "checkout_created",
+                amountTenge: 1200,
+                kaspiDeepLink: "kaspi://pay?plan=pro",
+                message: "Open Kaspi"
+            )
+        }
+        await store.send(.paymentConfirmedTapped) {
             $0.isActivating = true
             $0.errorMessage = nil
         }
@@ -71,6 +107,7 @@ final class SubscriptionsFeatureTests: XCTestCase {
             $0.currentPlanID = "pro"
             $0.activeSince = "3 мая 2026"
             $0.selectedPlanID = nil
+            $0.paymentCheckout = nil
         }
     }
 
@@ -84,6 +121,7 @@ final class SubscriptionsFeatureTests: XCTestCase {
 
         await store.send(.closeDetailTapped) {
             $0.selectedPlanID = nil
+            $0.paymentCheckout = nil
         }
     }
 }
