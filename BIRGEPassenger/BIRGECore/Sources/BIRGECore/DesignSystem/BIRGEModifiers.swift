@@ -244,30 +244,66 @@ public struct BIRGEToast: View {
 // MARK: - Liquid Glass Modifier
 
 /// Универсальный Liquid Glass modifier.
-/// Использует .ultraThinMaterial + tint overlay + subtle border.
-/// Совместим с iOS 15+; на iOS 26+ можно заменить на .glassEffect().
+/// На iOS 26+ использует нативный `.glassEffect`; на старых версиях
+/// оставляет material fallback с тонкой рамкой.
 public struct BIRGEGlassModifier: ViewModifier {
     public enum Variant {
-        case card    // RoundedRectangle radius 24
-        case pill    // Capsule
-        case button  // RoundedRectangle radius 16
+        case card
+        case pill
+        case button
     }
 
     public let variant: Variant
     public let tint: Color
+    public let isInteractive: Bool
 
-    public init(variant: Variant = .card, tint: Color = .clear) {
+    public init(
+        variant: Variant = .card,
+        tint: Color = .clear,
+        isInteractive: Bool = false
+    ) {
         self.variant = variant
         self.tint = tint
+        self.isInteractive = isInteractive
     }
 
     public func body(content: Content) -> some View {
-        content
-            .background(glassBackground)
+        if #available(iOS 26.0, macOS 26.0, tvOS 26.0, watchOS 26.0, *) {
+            nativeGlass(content)
+        } else {
+            content
+                .background(fallbackGlassBackground)
+        }
     }
 
     @ViewBuilder
-    private var glassBackground: some View {
+    @available(iOS 26.0, macOS 26.0, tvOS 26.0, watchOS 26.0, *)
+    private func nativeGlass(_ content: Content) -> some View {
+        switch variant {
+        case .card:
+            content.glassEffect(
+                nativeGlassStyle,
+                in: RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
+            )
+        case .pill:
+            content.glassEffect(nativeGlassStyle, in: Capsule())
+        case .button:
+            content.glassEffect(
+                nativeGlassStyle,
+                in: RoundedRectangle(cornerRadius: BIRGELayout.radiusM)
+            )
+        }
+    }
+
+    @available(iOS 26.0, macOS 26.0, tvOS 26.0, watchOS 26.0, *)
+    private var nativeGlassStyle: Glass {
+        Glass.regular
+            .tint(tint)
+            .interactive(isInteractive)
+    }
+
+    @ViewBuilder
+    private var fallbackGlassBackground: some View {
         switch variant {
         case .card:
             RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
@@ -292,9 +328,14 @@ public extension View {
     /// Применить Liquid Glass стиль.
     func liquidGlass(
         _ variant: BIRGEGlassModifier.Variant = .card,
-        tint: Color = .clear
+        tint: Color = .clear,
+        isInteractive: Bool = false
     ) -> some View {
-        modifier(BIRGEGlassModifier(variant: variant, tint: tint))
+        modifier(BIRGEGlassModifier(
+            variant: variant,
+            tint: tint,
+            isInteractive: isInteractive
+        ))
     }
 }
 
@@ -304,7 +345,7 @@ public struct BIRGEGlassCardModifier: ViewModifier {
     public init() {}
     public func body(content: Content) -> some View {
         content
-            .liquidGlass(.card)
+            .liquidGlass(.card, isInteractive: true)
             .shadow(color: BIRGEColors.brandPrimary.opacity(0.06), radius: 16, x: 0, y: 8)
     }
 }
@@ -329,22 +370,26 @@ public struct BIRGEGlassSheet<Content: View>: View {
 
             content
         }
-        .background(
-            UnevenRoundedRectangle(
-                topLeadingRadius: BIRGELayout.radiusL,
-                topTrailingRadius: BIRGELayout.radiusL
-            )
-            .fill(.ultraThinMaterial)
-            .overlay(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: BIRGELayout.radiusL,
-                    topTrailingRadius: BIRGELayout.radiusL
-                )
-                .stroke(Color.white.opacity(0.14), lineWidth: 1)
-            )
-            .ignoresSafeArea(edges: .bottom)
-        )
+        .background(sheetBackground.ignoresSafeArea(edges: .bottom))
         .shadow(color: BIRGEColors.brandPrimary.opacity(0.07), radius: 24, y: -8)
+    }
+
+    @ViewBuilder
+    private var sheetBackground: some View {
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: BIRGELayout.radiusL,
+            topTrailingRadius: BIRGELayout.radiusL
+        )
+
+        if #available(iOS 26.0, macOS 26.0, tvOS 26.0, watchOS 26.0, *) {
+            Color.clear
+                .glassEffect(.regular.interactive(), in: shape)
+                .overlay(shape.stroke(Color.white.opacity(0.14), lineWidth: 1))
+        } else {
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(shape.stroke(Color.white.opacity(0.14), lineWidth: 1))
+        }
     }
 }
 
@@ -369,7 +414,11 @@ public struct BIRGEAIPill: View {
         }
         .padding(.horizontal, BIRGELayout.s)
         .padding(.vertical, BIRGELayout.xxs)
-        .liquidGlass(.pill, tint: BIRGEColors.brandPrimary.opacity(0.07))
+        .liquidGlass(
+            .pill,
+            tint: BIRGEColors.brandPrimary.opacity(0.07),
+            isInteractive: true
+        )
         .shadow(color: BIRGEColors.brandPrimary.opacity(0.15), radius: 8, y: 4)
     }
 }
