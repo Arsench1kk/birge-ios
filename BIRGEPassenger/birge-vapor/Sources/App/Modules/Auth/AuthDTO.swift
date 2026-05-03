@@ -33,20 +33,24 @@ struct AuthResponseDTO: Content {
     let userId: String
 }
 
-struct UserResponseDTO: Content {
-    let id: String
+struct UserResponseDTO: Content, Equatable {
+    let id: UUID
     let phone: String
     let email: String?
     let role: String
     let name: String?
-    let createdAt: Date?
+    let rating: Double
+    let totalRides: Int
+    let createdAt: Date
 
-    init(user: User) throws {
-        self.id = try user.requireID().uuidString
+    init(user: User, rating: Double = 0.0, totalRides: Int = 0) throws {
+        self.id = try user.requireID()
         self.phone = user.phone
         self.email = user.email
         self.role = user.role.rawValue
         self.name = user.name
-        self.createdAt = user.createdAt
+        self.rating = rating
+        self.totalRides = totalRides
+        self.createdAt = user.createdAt ?? Date(timeIntervalSince1970: 0)
     }
 }

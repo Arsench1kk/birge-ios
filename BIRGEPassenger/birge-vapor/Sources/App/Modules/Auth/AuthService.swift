@@ -128,6 +128,20 @@ struct AuthService {
         return user
     }
 
+    func getMe() async throws -> UserResponseDTO {
+        let user = try await currentUser()
+        let userID = try user.requireID()
+        let totalRides = try await Ride.query(on: req.db)
+            .filter(\.$passenger.$id == userID)
+            .count()
+
+        return try UserResponseDTO(
+            user: user,
+            rating: 0.0,
+            totalRides: totalRides
+        )
+    }
+
     func logout() async throws {
         let payload = try req.jwt.verify(as: BIRGEJWTPayload.self)
         guard payload.type == .access else {

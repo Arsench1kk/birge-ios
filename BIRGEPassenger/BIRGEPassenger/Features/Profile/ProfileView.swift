@@ -61,6 +61,7 @@ struct ProfileView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(BIRGEColors.surfaceGrouped)
+        .redacted(reason: store.isLoading ? .placeholder : [])
         .safeAreaInset(edge: .bottom) {
             BIRGEDestructiveButton(title: "Выйти") {
                 store.send(.logoutTapped)
@@ -109,17 +110,17 @@ struct ProfileView: View {
                     .fill(BIRGEColors.brandPrimary.opacity(0.1))
                     .frame(width: 80, height: 80)
                 
-                Text(store.name.prefix(1))
+                Text(avatarText)
                     .font(BIRGEFonts.heroNumber)
                     .foregroundStyle(BIRGEColors.brandPrimary)
             }
             .padding(.top, BIRGELayout.s)
             
             VStack(spacing: BIRGELayout.xxxs) {
-                Text(store.name)
+                Text(displayName)
                     .font(BIRGEFonts.title)
                 
-                Text(store.phone)
+                Text(displayPhone)
                     .font(BIRGEFonts.subtext)
                     .foregroundStyle(BIRGEColors.textSecondary)
             }
@@ -127,6 +128,24 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
         .listRowBackground(Color.clear)
+    }
+
+    private var displayName: String {
+        if store.name.isEmpty {
+            return store.phone.isEmpty ? "Профиль" : store.phone
+        }
+        return store.name
+    }
+
+    private var displayPhone: String {
+        if store.phone.isEmpty, store.isLoading {
+            return "+7 000 000 00 00"
+        }
+        return store.phone
+    }
+
+    private var avatarText: String {
+        String(displayName.prefix(1))
     }
     
     private var statsSection: some View {

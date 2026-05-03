@@ -38,7 +38,7 @@ struct AuthController: RouteCollection {
     }
 
     func me(req: Request) async throws -> UserResponseDTO {
-        try UserResponseDTO(user: try await AuthService(req: req).currentUser())
+        try await AuthService(req: req).getMe()
     }
 
     func logout(req: Request) async throws -> HTTPStatus {

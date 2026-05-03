@@ -238,6 +238,7 @@ public struct APIClient: Sendable {
     public var requestOTP: @Sendable (_ phone: String) async throws -> Void
     public var verifyOTP: @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse
     public var refreshAccessToken: @Sendable () async throws -> String
+    public var fetchMe: @Sendable () async throws -> UserDTO
     public var currentUser: @Sendable () async throws -> CurrentUserResponse
     public var createRide: @Sendable (_ request: CreateRideRequest) async throws -> RideDTO
     public var fetchRide: @Sendable (_ rideID: String) async throws -> RideDTO
@@ -254,6 +255,16 @@ public struct APIClient: Sendable {
             APIAuthResponse(accessToken: "test-access-token", refreshToken: "test-refresh-token", role: "passenger", userID: "test-user-id")
         },
         refreshAccessToken: @escaping @Sendable () async throws -> String = { "test-access-token" },
+        fetchMe: @escaping @Sendable () async throws -> UserDTO = {
+            UserDTO(
+                id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+                phone: "+77771234567",
+                name: "Test User",
+                rating: 0.0,
+                totalRides: 0,
+                createdAt: Date(timeIntervalSince1970: 0)
+            )
+        },
         currentUser: @escaping @Sendable () async throws -> CurrentUserResponse = {
             CurrentUserResponse(id: "test-user-id", phone: "+77771234567", role: "passenger")
         },
@@ -267,6 +278,7 @@ public struct APIClient: Sendable {
         self.requestOTP = requestOTP
         self.verifyOTP = verifyOTP
         self.refreshAccessToken = refreshAccessToken
+        self.fetchMe = fetchMe
         self.currentUser = currentUser
         self.createRide = createRide
         self.fetchRide = fetchRide
@@ -320,6 +332,13 @@ extension APIClient: DependencyKey {
             },
             refreshAccessToken: {
                 try await tokenRefreshClient.refreshAccessToken()
+            },
+            fetchMe: {
+                try await transport.sendAuthenticated(
+                    path: ["auth", "me"],
+                    method: "GET",
+                    responseType: UserDTO.self
+                )
             },
             currentUser: {
                 try await transport.sendAuthenticated(

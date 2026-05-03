@@ -2,6 +2,38 @@ import XCTest
 @testable import App
 
 final class AuthTests: XCTestCase {
+    func testUserResponseDTOEncodesProfileFields() throws {
+        let userID = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
+        let createdAt = Date(timeIntervalSince1970: 1_735_689_600)
+        let user = User(
+            id: userID,
+            phone: "+77771234567",
+            email: "passenger@example.com",
+            role: .passenger,
+            name: "Арсен"
+        )
+        user.createdAt = createdAt
+
+        let dto = try UserResponseDTO(
+            user: user,
+            rating: 0.0,
+            totalRides: 3
+        )
+        let data = try JSONEncoder().encode(dto)
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+
+        XCTAssertEqual(object["id"] as? String, userID.uuidString)
+        XCTAssertEqual(object["phone"] as? String, "+77771234567")
+        XCTAssertEqual(object["email"] as? String, "passenger@example.com")
+        XCTAssertEqual(object["role"] as? String, "passenger")
+        XCTAssertEqual(object["name"] as? String, "Арсен")
+        XCTAssertEqual(object["rating"] as? Double, 0.0)
+        XCTAssertEqual(object["totalRides"] as? Int, 3)
+        XCTAssertNotNil(object["createdAt"])
+    }
+
     func testAccessPayloadCarriesCoreClaims() throws {
         let userID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!.uuidString
         let payload = BIRGEJWTPayload(
