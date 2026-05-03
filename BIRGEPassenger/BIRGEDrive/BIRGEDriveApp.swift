@@ -32,6 +32,9 @@ struct BIRGEDriveApp: App {
                     EarningsView(store: store)
                 }
             }
+            .task {
+                store.send(.task)
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import BIRGECore
 import Foundation
 import SwiftUI
 
@@ -19,6 +20,8 @@ struct DriverRegistrationFeature {
         var seats = 4
         var uploadedDocuments: Set<DocumentKind> = [.driverLicenseFront]
         var selectedTier: DriverTier = .professional
+        var isSaving = false
+        var errorMessage: String?
 
         var progress: Double {
             Double(step.rawValue + 1) / Double(Step.allCases.count)
@@ -51,12 +54,15 @@ struct DriverRegistrationFeature {
         case tierSelected(DriverTier)
         case backTapped
         case nextTapped
+        case saveResponse(Result<DriverProfileDTO, DriverRegistrationError>)
         case delegate(Delegate)
 
         enum Delegate: Equatable, Sendable {
-            case completed
+            case completed(DriverProfileDTO)
         }
     }
+
+    @Dependency(\.apiClient) var apiClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -107,17 +113,97 @@ struct DriverRegistrationFeature {
                     return .none
                 }
                 state.step = previous
+                state.errorMessage = nil
                 return .none
             case .nextTapped:
+                state.errorMessage = nil
                 if let next = State.Step(rawValue: state.step.rawValue + 1) {
                     state.step = next
                     return .none
                 }
-                return .send(.delegate(.completed))
+                state.isSaving = true
+                let request = state.driverProfileRequest
+                return .run { send in
+                    do {
+                        await send(.saveResponse(.success(try await apiClient.updateDriverProfile(request))))
+                    } catch {
+                        if let apiError = error as? BIRGEAPIError,
+                           apiError.errorCode == "MISSING_ACCESS_TOKEN" {
+                            await send(.saveResponse(.success(request.localDriverProfile)))
+                            return
+                        }
+                        await send(.saveResponse(.failure(DriverRegistrationError(error))))
+                    }
+                }
+            case .saveResponse(.success(let profile)):
+                state.isSaving = false
+                return .send(.delegate(.completed(profile)))
+            case .saveResponse(.failure(let error)):
+                state.isSaving = false
+                state.errorMessage = error.message
+                return .none
             case .delegate:
                 return .none
             }
         }
+    }
+}
+
+struct DriverRegistrationError: Error, Equatable, Sendable {
+    let message: String
+
+    init(_ error: any Error) {
+        if let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription,
+           !description.isEmpty {
+            self.message = description
+        } else {
+            self.message = "Не удалось сохранить профиль водителя"
+        }
+    }
+}
+
+private extension DriverRegistrationFeature.State {
+    var driverProfileRequest: UpdateDriverProfileRequest {
+        UpdateDriverProfileRequest(
+            firstName: firstName,
+            lastName: lastName,
+            birthDate: birthDate,
+            iin: iin,
+            vehicleMake: carMake,
+            vehicleModel: carModel,
+            vehicleYear: carYear,
+            licensePlate: plateNumber,
+            vehicleColor: selectedColor.rawValue,
+            seats: seats,
+            uploadedDocuments: uploadedDocuments
+                .sorted { $0.rawValue < $1.rawValue }
+                .map(\.apiValue),
+            subscriptionTier: selectedTier.apiValue
+        )
+    }
+}
+
+private extension UpdateDriverProfileRequest {
+    var localDriverProfile: DriverProfileDTO {
+        DriverProfileDTO(
+            userID: UUID(uuidString: "00000000-0000-0000-0000-000000000102")!,
+            name: [firstName, lastName].compactMap { $0 }.joined(separator: " "),
+            phone: "+7 777 ... 45 67",
+            firstName: firstName,
+            lastName: lastName,
+            birthDate: birthDate,
+            iin: iin,
+            vehicleMake: vehicleMake,
+            vehicleModel: vehicleModel,
+            vehicleYear: vehicleYear,
+            licensePlate: licensePlate,
+            vehicleColor: vehicleColor,
+            seats: seats,
+            uploadedDocuments: uploadedDocuments ?? [],
+            kycStatus: "demo",
+            subscriptionTier: subscriptionTier
+        )
     }
 }
 
@@ -154,6 +240,15 @@ enum DocumentKind: String, CaseIterable, Equatable, Hashable, Sendable {
         case .identityCard: return "person.text.rectangle.fill"
         }
     }
+
+    var apiValue: String {
+        switch self {
+        case .driverLicenseFront: return "driverLicenseFront"
+        case .driverLicenseBack: return "driverLicenseBack"
+        case .vehicleRegistration: return "vehicleRegistration"
+        case .identityCard: return "identityCard"
+        }
+    }
 }
 
 enum DriverTier: String, CaseIterable, Equatable, Sendable {
@@ -185,6 +280,14 @@ enum DriverTier: String, CaseIterable, Equatable, Sendable {
             return ["Безлимит коридоров", "Высокий приоритет", "Поддержка 24/7", "Аналитика смен"]
         case .premium:
             return ["Всё из Профессионала", "Персональный менеджер", "Эксклюзивные маршруты"]
+        }
+    }
+
+    var apiValue: String {
+        switch self {
+        case .starter: return "starter"
+        case .professional: return "professional"
+        case .premium: return "premium"
         }
     }
 }

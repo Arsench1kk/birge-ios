@@ -55,6 +55,30 @@ struct DriverAppFeature {
         static let mock = DriverEarnings(todayTenge: 12500, todayRides: 8, weekTenge: 67000)
     }
 
+    struct DriverDashboardCorridor: Equatable, Identifiable, Sendable {
+        var id: UUID
+        var name: String
+        var originName: String
+        var destinationName: String
+        var departure: String
+        var seatsTotal: Int
+        var passengerInitials: [String]
+        var estimatedEarnings: Int
+        var status: String
+
+        nonisolated init(dto: DriverTodayCorridorDTO) {
+            self.id = dto.id
+            self.name = dto.name
+            self.originName = dto.originName
+            self.destinationName = dto.destinationName
+            self.departure = dto.departure
+            self.seatsTotal = dto.seatsTotal
+            self.passengerInitials = dto.passengerInitials
+            self.estimatedEarnings = dto.estimatedEarnings
+            self.status = dto.status
+        }
+    }
+
     // MARK: - State
 
     @ObservableState
@@ -66,6 +90,13 @@ struct DriverAppFeature {
         var activeRide: DriverActiveRide? = nil
         var completedRideSummary: CompletedRideSummary? = nil
         var earnings: DriverEarnings = .mock
+        var driverName: String = "Водитель"
+        var vehicleTitle: String = "Автомобиль не указан"
+        var todayCorridors: [DriverDashboardCorridor] = []
+        var isLoadingDriverProfile = false
+        var isLoadingTodayCorridors = false
+        var driverProfileError: String?
+        var todayCorridorsError: String?
         var path = StackState<Path.State>()
 
         static func == (lhs: State, rhs: State) -> Bool {
@@ -75,7 +106,14 @@ struct DriverAppFeature {
             lhs.currentOffer == rhs.currentOffer &&
             lhs.activeRide == rhs.activeRide &&
             lhs.completedRideSummary == rhs.completedRideSummary &&
-            lhs.earnings == rhs.earnings
+            lhs.earnings == rhs.earnings &&
+            lhs.driverName == rhs.driverName &&
+            lhs.vehicleTitle == rhs.vehicleTitle &&
+            lhs.todayCorridors == rhs.todayCorridors &&
+            lhs.isLoadingDriverProfile == rhs.isLoadingDriverProfile &&
+            lhs.isLoadingTodayCorridors == rhs.isLoadingTodayCorridors &&
+            lhs.driverProfileError == rhs.driverProfileError &&
+            lhs.todayCorridorsError == rhs.todayCorridorsError
             // Note: intentionally skip path comparison
         }
     }
@@ -91,6 +129,9 @@ struct DriverAppFeature {
     // MARK: - Action
 
     enum Action: Sendable {
+        case task
+        case driverProfileResponse(Result<DriverProfileDTO, DriverDashboardError>)
+        case todayCorridorsResponse(Result<DriverTodayCorridorsResponse, DriverDashboardError>)
         case toggleOnline
         case offerAppeared
         case acceptOffer
@@ -108,6 +149,7 @@ struct DriverAppFeature {
     // MARK: - Body
 
     @Dependency(\.locationClient) var locationClient
+    @Dependency(\.apiClient) var apiClient
 
     var body: some Reducer<State, Action> {
         Scope(state: \.registration, action: \.registration) {
@@ -115,9 +157,64 @@ struct DriverAppFeature {
         }
         Reduce { state, action in
             switch action {
-            case .registration(.delegate(.completed)):
-                state.isRegistrationComplete = true
+            case .task:
+                state.isLoadingDriverProfile = true
+                state.isLoadingTodayCorridors = true
+                state.driverProfileError = nil
+                state.todayCorridorsError = nil
+                return .merge(
+                    .run { send in
+                        do {
+                            await send(.driverProfileResponse(.success(try await apiClient.fetchDriverProfile())))
+                        } catch {
+                            await send(.driverProfileResponse(.failure(DriverDashboardError(error))))
+                        }
+                    },
+                    .run { send in
+                        do {
+                            await send(.todayCorridorsResponse(.success(try await apiClient.fetchDriverTodayCorridors())))
+                        } catch {
+                            await send(.todayCorridorsResponse(.failure(DriverDashboardError(error))))
+                        }
+                    }
+                )
+
+            case .driverProfileResponse(.success(let profile)):
+                state.isLoadingDriverProfile = false
+                state.driverProfileError = nil
+                state.apply(driverProfile: profile)
                 return .none
+
+            case .driverProfileResponse(.failure(let error)):
+                state.isLoadingDriverProfile = false
+                state.driverProfileError = error.message
+                return .none
+
+            case .todayCorridorsResponse(.success(let response)):
+                state.isLoadingTodayCorridors = false
+                state.todayCorridorsError = nil
+                state.todayCorridors = response.corridors.map(DriverDashboardCorridor.init)
+                if response.todayEarningsEstimate > 0 {
+                    state.earnings.todayTenge = response.todayEarningsEstimate
+                }
+                return .none
+
+            case .todayCorridorsResponse(.failure(let error)):
+                state.isLoadingTodayCorridors = false
+                state.todayCorridorsError = error.message
+                return .none
+
+            case .registration(.delegate(.completed(let profile))):
+                state.isRegistrationComplete = true
+                state.apply(driverProfile: profile)
+                state.isLoadingTodayCorridors = true
+                return .run { send in
+                    do {
+                        await send(.todayCorridorsResponse(.success(try await apiClient.fetchDriverTodayCorridors())))
+                    } catch {
+                        await send(.todayCorridorsResponse(.failure(DriverDashboardError(error))))
+                    }
+                }
 
             case .toggleOnline:
                 state.isOnline.toggle()
@@ -251,5 +348,42 @@ struct DriverAppFeature {
                 try? await locationClient.syncPendingLocations(rideID)
             }
         }
+    }
+}
+
+struct DriverDashboardError: Error, Equatable, Sendable {
+    let message: String
+
+    init(_ error: any Error) {
+        if let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription,
+           !description.isEmpty {
+            self.message = description
+        } else {
+            self.message = "Не удалось загрузить данные водителя"
+        }
+    }
+}
+
+private extension DriverAppFeature.State {
+    mutating func apply(driverProfile profile: DriverProfileDTO) {
+        driverName = profile.name
+            ?? [profile.firstName, profile.lastName]
+                .compactMap { $0 }
+                .joined(separator: " ")
+        if driverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            driverName = "Водитель"
+        }
+
+        let vehicleParts = [profile.vehicleMake, profile.vehicleModel, profile.vehicleYear]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        vehicleTitle = vehicleParts.isEmpty ? "Автомобиль не указан" : vehicleParts.joined(separator: " ")
+        if let plate = profile.licensePlate, !plate.isEmpty {
+            vehicleTitle += " • \(plate)"
+        }
+
+        let hasCoreRegistration = profile.firstName?.isEmpty == false && profile.vehicleModel?.isEmpty == false
+        isRegistrationComplete = profile.kycStatus != "draft" || hasCoreRegistration
     }
 }

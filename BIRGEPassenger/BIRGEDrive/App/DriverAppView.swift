@@ -156,9 +156,15 @@ struct DriverAppView: View {
     private var topBar: some View {
         HStack(spacing: BIRGELayout.xs) {
             VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                Text("BIRGE Driver")
+                Text(store.driverName)
                     .font(BIRGEFonts.sectionTitle)
                     .foregroundStyle(BIRGEColors.textPrimary)
+                    .lineLimit(1)
+
+                Text(store.vehicleTitle)
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                    .lineLimit(1)
 
                 HStack(spacing: BIRGELayout.xxs) {
                     Image(systemName: store.isOnline ? "dot.radiowaves.left.and.right" : "power")
@@ -170,6 +176,12 @@ struct DriverAppView: View {
             }
 
             Spacer()
+
+            if store.isLoadingDriverProfile {
+                ProgressView()
+                    .tint(BIRGEColors.brandPrimary)
+                    .frame(width: 36, height: 36)
+            }
 
             Button {
                 store.send(.earningsTapped)
@@ -231,9 +243,9 @@ struct DriverAppView: View {
                     .font(BIRGEFonts.title)
                     .foregroundStyle(BIRGEColors.textPrimary)
 
-                Text("Нажмите, чтобы начать принимать заказы")
+                Text(store.driverProfileError ?? "Нажмите, чтобы начать принимать заказы")
                     .font(BIRGEFonts.subtext)
-                    .foregroundStyle(BIRGEColors.textSecondary)
+                    .foregroundStyle(store.driverProfileError == nil ? BIRGEColors.textSecondary : BIRGEColors.danger)
                     .multilineTextAlignment(.center)
             }
 
@@ -306,6 +318,8 @@ struct DriverAppView: View {
 
     private var onlineControlSheet: some View {
         VStack(spacing: BIRGELayout.s) {
+            todayCorridorsStrip
+
             HStack(spacing: BIRGELayout.s) {
                 miniStat(label: "Поездок", value: "\(store.earnings.todayRides)")
                 Divider().frame(height: 32)
@@ -328,6 +342,63 @@ struct DriverAppView: View {
         }
         .padding(BIRGELayout.s)
         .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.05), isInteractive: true)
+    }
+
+    @ViewBuilder
+    private var todayCorridorsStrip: some View {
+        if store.isLoadingTodayCorridors {
+            HStack(spacing: BIRGELayout.xs) {
+                ProgressView()
+                    .tint(BIRGEColors.brandPrimary)
+                Text("Загружаем коридоры")
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                Spacer()
+            }
+            .padding(BIRGELayout.s)
+            .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.035))
+        } else if let error = store.todayCorridorsError {
+            Label(error, systemImage: "exclamationmark.triangle.fill")
+                .font(BIRGEFonts.caption)
+                .foregroundStyle(BIRGEColors.danger)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(BIRGELayout.s)
+                .liquidGlass(.card, tint: BIRGEColors.danger.opacity(0.04))
+        } else if let corridor = store.todayCorridors.first {
+            VStack(alignment: .leading, spacing: BIRGELayout.xs) {
+                HStack {
+                    Label("Ближайший коридор", systemImage: "point.topleft.filled.down.to.point.bottomright.curvepath")
+                        .font(BIRGEFonts.captionBold)
+                        .foregroundStyle(BIRGEColors.brandPrimary)
+                    Spacer()
+                    Text(corridor.departure)
+                        .font(BIRGEFonts.captionBold)
+                        .foregroundStyle(BIRGEColors.textPrimary)
+                }
+
+                VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                    Text(corridor.name)
+                        .font(BIRGEFonts.bodyMedium)
+                        .foregroundStyle(BIRGEColors.textPrimary)
+                        .lineLimit(1)
+                    Text("\(corridor.originName) → \(corridor.destinationName)")
+                        .font(BIRGEFonts.caption)
+                        .foregroundStyle(BIRGEColors.textSecondary)
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: BIRGELayout.xs) {
+                    Label("\(corridor.seatsTotal) места", systemImage: "person.2.fill")
+                    Label("\(corridor.estimatedEarnings)₸", systemImage: "tengesign.circle.fill")
+                    Spacer()
+                    Text("\(store.todayCorridors.count) активн.")
+                }
+                .font(BIRGEFonts.caption)
+                .foregroundStyle(BIRGEColors.textSecondary)
+            }
+            .padding(BIRGELayout.s)
+            .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04))
+        }
     }
 
     private func offerAlert(_ offer: DriverAppFeature.RideOffer) -> some View {

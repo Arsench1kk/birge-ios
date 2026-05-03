@@ -178,7 +178,17 @@ struct DriverRegistrationView: View {
 
     private var bottomCTA: some View {
         VStack(spacing: BIRGELayout.xxs) {
-            BIRGEPrimaryButton(title: store.step == .tier ? "Начать работу" : "Далее") {
+            if let error = store.errorMessage {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.danger)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            BIRGEPrimaryButton(
+                title: store.step == .tier ? "Начать работу" : "Далее",
+                isLoading: store.isSaving
+            ) {
                 store.send(.nextTapped)
             }
             if store.step == .documents {

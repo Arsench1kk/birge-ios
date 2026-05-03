@@ -582,6 +582,148 @@ public struct KaspiCheckoutResponse: Equatable, Sendable, Decodable {
     }
 }
 
+public struct DriverProfileDTO: Codable, Equatable, Sendable {
+    public let userID: UUID
+    public let name: String?
+    public let phone: String
+    public let firstName: String?
+    public let lastName: String?
+    public let birthDate: String?
+    public let iin: String?
+    public let vehicleMake: String?
+    public let vehicleModel: String?
+    public let vehicleYear: String?
+    public let licensePlate: String?
+    public let vehicleColor: String?
+    public let seats: Int?
+    public let uploadedDocuments: [String]
+    public let kycStatus: String
+    public let subscriptionTier: String?
+
+    public init(
+        userID: UUID,
+        name: String? = nil,
+        phone: String,
+        firstName: String? = nil,
+        lastName: String? = nil,
+        birthDate: String? = nil,
+        iin: String? = nil,
+        vehicleMake: String? = nil,
+        vehicleModel: String? = nil,
+        vehicleYear: String? = nil,
+        licensePlate: String? = nil,
+        vehicleColor: String? = nil,
+        seats: Int? = nil,
+        uploadedDocuments: [String] = [],
+        kycStatus: String,
+        subscriptionTier: String? = nil
+    ) {
+        self.userID = userID
+        self.name = name
+        self.phone = phone
+        self.firstName = firstName
+        self.lastName = lastName
+        self.birthDate = birthDate
+        self.iin = iin
+        self.vehicleMake = vehicleMake
+        self.vehicleModel = vehicleModel
+        self.vehicleYear = vehicleYear
+        self.licensePlate = licensePlate
+        self.vehicleColor = vehicleColor
+        self.seats = seats
+        self.uploadedDocuments = uploadedDocuments
+        self.kycStatus = kycStatus
+        self.subscriptionTier = subscriptionTier
+    }
+}
+
+public struct UpdateDriverProfileRequest: Codable, Equatable, Sendable {
+    public let firstName: String?
+    public let lastName: String?
+    public let birthDate: String?
+    public let iin: String?
+    public let vehicleMake: String?
+    public let vehicleModel: String?
+    public let vehicleYear: String?
+    public let licensePlate: String?
+    public let vehicleColor: String?
+    public let seats: Int?
+    public let uploadedDocuments: [String]?
+    public let subscriptionTier: String?
+
+    public init(
+        firstName: String? = nil,
+        lastName: String? = nil,
+        birthDate: String? = nil,
+        iin: String? = nil,
+        vehicleMake: String? = nil,
+        vehicleModel: String? = nil,
+        vehicleYear: String? = nil,
+        licensePlate: String? = nil,
+        vehicleColor: String? = nil,
+        seats: Int? = nil,
+        uploadedDocuments: [String]? = nil,
+        subscriptionTier: String? = nil
+    ) {
+        self.firstName = firstName
+        self.lastName = lastName
+        self.birthDate = birthDate
+        self.iin = iin
+        self.vehicleMake = vehicleMake
+        self.vehicleModel = vehicleModel
+        self.vehicleYear = vehicleYear
+        self.licensePlate = licensePlate
+        self.vehicleColor = vehicleColor
+        self.seats = seats
+        self.uploadedDocuments = uploadedDocuments
+        self.subscriptionTier = subscriptionTier
+    }
+}
+
+public struct DriverTodayCorridorDTO: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let name: String
+    public let originName: String
+    public let destinationName: String
+    public let departure: String
+    public let seatsTotal: Int
+    public let passengerInitials: [String]
+    public let estimatedEarnings: Int
+    public let status: String
+
+    public init(
+        id: UUID,
+        name: String,
+        originName: String,
+        destinationName: String,
+        departure: String,
+        seatsTotal: Int,
+        passengerInitials: [String],
+        estimatedEarnings: Int,
+        status: String
+    ) {
+        self.id = id
+        self.name = name
+        self.originName = originName
+        self.destinationName = destinationName
+        self.departure = departure
+        self.seatsTotal = seatsTotal
+        self.passengerInitials = passengerInitials
+        self.estimatedEarnings = estimatedEarnings
+        self.status = status
+    }
+}
+
+public struct DriverTodayCorridorsResponse: Codable, Equatable, Sendable {
+    public let corridors: [DriverTodayCorridorDTO]
+    public let todayEarningsEstimate: Int
+
+    public init(corridors: [DriverTodayCorridorDTO], todayEarningsEstimate: Int) {
+        self.corridors = corridors
+        self.todayEarningsEstimate = todayEarningsEstimate
+    }
+}
+
 public extension SubscriptionPlanDTO {
     static let defaults: [SubscriptionPlanDTO] = [
         SubscriptionPlanDTO(
@@ -709,6 +851,9 @@ public struct APIClient: Sendable {
     public var fetchSubscriptions: @Sendable () async throws -> SubscriptionOverviewResponse
     public var activateSubscription: @Sendable (_ planID: String) async throws -> ActivateSubscriptionResponse
     public var createKaspiCheckout: @Sendable (_ purpose: String, _ amountTenge: Int, _ planID: String?) async throws -> KaspiCheckoutResponse
+    public var fetchDriverProfile: @Sendable () async throws -> DriverProfileDTO
+    public var updateDriverProfile: @Sendable (_ request: UpdateDriverProfileRequest) async throws -> DriverProfileDTO
+    public var fetchDriverTodayCorridors: @Sendable () async throws -> DriverTodayCorridorsResponse
 
     public init(
         fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideDTO = { _ in
@@ -790,6 +935,47 @@ public struct APIClient: Sendable {
                 kaspiDeepLink: "kaspi://pay?service=birge&payment_id=test-payment-id&amount=\(amountTenge)&plan=\(planID ?? "none")",
                 message: "Open Kaspi to complete payment"
             )
+        },
+        fetchDriverProfile: @escaping @Sendable () async throws -> DriverProfileDTO = {
+            DriverProfileDTO(
+                userID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+                name: "Test Driver",
+                phone: "+77770000002",
+                firstName: "Test",
+                lastName: "Driver",
+                vehicleMake: "Toyota",
+                vehicleModel: "Camry",
+                vehicleYear: "2018",
+                licensePlate: "123 ABC 02",
+                vehicleColor: "Белый",
+                seats: 4,
+                uploadedDocuments: ["driverLicenseFront", "driverLicenseBack", "vehicleRegistration"],
+                kycStatus: "review",
+                subscriptionTier: "professional"
+            )
+        },
+        updateDriverProfile: @escaping @Sendable (_ request: UpdateDriverProfileRequest) async throws -> DriverProfileDTO = { request in
+            DriverProfileDTO(
+                userID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+                name: [request.firstName, request.lastName].compactMap { $0 }.joined(separator: " "),
+                phone: "+77770000002",
+                firstName: request.firstName,
+                lastName: request.lastName,
+                birthDate: request.birthDate,
+                iin: request.iin,
+                vehicleMake: request.vehicleMake,
+                vehicleModel: request.vehicleModel,
+                vehicleYear: request.vehicleYear,
+                licensePlate: request.licensePlate,
+                vehicleColor: request.vehicleColor,
+                seats: request.seats,
+                uploadedDocuments: request.uploadedDocuments ?? [],
+                kycStatus: (request.uploadedDocuments?.count ?? 0) >= 3 ? "review" : "draft",
+                subscriptionTier: request.subscriptionTier
+            )
+        },
+        fetchDriverTodayCorridors: @escaping @Sendable () async throws -> DriverTodayCorridorsResponse = {
+            DriverTodayCorridorsResponse(corridors: [], todayEarningsEstimate: 0)
         }
     ) {
         self.requestOTP = requestOTP
@@ -807,6 +993,9 @@ public struct APIClient: Sendable {
         self.fetchSubscriptions = fetchSubscriptions
         self.activateSubscription = activateSubscription
         self.createKaspiCheckout = createKaspiCheckout
+        self.fetchDriverProfile = fetchDriverProfile
+        self.updateDriverProfile = updateDriverProfile
+        self.fetchDriverTodayCorridors = fetchDriverTodayCorridors
     }
 }
 
@@ -935,6 +1124,28 @@ extension APIClient: DependencyKey {
                         planID: planID
                     ),
                     responseType: KaspiCheckoutResponse.self
+                )
+            },
+            fetchDriverProfile: {
+                try await transport.sendAuthenticated(
+                    path: ["drivers", "me"],
+                    method: "GET",
+                    responseType: DriverProfileDTO.self
+                )
+            },
+            updateDriverProfile: { request in
+                try await transport.sendAuthenticated(
+                    path: ["drivers", "me"],
+                    method: "PUT",
+                    body: request,
+                    responseType: DriverProfileDTO.self
+                )
+            },
+            fetchDriverTodayCorridors: {
+                try await transport.sendAuthenticated(
+                    path: ["drivers", "corridors", "today"],
+                    method: "GET",
+                    responseType: DriverTodayCorridorsResponse.self
                 )
             }
         )
