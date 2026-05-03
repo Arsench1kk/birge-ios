@@ -18,8 +18,21 @@ struct CorridorListView: View {
                     .padding(.horizontal, BIRGELayout.m)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                if let errorMessage = store.errorMessage {
+                    BIRGEToast(message: errorMessage, style: .warning)
+                        .padding(.horizontal, BIRGELayout.m)
+                        .padding(.top, BIRGELayout.xs)
+                }
+
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: BIRGELayout.xs) {
+                        if store.isLoading {
+                            ProgressView()
+                                .tint(BIRGEColors.brandPrimary)
+                                .padding(.vertical, BIRGELayout.l)
+                                .frame(maxWidth: .infinity)
+                        }
+
                         ForEach(store.filteredCorridors) { corridor in
                             corridorCard(corridor)
                         }
@@ -34,6 +47,9 @@ struct CorridorListView: View {
         }
         .navigationTitle("Коридоры")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await store.send(.onAppear).finish()
+        }
     }
 
     private var filterBar: some View {

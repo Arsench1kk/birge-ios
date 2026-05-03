@@ -36,6 +36,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateDriverProfiles())
     app.migrations.add(CreateRides())
     app.migrations.add(AddRideRequestAPIFields())
+    app.migrations.add(CreateCorridors())
 
     try await app.autoMigrate()
     try routes(app)

@@ -77,6 +77,10 @@ struct CorridorDetailView: View {
 
             passengerRow
 
+            if let errorMessage = store.errorMessage {
+                BIRGEToast(message: errorMessage, style: .error)
+            }
+
             BIRGEPrimaryButton(
                 title: store.isJoining ? "Присоединяемся..." : "Присоединиться · \(store.corridor.price)₸",
                 isLoading: store.isJoining

@@ -33,6 +33,9 @@ struct HomeView: View {
         .safeAreaInset(edge: .bottom) {
             bottomSheet
         }
+        .task {
+            send(.onAppear)
+        }
         .navigationBarHidden(true)
     }
 
@@ -69,8 +72,13 @@ struct HomeView: View {
             .onTapGesture { send(.searchBarTapped) }
 
             // AI Pill
-            BIRGEAIPill("AI нашёл \(store.aiMatchCount) коридора рядом")
-                .padding(.leading, BIRGELayout.s)
+                BIRGEAIPill("AI нашёл \(store.aiMatchCount) коридора рядом")
+                    .padding(.leading, BIRGELayout.s)
+
+            if let corridorError = store.corridorError {
+                BIRGEToast(message: corridorError, style: .warning)
+                    .padding(.horizontal, BIRGELayout.s)
+            }
         }
     }
 
@@ -127,6 +135,13 @@ struct HomeView: View {
                 // ── Horizontal corridor scroll
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: BIRGELayout.xs) {
+                        if store.isLoadingCorridors {
+                            ProgressView()
+                                .tint(BIRGEColors.brandPrimary)
+                                .frame(width: 220, height: 132)
+                                .birgeGlassCard()
+                        }
+
                         ForEach(store.corridors) { corridor in
                             corridorCard(corridor)
                         }

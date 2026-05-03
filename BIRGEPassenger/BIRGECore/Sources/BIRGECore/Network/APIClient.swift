@@ -195,6 +195,148 @@ public struct LocationBulkResponse: Equatable, Sendable, Decodable {
     }
 }
 
+public struct CorridorDTO: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let name: String
+    public let originName: String
+    public let destinationName: String
+    public let originLat: Double
+    public let originLng: Double
+    public let destinationLat: Double
+    public let destinationLng: Double
+    public let departure: String
+    public let timeOfDay: String
+    public let seatsLeft: Int
+    public let seatsTotal: Int
+    public let price: Int
+    public let matchPercent: Int
+    public let passengerInitials: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case originName
+        case originNameSnake = "origin_name"
+        case destinationName
+        case destinationNameSnake = "destination_name"
+        case originLat
+        case originLatSnake = "origin_lat"
+        case originLng
+        case originLngSnake = "origin_lng"
+        case destinationLat
+        case destinationLatSnake = "destination_lat"
+        case destinationLng
+        case destinationLngSnake = "destination_lng"
+        case departure
+        case timeOfDay
+        case timeOfDaySnake = "time_of_day"
+        case seatsLeft
+        case seatsLeftSnake = "seats_left"
+        case seatsTotal
+        case seatsTotalSnake = "seats_total"
+        case price
+        case priceTenge = "price_tenge"
+        case matchPercent
+        case matchPercentSnake = "match_percent"
+        case passengerInitials
+        case passengerInitialsSnake = "passenger_initials"
+    }
+
+    public init(
+        id: UUID,
+        name: String,
+        originName: String,
+        destinationName: String,
+        originLat: Double,
+        originLng: Double,
+        destinationLat: Double,
+        destinationLng: Double,
+        departure: String,
+        timeOfDay: String,
+        seatsLeft: Int,
+        seatsTotal: Int,
+        price: Int,
+        matchPercent: Int,
+        passengerInitials: [String]
+    ) {
+        self.id = id
+        self.name = name
+        self.originName = originName
+        self.destinationName = destinationName
+        self.originLat = originLat
+        self.originLng = originLng
+        self.destinationLat = destinationLat
+        self.destinationLng = destinationLng
+        self.departure = departure
+        self.timeOfDay = timeOfDay
+        self.seatsLeft = seatsLeft
+        self.seatsTotal = seatsTotal
+        self.price = price
+        self.matchPercent = matchPercent
+        self.passengerInitials = passengerInitials
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.originName = try container.decodeFlexibleString(.originName, .originNameSnake)
+        self.destinationName = try container.decodeFlexibleString(.destinationName, .destinationNameSnake)
+        self.originLat = try container.decodeFlexibleDouble(.originLat, .originLatSnake)
+        self.originLng = try container.decodeFlexibleDouble(.originLng, .originLngSnake)
+        self.destinationLat = try container.decodeFlexibleDouble(.destinationLat, .destinationLatSnake)
+        self.destinationLng = try container.decodeFlexibleDouble(.destinationLng, .destinationLngSnake)
+        self.departure = try container.decode(String.self, forKey: .departure)
+        self.timeOfDay = try container.decodeFlexibleString(.timeOfDay, .timeOfDaySnake)
+        self.seatsLeft = try container.decodeFlexibleInt(.seatsLeft, .seatsLeftSnake)
+        self.seatsTotal = try container.decodeFlexibleInt(.seatsTotal, .seatsTotalSnake)
+        self.price = try container.decodeIfPresent(Int.self, forKey: .price)
+            ?? container.decode(Int.self, forKey: .priceTenge)
+        self.matchPercent = try container.decodeFlexibleInt(.matchPercent, .matchPercentSnake)
+        self.passengerInitials = try container.decodeIfPresent([String].self, forKey: .passengerInitials)
+            ?? container.decode([String].self, forKey: .passengerInitialsSnake)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(originName, forKey: .originName)
+        try container.encode(destinationName, forKey: .destinationName)
+        try container.encode(originLat, forKey: .originLat)
+        try container.encode(originLng, forKey: .originLng)
+        try container.encode(destinationLat, forKey: .destinationLat)
+        try container.encode(destinationLng, forKey: .destinationLng)
+        try container.encode(departure, forKey: .departure)
+        try container.encode(timeOfDay, forKey: .timeOfDay)
+        try container.encode(seatsLeft, forKey: .seatsLeft)
+        try container.encode(seatsTotal, forKey: .seatsTotal)
+        try container.encode(price, forKey: .price)
+        try container.encode(matchPercent, forKey: .matchPercent)
+        try container.encode(passengerInitials, forKey: .passengerInitials)
+    }
+}
+
+public struct CorridorListResponse: Equatable, Sendable, Decodable {
+    public let corridors: [CorridorDTO]
+    public let aiSummary: String
+
+    public init(corridors: [CorridorDTO], aiSummary: String) {
+        self.corridors = corridors
+        self.aiSummary = aiSummary
+    }
+}
+
+public struct CorridorBookingResponse: Equatable, Sendable, Decodable {
+    public let corridor: CorridorDTO
+    public let message: String
+
+    public init(corridor: CorridorDTO, message: String) {
+        self.corridor = corridor
+        self.message = message
+    }
+}
+
 private struct CancelRideRequest: Encodable {
     let reason: String
 }
@@ -244,6 +386,8 @@ public struct APIClient: Sendable {
     public var fetchRide: @Sendable (_ rideID: String) async throws -> RideDTO
     public var cancelRide: @Sendable (_ rideID: String, _ reason: String) async throws -> Void
     public var uploadLocationsBulk: @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse
+    public var fetchCorridors: @Sendable () async throws -> CorridorListResponse
+    public var bookCorridor: @Sendable (_ corridorID: String) async throws -> CorridorBookingResponse
 
     public init(
         fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideDTO = { _ in
@@ -273,6 +417,31 @@ public struct APIClient: Sendable {
         },
         uploadLocationsBulk: @escaping @Sendable (_ rideID: String, _ records: [LocationRecord]) async throws -> LocationBulkResponse = { _, records in
             LocationBulkResponse(message: "Locations synced", count: records.count)
+        },
+        fetchCorridors: @escaping @Sendable () async throws -> CorridorListResponse = {
+            CorridorListResponse(corridors: [], aiSummary: "AI ищет коридоры по вашим маршрутам")
+        },
+        bookCorridor: @escaping @Sendable (_ corridorID: String) async throws -> CorridorBookingResponse = { corridorID in
+            CorridorBookingResponse(
+                corridor: CorridorDTO(
+                    id: UUID(uuidString: corridorID) ?? UUID(),
+                    name: "Test corridor",
+                    originName: "Origin",
+                    destinationName: "Destination",
+                    originLat: 0,
+                    originLng: 0,
+                    destinationLat: 0,
+                    destinationLng: 0,
+                    departure: "07:30 утром",
+                    timeOfDay: "morning",
+                    seatsLeft: 1,
+                    seatsTotal: 4,
+                    price: 890,
+                    matchPercent: 98,
+                    passengerInitials: []
+                ),
+                message: "Corridor booked"
+            )
         }
     ) {
         self.requestOTP = requestOTP
@@ -284,6 +453,8 @@ public struct APIClient: Sendable {
         self.fetchRide = fetchRide
         self.cancelRide = cancelRide
         self.uploadLocationsBulk = uploadLocationsBulk
+        self.fetchCorridors = fetchCorridors
+        self.bookCorridor = bookCorridor
     }
 }
 
@@ -364,6 +535,20 @@ extension APIClient: DependencyKey {
                         records: records.map(LocationRecordRequest.init)
                     ),
                     responseType: LocationBulkResponse.self
+                )
+            },
+            fetchCorridors: {
+                try await transport.sendAuthenticated(
+                    path: ["corridors"],
+                    method: "GET",
+                    responseType: CorridorListResponse.self
+                )
+            },
+            bookCorridor: { corridorID in
+                try await transport.sendAuthenticated(
+                    path: ["corridors", corridorID, "book"],
+                    method: "POST",
+                    responseType: CorridorBookingResponse.self
                 )
             }
         )
@@ -803,6 +988,36 @@ private extension KeyedDecodingContainer {
     func decodeFlexibleString(_ keys: Key...) throws -> String {
         for key in keys {
             if let value = try decodeIfPresent(String.self, forKey: key) {
+                return value
+            }
+        }
+        throw DecodingError.keyNotFound(
+            keys[0],
+            DecodingError.Context(
+                codingPath: codingPath,
+                debugDescription: "Expected one of keys: \(keys.map(\.stringValue).joined(separator: ", "))"
+            )
+        )
+    }
+
+    func decodeFlexibleInt(_ keys: Key...) throws -> Int {
+        for key in keys {
+            if let value = try decodeIfPresent(Int.self, forKey: key) {
+                return value
+            }
+        }
+        throw DecodingError.keyNotFound(
+            keys[0],
+            DecodingError.Context(
+                codingPath: codingPath,
+                debugDescription: "Expected one of keys: \(keys.map(\.stringValue).joined(separator: ", "))"
+            )
+        )
+    }
+
+    func decodeFlexibleDouble(_ keys: Key...) throws -> Double {
+        for key in keys {
+            if let value = try decodeIfPresent(Double.self, forKey: key) {
                 return value
             }
         }

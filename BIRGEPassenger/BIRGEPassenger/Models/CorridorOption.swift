@@ -1,3 +1,4 @@
+import BIRGECore
 import Foundation
 
 struct CorridorOption: Equatable, Identifiable, Sendable {
@@ -9,6 +10,9 @@ struct CorridorOption: Equatable, Identifiable, Sendable {
     let price: Int
     let matchPercent: Int
     let passengerInitials: [String]
+    let originName: String
+    let destinationName: String
+    let timeOfDay: String
 
     static let mock: [CorridorOption] = [
         CorridorOption(
@@ -19,7 +23,10 @@ struct CorridorOption: Equatable, Identifiable, Sendable {
             seatsTotal: 4,
             price: 890,
             matchPercent: 98,
-            passengerInitials: ["А", "М", "Д"]
+            passengerInitials: ["А", "М", "Д"],
+            originName: "Алатау, пр. Аль-Фараби 21",
+            destinationName: "Есентай Парк, 77/8",
+            timeOfDay: "morning"
         ),
         CorridorOption(
             id: "c2",
@@ -29,7 +36,10 @@ struct CorridorOption: Equatable, Identifiable, Sendable {
             seatsTotal: 4,
             price: 750,
             matchPercent: 87,
-            passengerInitials: ["К", "Н"]
+            passengerInitials: ["К", "Н"],
+            originName: "Бостандык, ул. Розыбакиева 247",
+            destinationName: "Алмалы, ул. Абая 52",
+            timeOfDay: "morning"
         ),
         CorridorOption(
             id: "c3",
@@ -39,7 +49,26 @@ struct CorridorOption: Equatable, Identifiable, Sendable {
             seatsTotal: 4,
             price: 580,
             matchPercent: 74,
-            passengerInitials: ["Т"]
+            passengerInitials: ["Т"],
+            originName: "Орбита-3, Навои 208",
+            destinationName: "Достык Плаза",
+            timeOfDay: "morning"
         )
     ]
+}
+
+extension CorridorOption {
+    nonisolated init(dto: CorridorDTO) {
+        self.id = dto.id.uuidString
+        self.name = dto.name
+        self.departure = dto.departure
+        self.seatsLeft = dto.seatsLeft
+        self.seatsTotal = dto.seatsTotal
+        self.price = dto.price
+        self.matchPercent = dto.matchPercent
+        self.passengerInitials = dto.passengerInitials
+        self.originName = dto.originName
+        self.destinationName = dto.destinationName
+        self.timeOfDay = dto.timeOfDay
+    }
 }

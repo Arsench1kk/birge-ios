@@ -4,6 +4,7 @@ func routes(_ app: Application) throws {
     let api = app.grouped("api", "v1")
     try api.register(collection: AuthController())
     try api.register(collection: RidesController())
+    try api.register(collection: CorridorsController())
 
     // WebSocket
     app.webSocket("ws", "ride", ":rideId") { req, ws in
