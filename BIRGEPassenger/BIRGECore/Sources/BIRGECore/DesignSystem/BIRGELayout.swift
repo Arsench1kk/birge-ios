@@ -30,4 +30,10 @@ public enum BIRGELayout {
     public static let sheetHandleWidth: CGFloat = 36
     public static let sheetHandleHeight: CGFloat = 4
     public static let sheetHandleRadius: CGFloat = 2
+
+    // MARK: - Map Overlays
+
+    /// Отступ сверху для элементов поверх карты (ниже статус-бара)
+    public static let mapSearchBarTop: CGFloat = 59
+    public static let mapSearchBarHeight: CGFloat = 52
 }
