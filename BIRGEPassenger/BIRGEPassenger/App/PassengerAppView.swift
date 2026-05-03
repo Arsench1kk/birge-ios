@@ -17,6 +17,8 @@ struct PassengerAppView: View {
                 RideRequestView(store: store)
             case .searching(let store):
                 SearchingView(store: store)
+            case .offerFound(let store):
+                OfferFoundView(store: store)
             case .corridorList(let store):
                 CorridorListView(store: store)
             case .corridorDetail(let store):

@@ -17,6 +17,7 @@ import Foundation
     enum Path {
         case rideRequest(RideRequestFeature)
         case searching(SearchingFeature)
+        case offerFound(OfferFoundFeature)
         case corridorList(CorridorListFeature)
         case corridorDetail(CorridorDetailFeature)
         #if DEBUG
@@ -87,17 +88,31 @@ import Foundation
                 state.path.removeLast()
                 return .none
 
-            // Searching → Ride (production flow)
+            // Searching → Offer found
             case .path(.element(_, action: .searching(.delegate(.rideMatched(let rideID, let driverInfo))))):
-                state.path.append(.ride(RideFeature.State(
+                state.path.append(.offerFound(OfferFoundFeature.State(
                     rideId: rideID,
-                    status: .matched,
-                    etaSeconds: driverInfo.etaSeconds,
-                    driverName: driverInfo.driverName,
-                    driverRating: driverInfo.driverRating,
-                    driverVehicle: driverInfo.driverVehicle,
-                    driverPlate: driverInfo.driverPlate
+                    driverInfo: driverInfo
                 )))
+                return .none
+
+            // Offer found → Ride (production flow)
+            case .path(.element(_, action: .offerFound(.delegate(.confirmed(let rideID, let driverInfo))))):
+                state.path.removeLast()
+                state.path.append(.ride(Self.rideState(
+                    rideID: rideID,
+                    driverInfo: driverInfo
+                )))
+                return .none
+
+            // Offer found → Searching
+            case .path(.element(_, action: .offerFound(.delegate(.declined)))):
+                state.path.removeLast()
+                return .none
+
+            // Offer found → Searching (expired)
+            case .path(.element(_, action: .offerFound(.delegate(.expired)))):
+                state.path.removeLast()
                 return .none
 
             // Searching → Home (cancelled)
@@ -141,5 +156,20 @@ import Foundation
             }
         }
         .forEach(\.path, action: \.path)
+    }
+
+    private static func rideState(
+        rideID: String,
+        driverInfo: SearchingFeature.DriverInfo
+    ) -> RideFeature.State {
+        RideFeature.State(
+            rideId: rideID,
+            status: .matched,
+            etaSeconds: driverInfo.etaSeconds,
+            driverName: driverInfo.driverName,
+            driverRating: driverInfo.driverRating,
+            driverVehicle: driverInfo.driverVehicle,
+            driverPlate: driverInfo.driverPlate
+        )
     }
 }
