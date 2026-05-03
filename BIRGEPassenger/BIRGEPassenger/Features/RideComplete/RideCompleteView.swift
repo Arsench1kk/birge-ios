@@ -25,19 +25,38 @@ struct RideCompleteView: View {
                 // TOP SECTION
                 VStack(spacing: 0) {
                     ZStack {
+                        // Pulse ring
                         Circle()
-                            .fill(Color.green)
+                            .fill(Color.green.opacity(0.15))
+                            .frame(width: 110, height: 110)
+                            .scaleEffect(store.isCheckmarkVisible ? 1.25 : 0.8)
+                            .opacity(store.isCheckmarkVisible ? 0 : 0.6)
+                            .animation(
+                                reduceMotion ? nil : .easeOut(duration: 1.2).repeatForever(autoreverses: false),
+                                value: store.isCheckmarkVisible
+                            )
+
+                        // Main circle
+                        Circle()
+                            .fill(BIRGEColors.success)
                             .frame(width: 80, height: 80)
                             .scaleEffect(store.isCheckmarkVisible ? 1.0 : 0.3)
                             .opacity(store.isCheckmarkVisible ? 1.0 : 0)
-                            .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.6), value: store.isCheckmarkVisible)
-                        
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(BIRGEFonts.heroNumber)
-                            .foregroundStyle(BIRGEColors.textOnBrand)
+                            .animation(
+                                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.6),
+                                value: store.isCheckmarkVisible
+                            )
+
+                        // Checkmark icon
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundStyle(.white)
                             .scaleEffect(store.isCheckmarkVisible ? 1.0 : 0.3)
                             .opacity(store.isCheckmarkVisible ? 1.0 : 0)
-                            .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.6).delay(0.1), value: store.isCheckmarkVisible)
+                            .animation(
+                                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.6).delay(0.1),
+                                value: store.isCheckmarkVisible
+                            )
                     }
                     .padding(.top, BIRGELayout.xxxl)
                     
@@ -63,23 +82,23 @@ struct RideCompleteView: View {
                     Divider()
                         .padding(.bottom, BIRGELayout.xs)
                     
-                    summaryRow(label: "Стоимость", value: "1 850₸", icon: "🔵")
-                    summaryRow(label: "Время в пути", value: "34 мин")
-                    summaryRow(label: "Дистанция", value: "17.8 км")
-                    summaryRow(label: "Водитель", value: "Азамат К.", icon: "⭐")
+                    summaryRow(label: "Стоимость", value: "1 850₸", symbol: "circle.fill", symbolColor: BIRGEColors.brandPrimary)
+                    summaryRow(label: "Время в пути", value: "34 мин", symbol: "clock.fill")
+                    summaryRow(label: "Дистанция", value: "17.8 км", symbol: "arrow.forward.circle.fill")
+                    summaryRow(label: "Водитель", value: "Азамат К.", symbol: "star.fill", symbolColor: .yellow)
                     
                     Divider()
                         .padding(.vertical, BIRGELayout.xs)
                     
                     HStack {
-                        Text("🟡 Оплачено через Kaspi Pay")
+                        Label("Оплачено через Kaspi Pay", systemImage: "creditcard.fill")
                             .font(BIRGEFonts.captionBold)
+                            .foregroundStyle(BIRGEColors.brandPrimary)
                         Spacer()
                     }
                 }
                 .padding(BIRGELayout.s)
-                .birgeCard()
-                .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
+                .birgeGlassCard()
                 .padding(.horizontal, BIRGELayout.s)
                 .padding(.top, BIRGELayout.xl)
                 
@@ -200,7 +219,12 @@ struct RideCompleteView: View {
     }
     
     @ViewBuilder
-    private func summaryRow(label: String, value: String, icon: String? = nil) -> some View {
+    private func summaryRow(
+        label: String,
+        value: String,
+        symbol: String? = nil,
+        symbolColor: Color = BIRGEColors.textSecondary
+    ) -> some View {
         HStack {
             Text(label)
                 .font(label == "Стоимость" ? BIRGEFonts.sectionTitle : BIRGEFonts.subtext)
@@ -210,9 +234,10 @@ struct RideCompleteView: View {
                 Text(value)
                     .font(label == "Стоимость" ? BIRGEFonts.heroNumber : BIRGEFonts.subtext)
                     .foregroundStyle(label == "Стоимость" ? BIRGEColors.textPrimary : BIRGEColors.textSecondary)
-                if let icon = icon {
-                    Text(icon)
-                        .font(BIRGEFonts.subtext)
+                if let symbol = symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 12))
+                        .foregroundStyle(symbolColor)
                 }
             }
         }
