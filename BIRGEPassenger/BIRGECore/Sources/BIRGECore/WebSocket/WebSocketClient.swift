@@ -41,10 +41,19 @@ public enum WebSocketMessage: Sendable, Equatable {
 /// Concrete error type for WebSocket failures.
 /// Using a concrete type instead of bare `Error` satisfies Swift 6
 /// strict concurrency `Sendable` requirements without `@unchecked`.
-public enum WebSocketError: Error, Sendable, Equatable {
+public enum WebSocketError: Error, Sendable, Equatable, LocalizedError {
     case maxRetriesExceeded
     case transportError(String)
     case encodingError(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .maxRetriesExceeded:
+            "Maximum WebSocket reconnect attempts exceeded."
+        case let .transportError(message), let .encodingError(message):
+            message
+        }
+    }
 
     public static func from(_ error: any Error) -> WebSocketError {
         .transportError(error.localizedDescription)

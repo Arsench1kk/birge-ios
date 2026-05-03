@@ -86,13 +86,6 @@ struct RideFeature {
         /// Consecutive WebSocket disconnect/error events seen by the reducer.
         var webSocketReconnectAttempts: Int = 0
 
-        /// WebSocket URL for the ride connection.
-        var wsURL: URL {
-            // In production this would use the real base URL
-            // For now, construct from ride ID
-            URL(string: "wss://api.birge.kz/ws")
-                ?? URL(string: "wss://localhost/ws")! // compile-time fallback only
-        }
     }
 
     // MARK: - Action
@@ -139,6 +132,7 @@ struct RideFeature {
     @Dependency(\.webSocketClient) var webSocketClient
     @Dependency(\.locationClient) var locationClient
     @Dependency(\.apiClient) var apiClient
+    @Dependency(\.keychainClient) var keychainClient
 
     // MARK: - Body
 
@@ -149,11 +143,24 @@ struct RideFeature {
             // MARK: Lifecycle
 
             case .view(.onAppear):
-                let url = state.wsURL
+                let rideId = state.rideId
+                let accessTokenKey = KeychainClient.Keys.accessToken
+                let keychainClient = self.keychainClient
+                let webSocketClient = self.webSocketClient
                 return .run { send in
-                    let eventStream = await webSocketClient.connect(url)
-                    for await event in eventStream {
-                        await send(.webSocketEventReceived(event))
+                    do {
+                        guard let token = try keychainClient.load(accessTokenKey) else {
+                            await send(.errorOccurred("Не удалось авторизовать WebSocket."))
+                            return
+                        }
+
+                        let url = try Self.webSocketURL(rideId: rideId, token: token)
+                        let eventStream = await webSocketClient.connect(url)
+                        for await event in eventStream {
+                            await send(.webSocketEventReceived(event))
+                        }
+                    } catch {
+                        await send(.errorOccurred(error.localizedDescription))
                     }
                 }
                 .cancellable(id: RideCancelID.webSocket, cancelInFlight: true)
@@ -211,7 +218,7 @@ struct RideFeature {
                     return .send(.webSocketDisconnected)
 
                 case .error:
-                    // WebSocketClient handles reconnect internally
+                    state.isConnectionLost = true
                     return .none
                 }
 
@@ -233,9 +240,7 @@ struct RideFeature {
 
             case .webSocketDisconnected:
                 state.webSocketReconnectAttempts += 1
-                if state.webSocketReconnectAttempts >= 5 {
-                    state.isConnectionLost = true
-                }
+                state.isConnectionLost = true
                 // Recover missed transitions while the socket reconnects.
                 let rideId = state.rideId
                 return .run { send in
@@ -272,12 +277,24 @@ struct RideFeature {
 
             case let .rideLoadedFromServer(ride):
                 state.isLoading = false
-                state.driverName = ride.driverName
-                state.driverRating = ride.driverRating
-                state.driverVehicle = ride.driverVehicle
-                state.driverPlate = ride.driverPlate
-                state.etaSeconds = ride.etaSeconds
-                state.verificationCode = ride.verificationCode
+                if let driverName = ride.driverName {
+                    state.driverName = driverName
+                }
+                if let driverRating = ride.driverRating {
+                    state.driverRating = driverRating
+                }
+                if let driverVehicle = ride.driverVehicle {
+                    state.driverVehicle = driverVehicle
+                }
+                if let driverPlate = ride.driverPlate {
+                    state.driverPlate = driverPlate
+                }
+                if let etaSeconds = ride.etaSeconds {
+                    state.etaSeconds = etaSeconds
+                }
+                if let verificationCode = ride.verificationCode {
+                    state.verificationCode = verificationCode
+                }
 
                 if let lat = ride.pickupLatitude, let lng = ride.pickupLongitude {
                     state.pickupLocation = Coordinate(latitude: lat, longitude: lng)
@@ -350,6 +367,27 @@ struct RideFeature {
     }
 
     // MARK: - Private Helpers
+
+    nonisolated private static func webSocketURL(rideId: String, token: String) throws -> URL {
+        var components = URLComponents()
+        #if DEBUG
+        components.scheme = "ws"
+        components.host = "localhost"
+        components.port = 8080
+        #else
+        components.scheme = "wss"
+        components.host = "api.birge.kz"
+        #endif
+        components.path = "/ws/ride/\(rideId)"
+        components.queryItems = [
+            URLQueryItem(name: "token", value: token)
+        ]
+
+        guard let url = components.url else {
+            throw WebSocketError.encodingError("Could not build WebSocket URL.")
+        }
+        return url
+    }
 
     /// Process a decoded `RideEvent` and dispatch the appropriate action.
     private func processRideEvent(

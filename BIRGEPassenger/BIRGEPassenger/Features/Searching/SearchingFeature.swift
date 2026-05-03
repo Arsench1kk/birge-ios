@@ -13,17 +13,11 @@ private enum SearchingCancelID {
         var statusText: String = "Ожидаем подтверждение водителя"
         var errorMessage: String?
         var isCancelling: Bool = false
-
-        var wsURL: URL? {
-            #if DEBUG
-            URL(string: "ws://localhost:8080/ws/ride/\(rideId)")
-            #else
-            URL(string: "wss://api.birge.kz/ws/ride/\(rideId)")
-            #endif
-        }
+        var isConnectionLost: Bool = false
     }
 
-    struct DriverMatch: Equatable, Sendable {
+    struct DriverInfo: Equatable, Sendable {
+        var driverId: String?
         var driverName: String?
         var driverRating: Double?
         var driverVehicle: String?
@@ -47,27 +41,36 @@ private enum SearchingCancelID {
 
         @CasePathable
         enum Delegate: Sendable {
-            case driverFound(rideID: String, DriverMatch)
+            case rideMatched(rideID: String, DriverInfo)
             case cancelled
         }
     }
 
     @Dependency(\.apiClient) var apiClient
+    @Dependency(\.keychainClient) var keychainClient
     @Dependency(\.webSocketClient) var webSocketClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .view(.onAppear):
-                guard let url = state.wsURL else {
-                    state.errorMessage = "Не удалось открыть соединение."
-                    return .none
-                }
+                let rideId = state.rideId
+                let accessTokenKey = KeychainClient.Keys.accessToken
+                let keychainClient = self.keychainClient
+                let webSocketClient = self.webSocketClient
                 return .run { send in
+                    guard let token = try keychainClient.load(accessTokenKey) else {
+                        await send(.subscribeFailed("Не удалось авторизовать WebSocket."))
+                        return
+                    }
+
+                    let url = try Self.webSocketURL(rideId: rideId, token: token)
                     let eventStream = await webSocketClient.connect(url)
                     for await event in eventStream {
                         await send(.webSocketEventReceived(event))
                     }
+                } catch: { error, send in
+                    await send(.subscribeFailed(error.localizedDescription))
                 }
                 .cancellable(id: SearchingCancelID.webSocket, cancelInFlight: true)
 
@@ -95,10 +98,14 @@ private enum SearchingCancelID {
             case let .webSocketEventReceived(event):
                 switch event {
                 case .connected:
+                    state.statusText = "Ожидаем подтверждение водителя"
+                    state.errorMessage = nil
+                    state.isConnectionLost = false
                     let rideId = state.rideId
+                    let webSocketClient = self.webSocketClient
                     return .run { send in
                         do {
-                            let message = try await Self.subscribeMessage(rideId: rideId)
+                            let message = try Self.subscribeMessage(rideId: rideId)
                             try await webSocketClient.send(.text(message))
                         } catch {
                             await send(.subscribeFailed(error.localizedDescription))
@@ -106,25 +113,33 @@ private enum SearchingCancelID {
                     }
 
                 case let .message(.text(json)):
-                    guard let match = Self.driverMatch(from: json) else {
+                    guard let driverInfo = Self.driverInfo(from: json) else {
                         return .none
                     }
-                    return .send(.delegate(.driverFound(rideID: state.rideId, match)))
+                    return .send(.delegate(.rideMatched(rideID: state.rideId, driverInfo)))
 
                 case .message(.data):
                     return .none
 
                 case .disconnected:
                     state.statusText = "Восстанавливаем соединение"
+                    state.isConnectionLost = true
+                    state.errorMessage = "Нет соединения. Пробуем переподключиться."
                     return .none
 
-                case .error:
-                    state.errorMessage = "Нет соединения. Пробуем переподключиться."
+                case let .error(error):
+                    state.isConnectionLost = true
+                    if error == .maxRetriesExceeded {
+                        state.errorMessage = "Нет соединения."
+                    } else {
+                        state.errorMessage = "Нет соединения. Пробуем переподключиться."
+                    }
                     return .none
                 }
 
             case let .subscribeFailed(message):
                 state.errorMessage = message
+                state.isConnectionLost = true
                 return .none
 
             case let .cancelFailed(message):
@@ -144,22 +159,47 @@ private enum SearchingCancelID {
         }
     }
 
-    private static func subscribeMessage(rideId: String) throws -> String {
-        let payload = SubscribeMessage(type: "subscribe", channel: "ride/\(rideId)", rideId: rideId)
-        let data = try JSONEncoder().encode(payload)
+    nonisolated private static func subscribeMessage(rideId: String) throws -> String {
+        let payload = [
+            "type": "subscribe",
+            "channel": "ride/\(rideId)",
+            "ride_id": rideId
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
         guard let text = String(data: data, encoding: .utf8) else {
             throw WebSocketError.encodingError("Could not encode subscribe message.")
         }
         return text
     }
 
-    private static func driverMatch(from json: String) -> DriverMatch? {
+    nonisolated private static func webSocketURL(rideId: String, token: String) throws -> URL {
+        var components = URLComponents()
+        #if DEBUG
+        components.scheme = "ws"
+        components.host = "localhost"
+        components.port = 8080
+        #else
+        components.scheme = "wss"
+        components.host = "api.birge.kz"
+        #endif
+        components.path = "/ws/ride/\(rideId)"
+        components.queryItems = [
+            URLQueryItem(name: "token", value: token)
+        ]
+
+        guard let url = components.url else {
+            throw WebSocketError.encodingError("Could not build WebSocket URL.")
+        }
+        return url
+    }
+
+    private static func driverInfo(from json: String) -> DriverInfo? {
         guard let data = json.data(using: .utf8) else { return nil }
 
         if let rideEvent = try? JSONDecoder().decode(RideEvent.self, from: data),
            rideEvent.event == RideEvent.EventType.statusChanged,
            rideEvent.payload.status == RideStatus.matched.rawValue {
-            return DriverMatch(
+            return DriverInfo(
                 driverName: rideEvent.payload.driverName,
                 driverRating: rideEvent.payload.driverRating,
                 driverVehicle: rideEvent.payload.driverVehicle,
@@ -173,52 +213,122 @@ private enum SearchingCancelID {
             return nil
         }
 
-        return DriverMatch(
-            driverName: matchedEvent.payload.driver?.name ?? matchedEvent.payload.driverName,
-            driverRating: matchedEvent.payload.driver?.rating ?? matchedEvent.payload.driverRating,
-            driverVehicle: matchedEvent.payload.driver?.vehicle ?? matchedEvent.payload.driverVehicle,
-            driverPlate: matchedEvent.payload.driver?.plate ?? matchedEvent.payload.driverPlate,
-            etaSeconds: matchedEvent.payload.etaSeconds
-        )
-    }
-}
-
-private struct SubscribeMessage: Encodable {
-    let type: String
-    let channel: String
-    let rideId: String
-
-    private enum CodingKeys: String, CodingKey {
-        case type
-        case channel
-        case rideId = "ride_id"
+        return matchedEvent.driverInfo
     }
 }
 
 private struct RideMatchedEvent: Decodable {
     let event: String?
     let type: String?
-    let payload: Payload
+    let payload: Payload?
+    let driverId: String?
+    let driverName: String?
+    let driverRating: Double?
+    let vehiclePlate: String?
+    let vehicleModel: String?
+    let estimatedArrival: Int?
 
     var eventName: String? {
         event ?? type
     }
 
+    var driverInfo: SearchingFeature.DriverInfo {
+        let etaSeconds = payload?.etaSeconds
+            ?? payload?.estimatedArrival.map { $0 * 60 }
+            ?? estimatedArrival.map { $0 * 60 }
+
+        return SearchingFeature.DriverInfo(
+            driverId: driverId ?? payload?.driverId,
+            driverName: payload?.driver?.name ?? payload?.driverName ?? driverName,
+            driverRating: payload?.driver?.rating ?? payload?.driverRating ?? driverRating,
+            driverVehicle: payload?.driver?.vehicle ?? payload?.driverVehicle ?? payload?.vehicleModel ?? vehicleModel,
+            driverPlate: payload?.driver?.plate ?? payload?.driverPlate ?? payload?.vehiclePlate ?? vehiclePlate,
+            etaSeconds: etaSeconds
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case event
+        case type
+        case payload
+        case driverId
+        case driverID = "driver_id"
+        case driverName
+        case driverNameSnake = "driver_name"
+        case driverRating
+        case driverRatingSnake = "driver_rating"
+        case vehiclePlate
+        case vehiclePlateSnake = "vehicle_plate"
+        case vehicleModel
+        case vehicleModelSnake = "vehicle_model"
+        case estimatedArrival
+        case estimatedArrivalSnake = "estimated_arrival"
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.event = try container.decodeIfPresent(String.self, forKey: .event)
+        self.type = try container.decodeIfPresent(String.self, forKey: .type)
+        self.payload = try container.decodeIfPresent(Payload.self, forKey: .payload)
+        self.driverId = try container.decodeIfPresent(String.self, forKey: .driverId)
+            ?? container.decodeIfPresent(String.self, forKey: .driverID)
+        self.driverName = try container.decodeIfPresent(String.self, forKey: .driverName)
+            ?? container.decodeIfPresent(String.self, forKey: .driverNameSnake)
+        self.driverRating = try container.decodeIfPresent(Double.self, forKey: .driverRating)
+            ?? container.decodeIfPresent(Double.self, forKey: .driverRatingSnake)
+        self.vehiclePlate = try container.decodeIfPresent(String.self, forKey: .vehiclePlate)
+            ?? container.decodeIfPresent(String.self, forKey: .vehiclePlateSnake)
+        self.vehicleModel = try container.decodeIfPresent(String.self, forKey: .vehicleModel)
+            ?? container.decodeIfPresent(String.self, forKey: .vehicleModelSnake)
+        self.estimatedArrival = try container.decodeIfPresent(Int.self, forKey: .estimatedArrival)
+            ?? container.decodeIfPresent(Int.self, forKey: .estimatedArrivalSnake)
+    }
+
     struct Payload: Decodable {
         let driver: Driver?
+        let driverId: String?
         let driverName: String?
         let driverRating: Double?
         let driverVehicle: String?
         let driverPlate: String?
+        let vehicleModel: String?
+        let vehiclePlate: String?
+        let estimatedArrival: Int?
         let etaSeconds: Int?
 
         private enum CodingKeys: String, CodingKey {
             case driver
+            case driverId
+            case driverID = "driver_id"
             case driverName = "driver_name"
             case driverRating = "driver_rating"
             case driverVehicle = "driver_vehicle"
             case driverPlate = "driver_plate"
+            case vehicleModel
+            case vehicleModelSnake = "vehicle_model"
+            case vehiclePlate
+            case vehiclePlateSnake = "vehicle_plate"
+            case estimatedArrival
+            case estimatedArrivalSnake = "estimated_arrival"
             case etaSeconds = "eta_seconds"
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.driver = try container.decodeIfPresent(Driver.self, forKey: .driver)
+            self.driverId = try container.decodeIfPresent(String.self, forKey: .driverId)
+                ?? container.decodeIfPresent(String.self, forKey: .driverID)
+            self.driverName = try container.decodeIfPresent(String.self, forKey: .driverName)
+            self.driverRating = try container.decodeIfPresent(Double.self, forKey: .driverRating)
+            self.driverVehicle = try container.decodeIfPresent(String.self, forKey: .driverVehicle)
+            self.driverPlate = try container.decodeIfPresent(String.self, forKey: .driverPlate)
+            self.vehicleModel = try container.decodeIfPresent(String.self, forKey: .vehicleModel)
+                ?? container.decodeIfPresent(String.self, forKey: .vehicleModelSnake)
+            self.vehiclePlate = try container.decodeIfPresent(String.self, forKey: .vehiclePlate)
+                ?? container.decodeIfPresent(String.self, forKey: .vehiclePlateSnake)
+            self.estimatedArrival = try container.decodeIfPresent(Int.self, forKey: .estimatedArrival)
+                ?? container.decodeIfPresent(Int.self, forKey: .estimatedArrivalSnake)
+            self.etaSeconds = try container.decodeIfPresent(Int.self, forKey: .etaSeconds)
         }
     }
 

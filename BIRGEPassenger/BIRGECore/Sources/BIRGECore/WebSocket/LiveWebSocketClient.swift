@@ -12,7 +12,7 @@
 //  - Actor isolation: all URLSessionWebSocketTask interactions happen
 //    on a single serial actor (`LiveWebSocketActor`) — never @MainActor.
 //  - Ping: every 5 seconds via a detached Task; cancelled on disconnect.
-//  - Backoff: exponential 1→2→4→8→16→30s cap; after 5 consecutive
+//  - Backoff: exponential 2→4→8s; after 3 consecutive
 //    failures yield terminal .error and close the stream.
 //  - Cancellation-safe: cancelling the consuming Task calls
 //    task.cancel(with:reason:) and stops the ping loop.
@@ -34,8 +34,8 @@ actor LiveWebSocketActor {
 
     // MARK: - Configuration
 
-    /// Maximum consecutive reconnect failures before giving up.
-    private let maxConsecutiveFailures = 5
+    /// Maximum reconnect attempts before giving up.
+    private let maxConsecutiveFailures = 3
 
     /// Ping interval in seconds.
     private let pingInterval: Duration = .seconds(5)
@@ -135,7 +135,6 @@ actor LiveWebSocketActor {
         newTask.resume()
 
         continuation?.yield(.connected)
-        consecutiveFailures = 0
 
         startPingLoop()
         startReceiveLoop()
@@ -236,7 +235,7 @@ actor LiveWebSocketActor {
 
         consecutiveFailures += 1
 
-        // After 5 consecutive failures → yield terminal error, close stream
+        // After 3 consecutive failures → yield terminal error, close stream
         guard consecutiveFailures <= maxConsecutiveFailures else {
             continuation?.yield(.error(.maxRetriesExceeded))
             continuation?.finish()
@@ -271,14 +270,11 @@ actor LiveWebSocketActor {
 
     /// Calculates the backoff delay for a given attempt number.
     ///
-    /// - Attempt 1: 1s
-    /// - Attempt 2: 2s
-    /// - Attempt 3: 4s
-    /// - Attempt 4: 8s
-    /// - Attempt 5: 16s
-    /// - Attempt 6+: 30s (cap)
+    /// - Attempt 1: 2s
+    /// - Attempt 2: 4s
+    /// - Attempt 3: 8s
     private func backoffDelay(for attempt: Int) -> Duration {
-        let seconds = min(pow(2.0, Double(attempt - 1)), 30.0)
+        let seconds = pow(2.0, Double(attempt))
         return .seconds(seconds)
     }
 

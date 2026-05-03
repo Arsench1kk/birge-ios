@@ -17,6 +17,7 @@ struct KeychainClient: Sendable {
     var delete: @Sendable (String) throws -> Void
 
     enum Keys {
+        static let accessToken = "birge_access_token"
         static let refreshToken = "birge.refreshToken"
         static let userID = "birge.userID"
     }

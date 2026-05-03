@@ -69,15 +69,15 @@ import Foundation
                 return .none
 
             // Searching → Ride (production flow)
-            case .path(.element(_, action: .searching(.delegate(.driverFound(let rideID, let match))))):
+            case .path(.element(_, action: .searching(.delegate(.rideMatched(let rideID, let driverInfo))))):
                 state.path.append(.ride(RideFeature.State(
                     rideId: rideID,
                     status: .matched,
-                    etaSeconds: match.etaSeconds,
-                    driverName: match.driverName,
-                    driverRating: match.driverRating,
-                    driverVehicle: match.driverVehicle,
-                    driverPlate: match.driverPlate
+                    etaSeconds: driverInfo.etaSeconds,
+                    driverName: driverInfo.driverName,
+                    driverRating: driverInfo.driverRating,
+                    driverVehicle: driverInfo.driverVehicle,
+                    driverPlate: driverInfo.driverPlate
                 )))
                 return .none
 

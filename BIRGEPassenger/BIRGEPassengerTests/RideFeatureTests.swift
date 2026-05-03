@@ -247,6 +247,7 @@ final class RideFeatureTests: XCTestCase {
 
         await store.send(.webSocketDisconnected) {
             $0.webSocketReconnectAttempts = 1
+            $0.isConnectionLost = true
         }
 
         await store.receive(\.rideLoadedFromServer,
@@ -267,5 +268,62 @@ final class RideFeatureTests: XCTestCase {
         XCTAssertTrue(fetchCalled.value, "apiClient.fetchRide should have been called on disconnect")
 
         await store.send(.view(.onDisappear))
+    }
+
+    // MARK: - Test 8: Connection Banner Toggles
+
+    /// Confirms dropped socket events show the connection banner and
+    /// a reconnect clears it.
+    func testConnectionBannerTogglesOnSocketEvents() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .matched
+            )
+        ) {
+            RideFeature()
+        } withDependencies: {
+            $0.apiClient = APIClient(
+                fetchRide: { _ in RideResponse(rideId: "ride-123", status: "matched") },
+                cancelRide: { _, _ in }
+            )
+        }
+
+        await store.send(.webSocketEventReceived(.error(.maxRetriesExceeded))) {
+            $0.isConnectionLost = true
+        }
+
+        await store.send(.webSocketConnected) {
+            $0.isConnectionLost = false
+            $0.webSocketReconnectAttempts = 0
+        }
+
+        await store.receive(
+            \.rideLoadedFromServer,
+            RideResponse(rideId: "ride-123", status: "matched")
+        )
+    }
+
+    // MARK: - Test 9: Server Recovery Preserves Match Driver Info
+
+    /// Confirms reconnect recovery does not wipe driver details that
+    /// arrived in the `ride_matched` payload when the REST ride DTO
+    /// does not yet include those optional fields.
+    func testRideLoadedFromServerPreservesExistingDriverInfoWhenMissingFromDTO() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .matched,
+                etaSeconds: 240,
+                driverName: "Асан Бекович",
+                driverRating: 4.9,
+                driverVehicle: "Chevrolet Nexia",
+                driverPlate: "777 ABA 02"
+            )
+        ) {
+            RideFeature()
+        }
+
+        await store.send(.rideLoadedFromServer(RideResponse(rideId: "ride-123", status: "matched")))
     }
 }

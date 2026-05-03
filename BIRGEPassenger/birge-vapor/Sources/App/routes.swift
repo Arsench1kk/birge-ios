@@ -14,4 +14,8 @@ func routes(_ app: Application) throws {
             try? await ws.close()
         }
     }
+
+    if app.environment != .production {
+        app.post("debug", "match-ride", use: WSController().debugMatchRide)
+    }
 }

@@ -69,6 +69,9 @@ struct SearchingView: View {
             isAnimating = true
             send(.onAppear)
         }
+        .onDisappear {
+            send(.onDisappear)
+        }
         .navigationBarHidden(true)
     }
 
