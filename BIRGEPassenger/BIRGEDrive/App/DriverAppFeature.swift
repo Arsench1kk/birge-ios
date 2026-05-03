@@ -96,6 +96,8 @@ struct DriverAppFeature {
 
     @ObservableState
     struct State: Equatable {
+        var isAuthenticated = false
+        var auth = DriverAuthFeature.State()
         var isRegistrationComplete = false
         var registration = DriverRegistrationFeature.State()
         var isOnline: Bool = false
@@ -113,6 +115,8 @@ struct DriverAppFeature {
         var path = StackState<Path.State>()
 
         static func == (lhs: State, rhs: State) -> Bool {
+            lhs.isAuthenticated == rhs.isAuthenticated &&
+            lhs.auth == rhs.auth &&
             lhs.isRegistrationComplete == rhs.isRegistrationComplete &&
             lhs.registration == rhs.registration &&
             lhs.isOnline == rhs.isOnline &&
@@ -148,6 +152,7 @@ struct DriverAppFeature {
         case driverOffersResponse(Result<DriverRideOffersResponse, DriverDashboardError>)
         case acceptRideResponse(Result<DriverRideOfferDTO, DriverDashboardError>)
         case driverCommandResponse(Result<DriverRideOfferDTO, DriverDashboardError>)
+        case auth(DriverAuthFeature.Action)
         case toggleOnline
         case offerAppeared
         case acceptOffer
@@ -168,6 +173,9 @@ struct DriverAppFeature {
     @Dependency(\.apiClient) var apiClient
 
     var body: some Reducer<State, Action> {
+        Scope(state: \.auth, action: \.auth) {
+            DriverAuthFeature()
+        }
         Scope(state: \.registration, action: \.registration) {
             DriverRegistrationFeature()
         }
@@ -197,12 +205,16 @@ struct DriverAppFeature {
 
             case .driverProfileResponse(.success(let profile)):
                 state.isLoadingDriverProfile = false
+                state.isAuthenticated = true
                 state.driverProfileError = nil
                 state.apply(driverProfile: profile)
                 return .none
 
             case .driverProfileResponse(.failure(let error)):
                 state.isLoadingDriverProfile = false
+                if error.isMissingAccessToken {
+                    state.isAuthenticated = false
+                }
                 state.driverProfileError = error.message
                 return .none
 
@@ -230,9 +242,7 @@ struct DriverAppFeature {
 
             case .driverOffersResponse(.failure(let error)):
                 guard state.isOnline, state.activeRide == nil, state.completedRideSummary == nil else { return .none }
-                if error.isMissingAccessToken {
-                    state.currentOffer = .demo
-                }
+                state.todayCorridorsError = error.message
                 return .none
 
             case .acceptRideResponse(.success(let offer)):
@@ -241,11 +251,7 @@ struct DriverAppFeature {
                 return startDriverLocationTracking(rideID: offer.rideID.uuidString)
 
             case .acceptRideResponse(.failure(let error)):
-                if error.isMissingAccessToken, let offer = state.currentOffer {
-                    state.currentOffer = nil
-                    state.activeRide = DriverActiveRide(offer: offer, status: .pickingUp)
-                    return startDriverLocationTracking(rideID: offer.rideID)
-                }
+                state.todayCorridorsError = error.message
                 state.currentOffer = nil
                 return pollDriverOffers(after: .seconds(3))
 
@@ -255,6 +261,10 @@ struct DriverAppFeature {
 
             case .driverCommandResponse(.failure):
                 return .none
+
+            case .auth(.delegate(.authenticated)):
+                state.isAuthenticated = true
+                return .send(.task)
 
             case .registration(.delegate(.completed(let profile))):
                 state.isRegistrationComplete = true
@@ -355,7 +365,7 @@ struct DriverAppFeature {
                 )))
                 return .none
 
-            case .path, .registration:
+            case .path, .registration, .auth:
                 return .none
             }
         }
@@ -426,6 +436,135 @@ struct DriverAppFeature {
             } catch {
                 await send(.driverCommandResponse(.failure(DriverDashboardError(error))))
             }
+        }
+    }
+}
+
+@Reducer
+struct DriverAuthFeature {
+    @ObservableState
+    struct State: Equatable {
+        var mode: Mode = .login
+        var email = "driver@birge.kz"
+        var password = "driver123"
+        var phone = "+77770000001"
+        var name = "Асан Б."
+        var isLoading = false
+        var errorMessage: String?
+
+        enum Mode: Equatable, Sendable {
+            case login
+            case register
+        }
+
+        var title: String {
+            mode == .login ? "Вход для водителя" : "Регистрация водителя"
+        }
+
+        var primaryTitle: String {
+            mode == .login ? "Войти" : "Создать аккаунт"
+        }
+    }
+
+    enum Action: Equatable, Sendable {
+        case modeToggled
+        case emailChanged(String)
+        case passwordChanged(String)
+        case phoneChanged(String)
+        case nameChanged(String)
+        case submitTapped
+        case authResponse(Result<APIAuthResponse, DriverAuthError>)
+        case delegate(Delegate)
+
+        enum Delegate: Equatable, Sendable {
+            case authenticated
+        }
+    }
+
+    @Dependency(\.apiClient) var apiClient
+
+    var body: some Reducer<State, Action> {
+        Reduce { state, action in
+            switch action {
+            case .modeToggled:
+                state.mode = state.mode == .login ? .register : .login
+                state.errorMessage = nil
+                return .none
+
+            case .emailChanged(let value):
+                state.email = value
+                state.errorMessage = nil
+                return .none
+
+            case .passwordChanged(let value):
+                state.password = value
+                state.errorMessage = nil
+                return .none
+
+            case .phoneChanged(let value):
+                state.phone = value
+                state.errorMessage = nil
+                return .none
+
+            case .nameChanged(let value):
+                state.name = value
+                state.errorMessage = nil
+                return .none
+
+            case .submitTapped:
+                guard !state.email.isEmpty, !state.password.isEmpty else { return .none }
+                state.isLoading = true
+                state.errorMessage = nil
+                let mode = state.mode
+                let email = state.email
+                let password = state.password
+                let phone = state.phone
+                let name = state.name
+                return .run { send in
+                    do {
+                        let response: APIAuthResponse
+                        switch mode {
+                        case .login:
+                            response = try await apiClient.login(email, password)
+                        case .register:
+                            response = try await apiClient.registerDriver(email, password, phone, name)
+                        }
+                        await send(.authResponse(.success(response)))
+                    } catch {
+                        await send(.authResponse(.failure(DriverAuthError(error))))
+                    }
+                }
+
+            case .authResponse(.success(let response)):
+                state.isLoading = false
+                guard response.role == "driver" else {
+                    state.errorMessage = "Этот аккаунт не является водительским"
+                    return .none
+                }
+                return .send(.delegate(.authenticated))
+
+            case .authResponse(.failure(let error)):
+                state.isLoading = false
+                state.errorMessage = error.message
+                return .none
+
+            case .delegate:
+                return .none
+            }
+        }
+    }
+}
+
+struct DriverAuthError: Error, Equatable, Sendable {
+    let message: String
+
+    init(_ error: any Error) {
+        if let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription,
+           !description.isEmpty {
+            self.message = description
+        } else {
+            self.message = "Не удалось войти"
         }
     }
 }

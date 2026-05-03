@@ -127,11 +127,6 @@ struct DriverRegistrationFeature {
                     do {
                         await send(.saveResponse(.success(try await apiClient.updateDriverProfile(request))))
                     } catch {
-                        if let apiError = error as? BIRGEAPIError,
-                           apiError.errorCode == "MISSING_ACCESS_TOKEN" {
-                            await send(.saveResponse(.success(request.localDriverProfile)))
-                            return
-                        }
                         await send(.saveResponse(.failure(DriverRegistrationError(error))))
                     }
                 }
@@ -180,29 +175,6 @@ private extension DriverRegistrationFeature.State {
                 .sorted { $0.rawValue < $1.rawValue }
                 .map(\.apiValue),
             subscriptionTier: selectedTier.apiValue
-        )
-    }
-}
-
-private extension UpdateDriverProfileRequest {
-    var localDriverProfile: DriverProfileDTO {
-        DriverProfileDTO(
-            userID: UUID(uuidString: "00000000-0000-0000-0000-000000000102")!,
-            name: [firstName, lastName].compactMap { $0 }.joined(separator: " "),
-            phone: "+7 777 ... 45 67",
-            firstName: firstName,
-            lastName: lastName,
-            birthDate: birthDate,
-            iin: iin,
-            vehicleMake: vehicleMake,
-            vehicleModel: vehicleModel,
-            vehicleYear: vehicleYear,
-            licensePlate: licensePlate,
-            vehicleColor: vehicleColor,
-            seats: seats,
-            uploadedDocuments: uploadedDocuments ?? [],
-            kycStatus: "demo",
-            subscriptionTier: subscriptionTier
         )
     }
 }

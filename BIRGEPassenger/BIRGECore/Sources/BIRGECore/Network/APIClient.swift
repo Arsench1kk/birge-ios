@@ -854,6 +854,19 @@ private struct OTPVerifyRequest: Encodable {
     let code: String
 }
 
+private struct EmailLoginRequest: Encodable {
+    let email: String
+    let password: String
+}
+
+private struct EmailRegisterRequest: Encodable {
+    let email: String
+    let password: String
+    let phone: String
+    let role: String
+    let name: String
+}
+
 private struct LocationBulkRequest: Encodable {
     let rideID: String
     let records: [LocationRecordRequest]
@@ -893,6 +906,8 @@ private struct KaspiCheckoutRequest: Encodable {
 public struct APIClient: Sendable {
     public var requestOTP: @Sendable (_ phone: String) async throws -> Void
     public var verifyOTP: @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse
+    public var login: @Sendable (_ email: String, _ password: String) async throws -> APIAuthResponse
+    public var registerDriver: @Sendable (_ email: String, _ password: String, _ phone: String, _ name: String) async throws -> APIAuthResponse
     public var refreshAccessToken: @Sendable () async throws -> String
     public var fetchMe: @Sendable () async throws -> UserDTO
     public var currentUser: @Sendable () async throws -> CurrentUserResponse
@@ -923,6 +938,12 @@ public struct APIClient: Sendable {
         requestOTP: @escaping @Sendable (_ phone: String) async throws -> Void = { _ in },
         verifyOTP: @escaping @Sendable (_ phone: String, _ code: String) async throws -> APIAuthResponse = { _, _ in
             APIAuthResponse(accessToken: "test-access-token", refreshToken: "test-refresh-token", role: "passenger", userID: "test-user-id")
+        },
+        login: @escaping @Sendable (_ email: String, _ password: String) async throws -> APIAuthResponse = { _, _ in
+            APIAuthResponse(accessToken: "test-driver-access-token", refreshToken: "test-driver-refresh-token", role: "driver", userID: "test-driver-id")
+        },
+        registerDriver: @escaping @Sendable (_ email: String, _ password: String, _ phone: String, _ name: String) async throws -> APIAuthResponse = { _, _, _, _ in
+            APIAuthResponse(accessToken: "test-driver-access-token", refreshToken: "test-driver-refresh-token", role: "driver", userID: "test-driver-id")
         },
         refreshAccessToken: @escaping @Sendable () async throws -> String = { "test-access-token" },
         fetchMe: @escaping @Sendable () async throws -> UserDTO = {
@@ -1055,6 +1076,8 @@ public struct APIClient: Sendable {
     ) {
         self.requestOTP = requestOTP
         self.verifyOTP = verifyOTP
+        self.login = login
+        self.registerDriver = registerDriver
         self.refreshAccessToken = refreshAccessToken
         self.fetchMe = fetchMe
         self.currentUser = currentUser
@@ -1120,6 +1143,34 @@ extension APIClient: DependencyKey {
                     response.accessToken,
                     response.refreshToken
                 )
+                return response
+            },
+            login: { email, password in
+                let response: APIAuthResponse = try await transport.sendUnauthenticated(
+                    path: ["auth", "login"],
+                    method: "POST",
+                    body: EmailLoginRequest(email: email, password: password),
+                    responseType: APIAuthResponse.self
+                )
+                try await tokenRefreshClient.storeTokens(response.accessToken, response.refreshToken)
+                try KeychainCredentialStore.live.save(TokenRefreshClient.userIDKey, response.userID)
+                return response
+            },
+            registerDriver: { email, password, phone, name in
+                let response: APIAuthResponse = try await transport.sendUnauthenticated(
+                    path: ["auth", "register"],
+                    method: "POST",
+                    body: EmailRegisterRequest(
+                        email: email,
+                        password: password,
+                        phone: phone,
+                        role: "driver",
+                        name: name
+                    ),
+                    responseType: APIAuthResponse.self
+                )
+                try await tokenRefreshClient.storeTokens(response.accessToken, response.refreshToken)
+                try KeychainCredentialStore.live.save(TokenRefreshClient.userIDKey, response.userID)
                 return response
             },
             refreshAccessToken: {

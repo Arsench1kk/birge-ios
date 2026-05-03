@@ -1,6 +1,112 @@
 import ComposableArchitecture
 import SwiftUI
 
+struct DriverAuthView: View {
+    @Bindable var store: StoreOf<DriverAuthFeature>
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    BIRGEColors.brandPrimary.opacity(0.16),
+                    BIRGEColors.surfaceGrouped,
+                    BIRGEColors.success.opacity(0.10)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: BIRGELayout.l) {
+                Spacer()
+
+                VStack(spacing: BIRGELayout.s) {
+                    Image(systemName: "steeringwheel.circle.fill")
+                        .font(.system(size: 62, weight: .semibold))
+                        .foregroundStyle(BIRGEColors.brandPrimary)
+                        .symbolRenderingMode(.hierarchical)
+
+                    VStack(spacing: BIRGELayout.xxxs) {
+                        Text(store.title)
+                            .font(BIRGEFonts.title)
+                            .foregroundStyle(BIRGEColors.textPrimary)
+                        Text("BIRGE Driver")
+                            .font(BIRGEFonts.subtext)
+                            .foregroundStyle(BIRGEColors.textSecondary)
+                    }
+                }
+
+                VStack(spacing: BIRGELayout.s) {
+                    authField("Email", text: $store.email.sending(\.emailChanged), symbol: "envelope.fill", keyboard: .emailAddress)
+                    authField("Пароль", text: $store.password.sending(\.passwordChanged), symbol: "lock.fill", isSecure: true)
+
+                    if store.mode == .register {
+                        authField("Телефон", text: $store.phone.sending(\.phoneChanged), symbol: "phone.fill", keyboard: .phonePad)
+                        authField("Имя", text: $store.name.sending(\.nameChanged), symbol: "person.fill")
+                    }
+
+                    if let error = store.errorMessage {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .font(BIRGEFonts.caption)
+                            .foregroundStyle(BIRGEColors.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    BIRGEPrimaryButton(title: store.primaryTitle, isLoading: store.isLoading) {
+                        store.send(.submitTapped)
+                    }
+
+                    Button {
+                        store.send(.modeToggled)
+                    } label: {
+                        Text(store.mode == .login ? "Создать водительский аккаунт" : "Уже есть аккаунт")
+                            .font(BIRGEFonts.captionBold)
+                            .foregroundStyle(BIRGEColors.brandPrimary)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(BIRGELayout.m)
+                .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04), isInteractive: true)
+
+                Spacer()
+            }
+            .padding(BIRGELayout.m)
+        }
+    }
+
+    private func authField(
+        _ title: String,
+        text: Binding<String>,
+        symbol: String,
+        keyboard: UIKeyboardType = .default,
+        isSecure: Bool = false
+    ) -> some View {
+        HStack(spacing: BIRGELayout.xs) {
+            Image(systemName: symbol)
+                .font(BIRGEFonts.bodyMedium)
+                .foregroundStyle(BIRGEColors.brandPrimary)
+                .frame(width: 26)
+
+            Group {
+                if isSecure {
+                    SecureField(title, text: text)
+                } else {
+                    TextField(title, text: text)
+                        .keyboardType(keyboard)
+                        .textInputAutocapitalization(keyboard == .emailAddress ? .never : .words)
+                        .autocorrectionDisabled(keyboard == .emailAddress)
+                }
+            }
+            .font(BIRGEFonts.body)
+            .foregroundStyle(BIRGEColors.textPrimary)
+        }
+        .padding(.horizontal, BIRGELayout.s)
+        .frame(height: 54)
+        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.015), isInteractive: true)
+    }
+}
+
 struct DriverRegistrationView: View {
     @Bindable var store: StoreOf<DriverRegistrationFeature>
 
