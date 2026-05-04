@@ -21,11 +21,13 @@ import Foundation
 /// A ride lifecycle event received via WebSocket.
 ///
 /// Per WebSocket_Hub_Architecture.md Section 4:
-/// - `ride.status_changed` — FSM state transition
+/// - `ride.status_changed` — canonical FSM state transition
+/// - `ride.driver_arrived` / `ride.started` / `ride.completed` — direct lifecycle aliases
 /// - `ride.location_update` — driver GPS update (5s interval)
 /// - `ride.eta_updated` — OSRM recalculation
 public struct RideEvent: Decodable, Sendable {
-    /// Event type string: "ride.status_changed", "ride.location_update", "ride.eta_updated"
+    /// Event type string, for example "ride.status_changed",
+    /// "ride.location_update", "ride.eta_updated", or a direct lifecycle alias.
     public let event: String
 
     /// The ride this event belongs to.
@@ -120,5 +122,11 @@ extension RideEvent {
         public static let statusChanged = "ride.status_changed"
         public static let locationUpdate = "ride.location_update"
         public static let etaUpdated = "ride.eta_updated"
+        public static let driverAccepted = "ride.driver_accepted"
+        public static let driverArriving = "ride.driver_arriving"
+        public static let driverArrived = "ride.driver_arrived"
+        public static let rideStarted = "ride.started"
+        public static let rideCompleted = "ride.completed"
+        public static let rideCancelled = "ride.cancelled"
     }
 }

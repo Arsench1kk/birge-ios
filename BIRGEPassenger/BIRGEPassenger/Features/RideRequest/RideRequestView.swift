@@ -68,8 +68,7 @@ struct RideRequestView: View {
                 .padding(.vertical, BIRGELayout.xxs)
             }
             .padding(BIRGELayout.s)
-            .birgeCard()
-            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
+            .birgeGlassCard()
             .padding(.horizontal, BIRGELayout.s)
             .padding(.bottom, BIRGELayout.l)
             
@@ -84,8 +83,7 @@ struct RideRequestView: View {
                 .padding(.bottom, BIRGELayout.l)
             }
             
-            // ROUTE SUMMARY ROW
-            Text("📍 Алатау → Есентай  ·  18 км  ·  ~35 мин")
+            Label("Алатау → Есентай  ·  18 км  ·  ~35 мин", systemImage: "mappin.and.ellipse")
                 .font(BIRGEFonts.caption)
                 .foregroundStyle(BIRGEColors.textSecondary)
                 .padding(.bottom, BIRGELayout.s)
@@ -160,8 +158,7 @@ struct RideRequestView: View {
             }
             .padding(BIRGELayout.s)
             .frame(minWidth: 132, maxWidth: 180, minHeight: 132, alignment: .leading)
-            .background(isSelected ? BIRGEColors.brandPrimary.opacity(0.08) : BIRGEColors.surfacePrimary)
-            .cornerRadius(BIRGELayout.radiusM)
+            .liquidGlass(.button, tint: isSelected ? BIRGEColors.brandPrimary.opacity(0.08) : .clear, isInteractive: true)
             .overlay(
                 RoundedRectangle(cornerRadius: BIRGELayout.radiusM)
                     .stroke(isSelected ? BIRGEColors.brandPrimary : BIRGEColors.textTertiary.opacity(0.22), lineWidth: isSelected ? 2 : 1)

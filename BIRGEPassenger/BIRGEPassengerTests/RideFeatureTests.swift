@@ -39,6 +39,8 @@ final class RideFeatureTests: XCTestCase {
 
     // MARK: - Test 1: Initial State Is Requested
 
+    private let zeroPickupLocation = Coordinate(latitude: 0, longitude: 0)
+
     /// Confirms the default state starts with `.requested` status.
     func testInitialStateIsRequested() {
         let state = RideFeature.State(rideId: "ride-123")
@@ -212,6 +214,7 @@ final class RideFeatureTests: XCTestCase {
             RideResponse(rideId: "ride-123", status: "driver_arriving", etaSeconds: 120)
         ) {
             $0.etaSeconds = 120
+            $0.pickupLocation = self.zeroPickupLocation
         }
 
         XCTAssertTrue(fetchCalled.value, "apiClient.fetchRide should have been called on reconnect")
@@ -247,6 +250,7 @@ final class RideFeatureTests: XCTestCase {
 
         await store.send(.webSocketDisconnected) {
             $0.webSocketReconnectAttempts = 1
+            $0.isConnectionLost = true
         }
 
         await store.receive(\.rideLoadedFromServer,
@@ -257,6 +261,7 @@ final class RideFeatureTests: XCTestCase {
             )
         ) {
             $0.verificationCode = "1234"
+            $0.pickupLocation = self.zeroPickupLocation
         }
 
         await store.receive(\.rideStatusChanged, .passengerWait) {
@@ -267,5 +272,127 @@ final class RideFeatureTests: XCTestCase {
         XCTAssertTrue(fetchCalled.value, "apiClient.fetchRide should have been called on disconnect")
 
         await store.send(.view(.onDisappear))
+    }
+
+    // MARK: - Test 8: Connection Banner Toggles
+
+    /// Confirms dropped socket events show the connection banner and
+    /// a reconnect clears it.
+    func testConnectionBannerTogglesOnSocketEvents() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .matched
+            )
+        ) {
+            RideFeature()
+        } withDependencies: {
+            $0.apiClient = APIClient(
+                fetchRide: { _ in RideResponse(rideId: "ride-123", status: "matched") },
+                cancelRide: { _, _ in }
+            )
+        }
+
+        await store.send(.webSocketEventReceived(.error(.maxRetriesExceeded))) {
+            $0.isConnectionLost = true
+        }
+
+        await store.send(.webSocketConnected) {
+            $0.isConnectionLost = false
+            $0.webSocketReconnectAttempts = 0
+        }
+
+        await store.receive(
+            \.rideLoadedFromServer,
+            RideResponse(rideId: "ride-123", status: "matched")
+        ) {
+            $0.pickupLocation = self.zeroPickupLocation
+        }
+    }
+
+    func testControlFramesAreIgnored() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .requested
+            )
+        ) {
+            RideFeature()
+        }
+
+        await store.send(.webSocketEventReceived(.message(.text(#"{"type":"connected"}"#))))
+        await store.send(.webSocketEventReceived(.message(.text(#"{"type":"subscribed","channel":"ride/ride-123"}"#))))
+    }
+
+    // MARK: - Test 9: Server Recovery Preserves Match Driver Info
+
+    /// Confirms reconnect recovery does not wipe driver details that
+    /// arrived in the `ride_matched` payload when the REST ride DTO
+    /// does not yet include those optional fields.
+    func testRideLoadedFromServerPreservesExistingDriverInfoWhenMissingFromDTO() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .matched,
+                etaSeconds: 240,
+                driverName: "Асан Бекович",
+                driverRating: 4.9,
+                driverVehicle: "Chevrolet Nexia",
+                driverPlate: "777 ABA 02"
+            )
+        ) {
+            RideFeature()
+        }
+
+        await store.send(.rideLoadedFromServer(RideResponse(rideId: "ride-123", status: "matched"))) {
+            $0.pickupLocation = self.zeroPickupLocation
+        }
+    }
+
+    // MARK: - Test 10: Production Lifecycle Event Aliases
+
+    /// Confirms direct production WebSocket lifecycle events map into
+    /// the same passenger ride FSM as canonical `ride.status_changed`.
+    func testProductionLifecycleEventAliases() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .driverArriving,
+                etaSeconds: 120
+            )
+        ) {
+            RideFeature()
+        }
+
+        let arrivedJSON = makeEventJSON(
+            event: RideEvent.EventType.driverArrived,
+            payload: [
+                "verification_code": "4821"
+            ]
+        )
+
+        await store.send(.webSocketEventReceived(.message(.text(arrivedJSON)))) {
+            $0.verificationCode = "4821"
+        }
+
+        await store.receive(\.rideStatusChanged, .passengerWait) {
+            $0.status = .passengerWait
+            $0.waitCountdownSeconds = 180
+        }
+
+        let startedJSON = makeEventJSON(
+            event: RideEvent.EventType.rideStarted,
+            payload: [
+                "eta_seconds": 900
+            ]
+        )
+
+        await store.send(.webSocketEventReceived(.message(.text(startedJSON)))) {
+            $0.etaSeconds = 900
+        }
+
+        await store.receive(\.rideStatusChanged, .inProgress) {
+            $0.status = .inProgress
+        }
     }
 }

@@ -69,6 +69,9 @@ struct SearchingView: View {
             isAnimating = true
             send(.onAppear)
         }
+        .onDisappear {
+            send(.onDisappear)
+        }
         .navigationBarHidden(true)
     }
 
@@ -89,7 +92,7 @@ struct SearchingView: View {
 
 #Preview {
     SearchingView(
-        store: Store(initialState: SearchingFeature.State(rideID: "preview-ride")) {
+        store: Store(initialState: SearchingFeature.State(rideId: "preview-ride")) {
             SearchingFeature()
         }
     )

@@ -28,11 +28,23 @@ final class Ride: Model, Content, @unchecked Sendable {
     @Field(key: "dest_lng")
     var destLng: Double
 
+    @OptionalField(key: "origin_name")
+    var originName: String?
+
+    @OptionalField(key: "destination_name")
+    var destinationName: String?
+
+    @OptionalField(key: "tier")
+    var tier: String?
+
     @OptionalField(key: "fare_tenge")
     var fareTenge: Int?
 
     @Timestamp(key: "requested_at", on: .create)
     var requestedAt: Date?
+
+    @Timestamp(key: "created_at", on: .create)
+    var createdAt: Date?
 
     enum RideStatus: String, Codable, Sendable {
         case requested
@@ -56,6 +68,9 @@ final class Ride: Model, Content, @unchecked Sendable {
         originLng: Double,
         destLat: Double,
         destLng: Double,
+        originName: String? = nil,
+        destinationName: String? = nil,
+        tier: String? = nil,
         fareTenge: Int? = nil
     ) {
         self.id = id
@@ -66,6 +81,9 @@ final class Ride: Model, Content, @unchecked Sendable {
         self.originLng = originLng
         self.destLat = destLat
         self.destLng = destLng
+        self.originName = originName
+        self.destinationName = destinationName
+        self.tier = tier
         self.fareTenge = fareTenge
     }
 }

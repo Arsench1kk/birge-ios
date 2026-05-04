@@ -26,7 +26,8 @@ struct RideMapView: View {
 
     private enum Texts {
         static let loading = "Обновляем поездку"
-        static let connectionLost = "Нет соединения — восстанавливаем..."
+        static let connectionTitle = "Нет соединения"
+        static let connectionRecovering = "Восстанавливаем и сверяем статус поездки"
     }
 
     @State private var position: MapCameraPosition = .region(
@@ -103,14 +104,47 @@ struct RideMapView: View {
         .foregroundStyle(BIRGEColors.textSecondary)
         .padding(.horizontal, BIRGELayout.xs)
         .frame(height: 38)
-        .background(.regularMaterial)
-        .clipShape(Capsule())
+        .liquidGlass(.pill, isInteractive: true)
         .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
     }
 
     private var connectionLostBanner: some View {
-        BIRGEToast(message: Texts.connectionLost, style: .warning)
-            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        HStack(spacing: BIRGELayout.xs) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(BIRGEFonts.bodyMedium)
+                .foregroundStyle(BIRGEColors.warning)
+                .frame(width: 34, height: 34)
+                .liquidGlass(.pill, tint: BIRGEColors.warning.opacity(0.08))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Texts.connectionTitle)
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.textPrimary)
+
+                Text(connectionSubtitle)
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: BIRGELayout.xxs)
+
+            ProgressView()
+                .scaleEffect(0.82)
+                .tint(BIRGEColors.warning)
+        }
+        .padding(.horizontal, BIRGELayout.xs)
+        .padding(.vertical, BIRGELayout.xxs)
+        .liquidGlass(.card, tint: BIRGEColors.warning.opacity(0.06), isInteractive: true)
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var connectionSubtitle: String {
+        guard store.webSocketReconnectAttempts > 0 else {
+            return Texts.connectionRecovering
+        }
+        return "\(Texts.connectionRecovering) · попытка \(store.webSocketReconnectAttempts)"
     }
 
     private func errorToast(_ message: String) -> some View {
@@ -176,7 +210,10 @@ struct RideMapView: View {
                         .tint(.white)
                         .scaleEffect(0.8)
                 }
-                Text(config.emoji)
+                if !config.symbol.isEmpty {
+                    Image(systemName: config.symbol)
+                        .font(BIRGEFonts.captionBold)
+                }
                 Text(config.text)
                     .font(BIRGEFonts.captionBold)
                     .lineLimit(2)
@@ -195,25 +232,25 @@ struct RideMapView: View {
 
     private func pillConfig(
         for status: RideStatus
-    ) -> (emoji: String, text: String, color: Color, showSpinner: Bool) {
+    ) -> (symbol: String, text: String, color: Color, showSpinner: Bool) {
         switch status {
         case .requested:
             return ("", "Ищем водителя...", BIRGEColors.brandPrimary, true)
         case .matched, .driverAccepted:
-            return ("✅", "Водитель принял заказ", BIRGEColors.success, false)
+            return ("checkmark.circle.fill", "Водитель принял заказ", BIRGEColors.success, false)
         case .driverArriving:
             let eta = store.etaSeconds.map { "\($0) сек" } ?? "..."
-            return ("🕐", "Водитель едет · \(eta)", BIRGEColors.brandPrimary, false)
+            return ("clock.fill", "Водитель едет · \(eta)", BIRGEColors.brandPrimary, false)
         case .passengerWait:
             let code = store.verificationCode ?? "----"
-            return ("🚗", "Код: \(code)", BIRGEColors.warning, false)
+            return ("car.fill", "Код: \(code)", BIRGEColors.warning, false)
         case .inProgress:
             let eta = store.etaSeconds.map { "\($0) сек" } ?? "..."
-            return ("🟢", "Вы едете · \(eta)", BIRGEColors.success, false)
+            return ("arrow.triangle.turn.up.right.circle.fill", "Вы едете · \(eta)", BIRGEColors.success, false)
         case .completed:
             return ("", "", .clear, false)
         case .cancelled:
-            return ("❌", "Поездка отменена", BIRGEColors.danger, false)
+            return ("xmark.circle.fill", "Поездка отменена", BIRGEColors.danger, false)
         }
     }
 
@@ -221,39 +258,26 @@ struct RideMapView: View {
 
     @ViewBuilder
     private var bottomSheet: some View {
-        VStack(spacing: 0) {
-            // Drag indicator
-            BIRGESheetHandle()
-                .padding(.top, BIRGELayout.xxs)
-                .padding(.bottom, BIRGELayout.xs)
-
-            switch store.status {
-            case .requested:
-                searchingSheet
-            case .matched, .driverAccepted:
-                driverAcceptedSheet
-            case .driverArriving:
-                driverArrivingSheet
-            case .passengerWait:
-                passengerWaitSheet
-            case .inProgress:
-                inProgressSheet
-            case .cancelled:
-                cancelledSheet
-            case .completed:
-                EmptyView()
+        if store.status != .completed {
+            BIRGEGlassSheet {
+                switch store.status {
+                case .requested:
+                    searchingSheet
+                case .matched, .driverAccepted:
+                    driverAcceptedSheet
+                case .driverArriving:
+                    driverArrivingSheet
+                case .passengerWait:
+                    passengerWaitSheet
+                case .inProgress:
+                    inProgressSheet
+                case .cancelled:
+                    cancelledSheet
+                case .completed:
+                    EmptyView()
+                }
             }
         }
-        .background(
-            BIRGEColors.background
-                .clipShape(
-                    .rect(
-                        topLeadingRadius: BIRGELayout.radiusL,
-                        topTrailingRadius: BIRGELayout.radiusL
-                    )
-                )
-                .shadow(color: .black.opacity(0.08), radius: 12, y: -4)
-        )
     }
 
     // MARK: - Sheet: Searching
@@ -510,8 +534,9 @@ struct RideMapView: View {
                     )
                 )
                 .frame(width: 52, height: 52)
-            Text("👨‍💼")
+            Image(systemName: "person.fill")
                 .font(BIRGEFonts.title)
+                .foregroundStyle(BIRGEColors.textOnBrand)
         }
     }
 

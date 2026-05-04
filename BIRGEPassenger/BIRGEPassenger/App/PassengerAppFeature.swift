@@ -17,7 +17,13 @@ import Foundation
     enum Path {
         case rideRequest(RideRequestFeature)
         case searching(SearchingFeature)
-        case corridor(CorridorFeature)
+        case offerFound(OfferFoundFeature)
+        case corridorList(CorridorListFeature)
+        case corridorDetail(CorridorDetailFeature)
+        case myCorridors(MyCorridorsFeature)
+        case aiExplanation(AIExplanationFeature)
+        case projectDemo(ProjectDemoFeature)
+        case subscriptions(SubscriptionsFeature)
         #if DEBUG
         case activeRide(ActiveRideFeature)
         #endif
@@ -48,9 +54,9 @@ import Foundation
                 state.path.append(.rideRequest(RideRequestFeature.State()))
                 return .none
 
-            // Home → Corridor placeholder
+            // Home → Corridor detail
             case .home(.delegate(.openCorridor(let corridor))):
-                state.path.append(.corridor(CorridorFeature.State(corridor: corridor)))
+                state.path.append(.corridorDetail(CorridorDetailFeature.State(corridor: corridor)))
                 return .none
             
             // Home → Profile
@@ -58,9 +64,53 @@ import Foundation
                 state.path.append(.profile(ProfileFeature.State()))
                 return .none
 
+            // Home → Corridor List
+            case .home(.delegate(.openCorridorList)):
+                state.path.append(.corridorList(CorridorListFeature.State()))
+                return .none
+
+            // Home → AI Explanation
+            case .home(.delegate(.openAIExplanation)):
+                state.path.append(.aiExplanation(AIExplanationFeature.State()))
+                return .none
+
+            // Home → Project Demo
+            case .home(.delegate(.openProjectDemo)):
+                state.path.append(.projectDemo(ProjectDemoFeature.State()))
+                return .none
+
+            // AI Explanation → Corridor List
+            case .path(.element(_, action: .aiExplanation(.delegate(.openCorridorList)))):
+                state.path.append(.corridorList(CorridorListFeature.State()))
+                return .none
+
+            // Corridor List → Corridor Detail
+            case .path(.element(_, action: .corridorList(.delegate(.corridorSelected(let corridor))))):
+                state.path.append(.corridorDetail(CorridorDetailFeature.State(corridor: corridor)))
+                return .none
+
+            // Home → Ride History (stub — profile for now)
+            case .home(.delegate(.openRideHistory)):
+                state.path.append(.myCorridors(MyCorridorsFeature.State()))
+                return .none
+
+            // My Corridors → Corridor Detail
+            case .path(.element(_, action: .myCorridors(.delegate(.corridorSelected(let corridor))))):
+                state.path.append(.corridorDetail(CorridorDetailFeature.State(
+                    corridor: corridor,
+                    isJoined: true,
+                    statusMessage: "Вы уже в этом коридоре"
+                )))
+                return .none
+
+            // Home → Subscription (stub)
+            case .home(.delegate(.openSubscription)):
+                state.path.append(.subscriptions(SubscriptionsFeature.State()))
+                return .none
+
             // RideRequest → Searching
-            case .path(.element(_, action: .rideRequest(.delegate(.rideRequested(let rideID))))):
-                state.path.append(.searching(SearchingFeature.State(rideID: rideID)))
+            case .path(.element(_, action: .rideRequest(.delegate(.rideCreated(let rideId))))):
+                state.path.append(.searching(SearchingFeature.State(rideId: rideId)))
                 return .none
 
             // RideRequest → Home
@@ -68,17 +118,31 @@ import Foundation
                 state.path.removeLast()
                 return .none
 
-            // Searching → Ride (production flow)
-            case .path(.element(_, action: .searching(.delegate(.driverFound(let rideID, let match))))):
-                state.path.append(.ride(RideFeature.State(
+            // Searching → Offer found
+            case .path(.element(_, action: .searching(.delegate(.rideMatched(let rideID, let driverInfo))))):
+                state.path.append(.offerFound(OfferFoundFeature.State(
                     rideId: rideID,
-                    status: .matched,
-                    etaSeconds: match.etaSeconds,
-                    driverName: match.driverName,
-                    driverRating: match.driverRating,
-                    driverVehicle: match.driverVehicle,
-                    driverPlate: match.driverPlate
+                    driverInfo: driverInfo
                 )))
+                return .none
+
+            // Offer found → Ride (production flow)
+            case .path(.element(_, action: .offerFound(.delegate(.confirmed(let rideID, let driverInfo))))):
+                state.path.removeLast()
+                state.path.append(.ride(Self.rideState(
+                    rideID: rideID,
+                    driverInfo: driverInfo
+                )))
+                return .none
+
+            // Offer found → Searching
+            case .path(.element(_, action: .offerFound(.delegate(.declined)))):
+                state.path.removeAll()
+                return .none
+
+            // Offer found → Searching (expired)
+            case .path(.element(_, action: .offerFound(.delegate(.expired)))):
+                state.path.removeAll()
                 return .none
 
             // Searching → Home (cancelled)
@@ -123,18 +187,19 @@ import Foundation
         }
         .forEach(\.path, action: \.path)
     }
-}
 
-@Reducer
-struct CorridorFeature {
-    @ObservableState
-    struct State: Equatable {
-        var corridor: CorridorOption
-    }
-
-    enum Action: Sendable {}
-
-    var body: some Reducer<State, Action> {
-        EmptyReducer()
+    private static func rideState(
+        rideID: String,
+        driverInfo: SearchingFeature.DriverInfo
+    ) -> RideFeature.State {
+        RideFeature.State(
+            rideId: rideID,
+            status: .matched,
+            etaSeconds: driverInfo.etaSeconds,
+            driverName: driverInfo.driverName,
+            driverRating: driverInfo.driverRating,
+            driverVehicle: driverInfo.driverVehicle,
+            driverPlate: driverInfo.driverPlate
+        )
     }
 }

@@ -4,6 +4,14 @@ func routes(_ app: Application) throws {
     let api = app.grouped("api", "v1")
     try api.register(collection: AuthController())
     try api.register(collection: RidesController())
+    try api.register(collection: CorridorsController())
+    try api.register(collection: SubscriptionsController())
+    try api.register(collection: PaymentsController())
+    try api.register(collection: LocationsController())
+    try api.register(collection: DriversController())
+    if app.environment != .production {
+        try api.register(collection: DemoController())
+    }
 
     // WebSocket
     app.webSocket("ws", "ride", ":rideId") { req, ws in
@@ -13,5 +21,9 @@ func routes(_ app: Application) throws {
         } catch {
             try? await ws.close()
         }
+    }
+
+    if app.environment != .production {
+        app.post("debug", "match-ride", use: WSController().debugMatchRide)
     }
 }

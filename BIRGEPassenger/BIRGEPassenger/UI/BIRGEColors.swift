@@ -11,3 +11,10 @@ typealias BIRGESecondaryButton = BIRGECore.BIRGESecondaryButton
 typealias BIRGEDestructiveButton = BIRGECore.BIRGEDestructiveButton
 typealias BIRGEToast = BIRGECore.BIRGEToast
 typealias ReduceMotion = BIRGECore.ReduceMotion
+// Liquid Glass
+typealias BIRGEGlassModifier = BIRGECore.BIRGEGlassModifier
+typealias BIRGEGlassCardModifier = BIRGECore.BIRGEGlassCardModifier
+typealias BIRGEGlassSheet = BIRGECore.BIRGEGlassSheet
+typealias BIRGEAIPill = BIRGECore.BIRGEAIPill
+typealias BIRGEMatchBadge = BIRGECore.BIRGEMatchBadge
+typealias BIRGEPressableButtonStyle = BIRGECore.BIRGEPressableButtonStyle

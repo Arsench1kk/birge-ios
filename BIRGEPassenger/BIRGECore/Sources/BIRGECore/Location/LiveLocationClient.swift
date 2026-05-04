@@ -36,20 +36,33 @@ final class LocationManagerCoordinator: NSObject, CLLocationManagerDelegate {
     // MARK: - Lifecycle
 
     func start() {
+        let isDriveApp = Bundle.main.bundleIdentifier?.contains("BIRGEDrive") == true
+        let canRunInBackground = isDriveApp && Self.hasBackgroundLocationMode
         let mgr = CLLocationManager()
         mgr.delegate = self
         mgr.desiredAccuracy = kCLLocationAccuracyBest
         mgr.distanceFilter = 5 // meters — avoid noisy updates
-        mgr.allowsBackgroundLocationUpdates = false // passenger app
+        mgr.allowsBackgroundLocationUpdates = canRunInBackground
         mgr.pausesLocationUpdatesAutomatically = false
 
         // Request authorization if needed
         if mgr.authorizationStatus == .notDetermined {
-            mgr.requestWhenInUseAuthorization()
+            if canRunInBackground {
+                mgr.requestAlwaysAuthorization()
+            } else {
+                mgr.requestWhenInUseAuthorization()
+            }
         }
 
         mgr.startUpdatingLocation()
         self.manager = mgr
+    }
+
+    private static var hasBackgroundLocationMode: Bool {
+        guard let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] else {
+            return false
+        }
+        return modes.contains("location")
     }
 
     func stop() {

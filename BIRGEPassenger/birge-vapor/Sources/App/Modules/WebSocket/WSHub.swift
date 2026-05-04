@@ -1,19 +1,26 @@
 import Vapor
 
 actor WSHub {
-    private var connections: [UUID: WebSocket] = [:]
+    private struct Connection {
+        let channel: String
+        let socket: WebSocket
+    }
 
-    func connect(id: UUID, socket: WebSocket) {
-        connections[id] = socket
+    private var connections: [UUID: Connection] = [:]
+
+    func connect(id: UUID, channel: String, socket: WebSocket) {
+        connections[id] = Connection(channel: channel, socket: socket)
     }
 
     func disconnect(id: UUID) {
         connections[id] = nil
     }
 
-    func broadcast(_ text: String) {
-        for socket in connections.values {
-            socket.send(text)
+    func broadcast(to channel: String, text: String) {
+        for connection in connections.values where connection.channel == channel {
+            connection.socket.eventLoop.execute {
+                connection.socket.send(text)
+            }
         }
     }
 }

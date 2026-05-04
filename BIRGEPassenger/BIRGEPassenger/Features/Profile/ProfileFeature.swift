@@ -19,13 +19,16 @@ struct ProfileFeature {
         var errorMessage: String?
     }
 
+    @CasePathable
     enum Action: Sendable {
         case onAppear
-        case profileLoaded(CurrentUserResponse)
+        case profileLoaded(UserDTO)
         case profileLoadFailed(String)
+        case profileUnauthorized
         case logoutTapped
         case delegate(Delegate)
         
+        @CasePathable
         enum Delegate: Sendable {
             case loggedOut
         }
@@ -38,15 +41,16 @@ struct ProfileFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
+                guard !state.isLoading else { return .none }
                 state.isLoading = true
                 state.errorMessage = nil
                 return .run { send in
                     do {
-                        let user = try await apiClient.currentUser()
+                        let user = try await apiClient.fetchMe()
                         await send(.profileLoaded(user))
                     } catch {
                         if Self.isUnauthorized(error) {
-                            await send(.delegate(.loggedOut))
+                            await send(.profileUnauthorized)
                         } else {
                             await send(.profileLoadFailed(error.localizedDescription))
                         }
@@ -58,14 +62,19 @@ struct ProfileFeature {
                 state.errorMessage = nil
                 state.name = user.name ?? ""
                 state.phone = user.phone
-                state.rating = user.rating ?? 0
-                state.totalRides = user.totalRides ?? 0
+                state.rating = user.rating
+                state.totalRides = user.totalRides
                 return .none
 
             case let .profileLoadFailed(message):
                 state.isLoading = false
                 state.errorMessage = message
                 return .none
+
+            case .profileUnauthorized:
+                state.isLoading = false
+                state.errorMessage = nil
+                return .send(.delegate(.loggedOut))
                 
             case .logoutTapped:
                 return .run { send in
