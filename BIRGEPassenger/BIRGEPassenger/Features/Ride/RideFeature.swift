@@ -145,11 +145,16 @@ struct RideFeature {
             case .view(.onAppear):
                 let rideId = state.rideId
                 let accessTokenKey = KeychainClient.Keys.accessToken
+                let apiClient = self.apiClient
                 let keychainClient = self.keychainClient
                 let webSocketClient = self.webSocketClient
                 return .run { send in
                     do {
-                        guard let token = try keychainClient.load(accessTokenKey) else {
+                        guard let token = try await Self.webSocketAccessToken(
+                            apiClient: apiClient,
+                            keychainClient: keychainClient,
+                            accessTokenKey: accessTokenKey
+                        ) else {
                             await send(.errorOccurred("Не удалось авторизовать WebSocket."))
                             return
                         }
@@ -387,6 +392,18 @@ struct RideFeature {
             throw WebSocketError.encodingError("Could not build WebSocket URL.")
         }
         return url
+    }
+
+    nonisolated private static func webSocketAccessToken(
+        apiClient: APIClient,
+        keychainClient: KeychainClient,
+        accessTokenKey: String
+    ) async throws -> String? {
+        do {
+            return try await apiClient.refreshAccessToken()
+        } catch {
+            return try keychainClient.load(accessTokenKey)
+        }
     }
 
     /// Process a decoded `RideEvent` and dispatch the appropriate action.

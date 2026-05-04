@@ -1,6 +1,12 @@
 import BIRGECore
 import ComposableArchitecture
 import Foundation
+import os.log
+
+nonisolated(unsafe) private let searchLog = Logger(
+    subsystem: "kz.birge.passenger",
+    category: "Searching"
+)
 
 private enum SearchingCancelID {
     static let webSocket = "SearchingFeature.webSocket"
@@ -56,20 +62,34 @@ private enum SearchingCancelID {
             case .view(.onAppear):
                 let rideId = state.rideId
                 let accessTokenKey = KeychainClient.Keys.accessToken
+                let apiClient = self.apiClient
                 let keychainClient = self.keychainClient
                 let webSocketClient = self.webSocketClient
                 return .run { send in
-                    guard let token = try keychainClient.load(accessTokenKey) else {
+                    let token = try await Self.webSocketAccessToken(
+                        apiClient: apiClient,
+                        keychainClient: keychainClient,
+                        accessTokenKey: accessTokenKey
+                    )
+                    guard let token else {
+                        searchLog.error("[Search] no access token in keychain")
                         await send(.subscribeFailed("Не удалось авторизовать WebSocket."))
                         return
                     }
 
+                    searchLog.info("[Search] token loaded (\(token.prefix(8), privacy: .public)...) for ride \(rideId, privacy: .public)")
+
                     let url = try Self.webSocketURL(rideId: rideId, token: token)
+                    searchLog.info("[Search] connecting to WS for ride \(rideId, privacy: .public)")
+
                     let eventStream = await webSocketClient.connect(url)
                     for await event in eventStream {
+                        searchLog.info("[Search] WS event: \(String(describing: event), privacy: .public)")
                         await send(.webSocketEventReceived(event))
                     }
+                    searchLog.info("[Search] WS event stream ended")
                 } catch: { error, send in
+                    searchLog.error("[Search] WS stream error: \(error.localizedDescription, privacy: .public)")
                     await send(.subscribeFailed(error.localizedDescription))
                 }
                 .cancellable(id: SearchingCancelID.webSocket, cancelInFlight: true)
@@ -98,6 +118,7 @@ private enum SearchingCancelID {
             case let .webSocketEventReceived(event):
                 switch event {
                 case .connected:
+                    searchLog.info("[Search] WS connected — sending subscribe")
                     state.statusText = "Ожидаем подтверждение водителя"
                     state.errorMessage = nil
                     state.isConnectionLost = false
@@ -107,29 +128,43 @@ private enum SearchingCancelID {
                         do {
                             let message = try Self.subscribeMessage(rideId: rideId)
                             try await webSocketClient.send(.text(message))
+                            searchLog.info("[Search] subscribe message sent")
                         } catch {
+                            searchLog.error("[Search] subscribe send failed: \(error.localizedDescription, privacy: .public)")
                             await send(.subscribeFailed(error.localizedDescription))
                         }
                     }
 
                 case let .message(.text(json)):
-                    guard let driverInfo = Self.driverInfo(from: json) else {
+                    // Backend sends {"type":"connected"} and {"type":"subscribed"}
+                    // as control frames — skip them and wait for ride events.
+                    if Self.isControlMessage(json) {
+                        searchLog.info("[Search] control message: \(json.prefix(100), privacy: .public)")
                         return .none
                     }
+
+                    guard let driverInfo = Self.driverInfo(from: json) else {
+                        searchLog.info("[Search] unrecognized message: \(json.prefix(200), privacy: .public)")
+                        return .none
+                    }
+                    searchLog.info("[Search] ride matched! driver=\(driverInfo.driverName ?? "?", privacy: .public)")
                     return .send(.delegate(.rideMatched(rideID: state.rideId, driverInfo)))
 
                 case .message(.data):
                     return .none
 
                 case .disconnected:
+                    searchLog.warning("[Search] WS disconnected")
                     state.statusText = "Восстанавливаем соединение"
                     state.isConnectionLost = true
                     state.errorMessage = "Нет соединения. Пробуем переподключиться."
                     return .none
 
-                case let .error(error):
+                case let .error(wsError):
+                    let desc = String(describing: wsError)
+                    searchLog.error("[Search] WS error: \(desc, privacy: .public)")
                     state.isConnectionLost = true
-                    if error == .maxRetriesExceeded {
+                    if wsError == .maxRetriesExceeded {
                         state.errorMessage = "Нет соединения."
                     } else {
                         state.errorMessage = "Нет соединения. Пробуем переподключиться."
@@ -218,6 +253,29 @@ private enum SearchingCancelID {
 
     private static func isMatchedStatus(_ status: String?) -> Bool {
         status == RideStatus.matched.rawValue || status == "driver_accepted"
+    }
+
+    /// Returns true if the JSON is a backend control frame like
+    /// {"type":"connected",...} or {"type":"subscribed",...}
+    nonisolated private static func isControlMessage(_ json: String) -> Bool {
+        guard let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = dict["type"] as? String
+        else { return false }
+        return type == "connected" || type == "subscribed"
+    }
+
+    nonisolated private static func webSocketAccessToken(
+        apiClient: APIClient,
+        keychainClient: KeychainClient,
+        accessTokenKey: String
+    ) async throws -> String? {
+        do {
+            return try await apiClient.refreshAccessToken()
+        } catch {
+            searchLog.warning("[Search] access token refresh failed before WS: \(error.localizedDescription, privacy: .public)")
+            return try keychainClient.load(accessTokenKey)
+        }
     }
 }
 

@@ -9,6 +9,51 @@ final class SearchingFeatureTests: XCTestCase {
     func testOnAppearConnectsWithTokenizedRideURL() async throws {
         let (stream, continuation) = AsyncStream.makeStream(of: WebSocketEvent.self)
         let connectedURL = LockIsolated<URL?>(nil)
+        let refreshed = LockIsolated(false)
+
+        let store = TestStore(
+            initialState: SearchingFeature.State(rideId: "ride-123")
+        ) {
+            SearchingFeature()
+        } withDependencies: {
+            $0.keychainClient = KeychainClient(
+                save: { _, _ in },
+                load: { _ in "stale-token" },
+                delete: { _ in }
+            )
+            $0.apiClient = APIClient(
+                refreshAccessToken: {
+                    refreshed.withValue { $0 = true }
+                    return "fresh-token"
+                }
+            )
+            $0.webSocketClient = WebSocketClient(
+                connect: { url in
+                    connectedURL.withValue { $0 = url }
+                    return stream
+                },
+                send: { _ in },
+                disconnect: {
+                    continuation.finish()
+                }
+            )
+        }
+
+        await store.send(.view(.onAppear))
+        try await waitUntil { connectedURL.value != nil }
+
+        XCTAssertTrue(refreshed.value)
+        XCTAssertEqual(
+            connectedURL.value?.absoluteString,
+            "ws://localhost:8080/ws/ride/ride-123?token=fresh-token"
+        )
+
+        await store.send(.view(.onDisappear))
+    }
+
+    func testOnAppearFallsBackToKeychainTokenWhenRefreshFails() async throws {
+        let (stream, continuation) = AsyncStream.makeStream(of: WebSocketEvent.self)
+        let connectedURL = LockIsolated<URL?>(nil)
         let loadedKey = LockIsolated<String?>(nil)
 
         let store = TestStore(
@@ -20,9 +65,17 @@ final class SearchingFeatureTests: XCTestCase {
                 save: { _, _ in },
                 load: { key in
                     loadedKey.withValue { $0 = key }
-                    return "test-token"
+                    return "fallback-token"
                 },
                 delete: { _ in }
+            )
+            $0.apiClient = APIClient(
+                refreshAccessToken: {
+                    throw BIRGEAPIError(
+                        errorCode: "MISSING_REFRESH_TOKEN",
+                        message: "No refresh token is available."
+                    )
+                }
             )
             $0.webSocketClient = WebSocketClient(
                 connect: { url in
@@ -42,7 +95,7 @@ final class SearchingFeatureTests: XCTestCase {
         XCTAssertEqual(loadedKey.value, KeychainClient.Keys.accessToken)
         XCTAssertEqual(
             connectedURL.value?.absoluteString,
-            "ws://localhost:8080/ws/ride/ride-123?token=test-token"
+            "ws://localhost:8080/ws/ride/ride-123?token=fallback-token"
         )
 
         await store.send(.view(.onDisappear))

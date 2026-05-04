@@ -1528,6 +1528,7 @@ extension TokenRefreshClient: DependencyKey {
             },
             storeTokens: { accessToken, refreshToken in
                 await AccessTokenStore.shared.setToken(accessToken)
+                try KeychainCredentialStore.live.save(Self.legacyAccessTokenKey, accessToken)
                 try KeychainCredentialStore.live.save(Self.refreshTokenKey, refreshToken)
             },
             refreshAccessToken: {
@@ -1640,6 +1641,7 @@ private actor TokenRefreshTransport {
         let responseData = data.isEmpty ? Data("{}".utf8) : data
         let refreshResponse = try decoder.decode(RefreshTokenResponse.self, from: responseData)
         await AccessTokenStore.shared.setToken(refreshResponse.accessToken)
+        try KeychainCredentialStore.live.save(TokenRefreshClient.legacyAccessTokenKey, refreshResponse.accessToken)
         if let rotatedRefreshToken = refreshResponse.refreshToken {
             try KeychainCredentialStore.live.save(TokenRefreshClient.refreshTokenKey, rotatedRefreshToken)
         }
