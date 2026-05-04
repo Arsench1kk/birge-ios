@@ -9,6 +9,9 @@ func routes(_ app: Application) throws {
     try api.register(collection: PaymentsController())
     try api.register(collection: LocationsController())
     try api.register(collection: DriversController())
+    if app.environment != .production {
+        try api.register(collection: DemoController())
+    }
 
     // WebSocket
     app.webSocket("ws", "ride", ":rideId") { req, ws in

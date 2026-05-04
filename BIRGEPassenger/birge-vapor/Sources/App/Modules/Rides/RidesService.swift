@@ -1,4 +1,5 @@
 import Fluent
+import SQLKit
 import Vapor
 
 struct RidesService {
@@ -103,6 +104,13 @@ struct RidesService {
         let driverID = try req.authenticatedUserID
 
         let ride = try await req.db.transaction { database in
+            if let sql = database as? SQLDatabase {
+                try await sql.raw(
+                    "SELECT id FROM \(ident: Ride.schema) WHERE id = \(bind: rideID) FOR UPDATE"
+                )
+                .run()
+            }
+
             guard let ride = try await Ride.find(rideID, on: database) else {
                 throw Abort(.notFound, reason: "Ride not found")
             }
