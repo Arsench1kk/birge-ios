@@ -81,6 +81,22 @@ struct HomeView: View {
             .padding(.leading, BIRGELayout.s)
             .accessibilityLabel("Как AI подбирает коридоры")
 
+            #if DEBUG
+            Button {
+                send(.projectDemoTapped)
+            } label: {
+                Label("Демо проекта", systemImage: "rectangle.stack.badge.play")
+                    .font(BIRGEFonts.captionBold)
+                    .foregroundStyle(BIRGEColors.info)
+                    .padding(.horizontal, BIRGELayout.s)
+                    .padding(.vertical, BIRGELayout.xxs)
+                    .liquidGlass(.pill, tint: BIRGEColors.info.opacity(0.08), isInteractive: true)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, BIRGELayout.s)
+            .accessibilityLabel("Открыть демо проекта")
+            #endif
+
             if let corridorError = store.corridorError {
                 BIRGEToast(message: corridorError, style: .warning)
                     .padding(.horizontal, BIRGELayout.s)

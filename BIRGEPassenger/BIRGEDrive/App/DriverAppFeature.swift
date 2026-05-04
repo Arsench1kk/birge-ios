@@ -396,13 +396,21 @@ struct DriverAppFeature {
     }
 
     private func startDriverLocationTracking(rideID: String) -> Effect<Action> {
-        .run { _ in
-            let stream = await locationClient.startTracking(rideID)
-            for await _ in stream {
-                // LocationClient writes every update to GRDB. The dashboard
-                // does not need per-point reducer state yet.
+        .merge(
+            .run { _ in
+                let stream = await locationClient.startTracking(rideID)
+                for await _ in stream {
+                    // LocationClient writes every update to GRDB. The dashboard
+                    // does not need per-point reducer state yet.
+                }
+            },
+            .run { _ in
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(5))
+                    try? await locationClient.syncPendingLocations(rideID)
+                }
             }
-        }
+        )
         .cancellable(id: DriverLocationCancelID.tracking)
     }
 

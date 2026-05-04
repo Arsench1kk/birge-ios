@@ -310,6 +310,20 @@ final class RideFeatureTests: XCTestCase {
         }
     }
 
+    func testControlFramesAreIgnored() async {
+        let store = TestStore(
+            initialState: RideFeature.State(
+                rideId: "ride-123",
+                status: .requested
+            )
+        ) {
+            RideFeature()
+        }
+
+        await store.send(.webSocketEventReceived(.message(.text(#"{"type":"connected"}"#))))
+        await store.send(.webSocketEventReceived(.message(.text(#"{"type":"subscribed","channel":"ride/ride-123"}"#))))
+    }
+
     // MARK: - Test 9: Server Recovery Preserves Match Driver Info
 
     /// Confirms reconnect recovery does not wipe driver details that

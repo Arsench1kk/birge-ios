@@ -27,6 +27,8 @@ struct PassengerAppView: View {
                 MyCorridorsView(store: store)
             case .aiExplanation(let store):
                 AIExplanationView(store: store)
+            case .projectDemo(let store):
+                ProjectDemoView(store: store)
             case .subscriptions(let store):
                 SubscriptionsView(store: store)
             #if DEBUG

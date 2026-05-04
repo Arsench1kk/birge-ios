@@ -28,6 +28,10 @@ struct OfferFoundView: View {
 
                     timerCard
 
+                    if let errorMessage = store.errorMessage {
+                        BIRGEToast(message: errorMessage, style: .error)
+                    }
+
                     actionStack
                         .padding(.bottom, BIRGELayout.l)
                 }

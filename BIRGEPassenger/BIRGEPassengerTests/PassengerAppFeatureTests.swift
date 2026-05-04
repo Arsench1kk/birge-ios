@@ -19,6 +19,21 @@ final class PassengerAppFeatureTests: XCTestCase {
         }
     }
 
+    func testHomeProjectDemoOpensDemoScreen() async {
+        let store = TestStore(initialState: PassengerAppFeature.State()) {
+            PassengerAppFeature()
+        }
+
+        await store.send(.home(.delegate(.openProjectDemo)))
+
+        let path = Array(store.state.path)
+        XCTAssertEqual(path.count, 1)
+        guard case .projectDemo = path.last else {
+            XCTFail("Expected ProjectDemoFeature at the top of the stack")
+            return
+        }
+    }
+
     func testAIExplanationTryCorridorsOpensCorridorList() async {
         var initialState = PassengerAppFeature.State()
         initialState.path.append(.aiExplanation(AIExplanationFeature.State()))
@@ -161,5 +176,36 @@ final class PassengerAppFeatureTests: XCTestCase {
         XCTAssertEqual(rideState.driverRating, 4.9)
         XCTAssertEqual(rideState.driverVehicle, "Chevrolet Nexia")
         XCTAssertEqual(rideState.driverPlate, "777 ABA 02")
+    }
+
+    func testOfferDeclinedClearsRideFlow() async {
+        var initialState = PassengerAppFeature.State()
+        initialState.path.append(.searching(SearchingFeature.State(rideId: "ride-123")))
+        initialState.path.append(.offerFound(OfferFoundFeature.State(
+            rideId: "ride-123",
+            driverInfo: SearchingFeature.DriverInfo(
+                driverId: "driver-123",
+                driverName: "Асан",
+                driverRating: 4.9,
+                driverVehicle: "Toyota Camry",
+                driverPlate: "777 ABA 02",
+                etaSeconds: 240
+            )
+        )))
+
+        let store = TestStore(initialState: initialState) {
+            PassengerAppFeature()
+        }
+
+        await store.send(
+            .path(
+                .element(
+                    id: 1,
+                    action: .offerFound(.delegate(.declined))
+                )
+            )
+        )
+
+        XCTAssertTrue(store.state.path.isEmpty)
     }
 }

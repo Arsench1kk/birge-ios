@@ -204,6 +204,9 @@ struct RideFeature {
                     return .send(.webSocketConnected)
 
                 case let .message(.text(json)):
+                    if Self.isControlMessage(json) {
+                        return .none
+                    }
                     // Decode the RideEvent from JSON
                     guard let data = json.data(using: .utf8) else {
                         return .none
@@ -374,24 +377,17 @@ struct RideFeature {
     // MARK: - Private Helpers
 
     nonisolated private static func webSocketURL(rideId: String, token: String) throws -> URL {
-        var components = URLComponents()
-        #if DEBUG
-        components.scheme = "ws"
-        components.host = "localhost"
-        components.port = 8080
-        #else
-        components.scheme = "wss"
-        components.host = "api.birge.kz"
-        #endif
-        components.path = "/ws/ride/\(rideId)"
-        components.queryItems = [
-            URLQueryItem(name: "token", value: token)
-        ]
+        try BIRGEAPIConfiguration.rideWebSocketURL(rideID: rideId, token: token)
+    }
 
-        guard let url = components.url else {
-            throw WebSocketError.encodingError("Could not build WebSocket URL.")
-        }
-        return url
+    /// Returns true for backend control frames like
+    /// {"type":"connected"} or {"type":"subscribed"}.
+    nonisolated private static func isControlMessage(_ json: String) -> Bool {
+        guard let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = dict["type"] as? String
+        else { return false }
+        return type == "connected" || type == "subscribed"
     }
 
     nonisolated private static func webSocketAccessToken(

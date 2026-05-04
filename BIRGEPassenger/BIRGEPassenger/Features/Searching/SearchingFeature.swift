@@ -208,24 +208,7 @@ private enum SearchingCancelID {
     }
 
     nonisolated private static func webSocketURL(rideId: String, token: String) throws -> URL {
-        var components = URLComponents()
-        #if DEBUG
-        components.scheme = "ws"
-        components.host = "localhost"
-        components.port = 8080
-        #else
-        components.scheme = "wss"
-        components.host = "api.birge.kz"
-        #endif
-        components.path = "/ws/ride/\(rideId)"
-        components.queryItems = [
-            URLQueryItem(name: "token", value: token)
-        ]
-
-        guard let url = components.url else {
-            throw WebSocketError.encodingError("Could not build WebSocket URL.")
-        }
-        return url
+        try BIRGEAPIConfiguration.rideWebSocketURL(rideID: rideId, token: token)
     }
 
     private static func driverInfo(from json: String) -> DriverInfo? {

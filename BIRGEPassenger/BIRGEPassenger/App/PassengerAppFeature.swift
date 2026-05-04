@@ -22,6 +22,7 @@ import Foundation
         case corridorDetail(CorridorDetailFeature)
         case myCorridors(MyCorridorsFeature)
         case aiExplanation(AIExplanationFeature)
+        case projectDemo(ProjectDemoFeature)
         case subscriptions(SubscriptionsFeature)
         #if DEBUG
         case activeRide(ActiveRideFeature)
@@ -71,6 +72,11 @@ import Foundation
             // Home → AI Explanation
             case .home(.delegate(.openAIExplanation)):
                 state.path.append(.aiExplanation(AIExplanationFeature.State()))
+                return .none
+
+            // Home → Project Demo
+            case .home(.delegate(.openProjectDemo)):
+                state.path.append(.projectDemo(ProjectDemoFeature.State()))
                 return .none
 
             // AI Explanation → Corridor List
@@ -131,12 +137,12 @@ import Foundation
 
             // Offer found → Searching
             case .path(.element(_, action: .offerFound(.delegate(.declined)))):
-                state.path.removeLast()
+                state.path.removeAll()
                 return .none
 
             // Offer found → Searching (expired)
             case .path(.element(_, action: .offerFound(.delegate(.expired)))):
-                state.path.removeLast()
+                state.path.removeAll()
                 return .none
 
             // Searching → Home (cancelled)

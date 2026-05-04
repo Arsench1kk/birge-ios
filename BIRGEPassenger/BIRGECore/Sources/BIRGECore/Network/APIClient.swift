@@ -9,6 +9,44 @@ import ComposableArchitecture
 import Foundation
 import Security
 
+// MARK: - API Configuration
+
+public enum BIRGEAPIConfiguration {
+    public static let overrideKey = "BIRGE_API_BASE_URL"
+
+    public static var baseURLString: String {
+        if let override = UserDefaults.standard.string(forKey: overrideKey),
+           !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return override
+        }
+        if let env = ProcessInfo.processInfo.environment[overrideKey],
+           !env.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return env
+        }
+
+        #if DEBUG
+        return "http://localhost:8080/api/v1"
+        #else
+        return "https://api.birge.kz/api/v1"
+        #endif
+    }
+
+    public static func rideWebSocketURL(rideID: String, token: String) throws -> URL {
+        guard var components = URLComponents(string: baseURLString) else {
+            throw BIRGEAPIError.invalidBaseURL()
+        }
+        components.scheme = components.scheme == "https" ? "wss" : "ws"
+        components.path = "/ws/ride/\(rideID)"
+        components.queryItems = [
+            URLQueryItem(name: "token", value: token)
+        ]
+        guard let url = components.url else {
+            throw WebSocketError.encodingError("Could not build WebSocket URL.")
+        }
+        return url
+    }
+}
+
 // MARK: - API Error
 
 public struct BIRGEAPIError: Error, Decodable, Equatable, Sendable, LocalizedError {
@@ -195,6 +233,219 @@ public struct LocationBulkResponse: Equatable, Sendable, Decodable {
     public init(message: String? = nil, count: Int? = nil) {
         self.message = message
         self.count = count
+    }
+}
+
+// MARK: - Demo State DTOs
+
+public struct DemoStateResponse: Equatable, Sendable, Decodable {
+    public let generatedAt: Date?
+    public let apiBaseURL: String
+    public let tables: [DemoTableSnapshot]
+    public let redis: DemoRedisSnapshot
+    public let ai: DemoAISnapshot
+
+    public init(
+        generatedAt: Date? = nil,
+        apiBaseURL: String,
+        tables: [DemoTableSnapshot],
+        redis: DemoRedisSnapshot,
+        ai: DemoAISnapshot
+    ) {
+        self.generatedAt = generatedAt
+        self.apiBaseURL = apiBaseURL
+        self.tables = tables
+        self.redis = redis
+        self.ai = ai
+    }
+}
+
+public struct DemoTableSnapshot: Equatable, Identifiable, Sendable, Decodable {
+    public var id: String { name }
+    public let name: String
+    public let count: Int
+    public let explanation: String
+    public let source: String
+    public let rows: [DemoTableRow]
+
+    public init(
+        name: String,
+        count: Int,
+        explanation: String,
+        source: String,
+        rows: [DemoTableRow]
+    ) {
+        self.name = name
+        self.count = count
+        self.explanation = explanation
+        self.source = source
+        self.rows = rows
+    }
+}
+
+public struct DemoTableRow: Equatable, Identifiable, Sendable, Decodable {
+    public var id: String { primary }
+    public let primary: String
+    public let secondary: String
+    public let fields: [DemoField]
+
+    public init(primary: String, secondary: String, fields: [DemoField]) {
+        self.primary = primary
+        self.secondary = secondary
+        self.fields = fields
+    }
+}
+
+public struct DemoField: Equatable, Identifiable, Sendable, Decodable {
+    public var id: String { key }
+    public let key: String
+    public let value: String
+
+    public init(key: String, value: String) {
+        self.key = key
+        self.value = value
+    }
+}
+
+public struct DemoRedisSnapshot: Equatable, Sendable, Decodable {
+    public let dbSize: Int?
+    public let otpKeys: Int?
+    public let refreshKeys: Int?
+    public let blacklistKeys: Int?
+    public let notes: [String]
+
+    public init(
+        dbSize: Int? = nil,
+        otpKeys: Int? = nil,
+        refreshKeys: Int? = nil,
+        blacklistKeys: Int? = nil,
+        notes: [String]
+    ) {
+        self.dbSize = dbSize
+        self.otpKeys = otpKeys
+        self.refreshKeys = refreshKeys
+        self.blacklistKeys = blacklistKeys
+        self.notes = notes
+    }
+}
+
+public struct DemoAISnapshot: Equatable, Sendable, Decodable {
+    public let title: String
+    public let engine: String
+    public let input: [DemoField]
+    public let scoring: [DemoField]
+    public let candidates: [DemoAICandidate]
+    public let explanation: String
+
+    public init(
+        title: String,
+        engine: String,
+        input: [DemoField],
+        scoring: [DemoField],
+        candidates: [DemoAICandidate],
+        explanation: String
+    ) {
+        self.title = title
+        self.engine = engine
+        self.input = input
+        self.scoring = scoring
+        self.candidates = candidates
+        self.explanation = explanation
+    }
+}
+
+public struct DemoAICandidate: Equatable, Identifiable, Sendable, Decodable {
+    public let id: String
+    public let route: String
+    public let matchPercent: Int
+    public let priceTenge: Int
+    public let seatsLeft: Int
+    public let reason: String
+
+    public init(
+        id: String,
+        route: String,
+        matchPercent: Int,
+        priceTenge: Int,
+        seatsLeft: Int,
+        reason: String
+    ) {
+        self.id = id
+        self.route = route
+        self.matchPercent = matchPercent
+        self.priceTenge = priceTenge
+        self.seatsLeft = seatsLeft
+        self.reason = reason
+    }
+}
+
+public extension DemoStateResponse {
+    static func sample() -> DemoStateResponse {
+        DemoStateResponse(
+            generatedAt: Date(timeIntervalSince1970: 1_714_000_000),
+            apiBaseURL: BIRGEAPIConfiguration.baseURLString,
+            tables: [
+                DemoTableSnapshot(
+                    name: "rides",
+                    count: 1,
+                    explanation: "Создаётся пассажиром, меняет status после действий водителя.",
+                    source: "POST /api/v1/rides",
+                    rows: [
+                        DemoTableRow(
+                            primary: "demo-ride",
+                            secondary: "driver_accepted",
+                            fields: [
+                                DemoField(key: "passenger", value: "Demo Passenger"),
+                                DemoField(key: "driver", value: "Demo Driver"),
+                                DemoField(key: "tier", value: "shared")
+                            ]
+                        )
+                    ]
+                ),
+                DemoTableSnapshot(
+                    name: "corridors",
+                    count: 3,
+                    explanation: "AI matching candidates for shared commute corridors.",
+                    source: "GET /api/v1/corridors",
+                    rows: []
+                )
+            ],
+            redis: DemoRedisSnapshot(
+                dbSize: nil,
+                otpKeys: nil,
+                refreshKeys: nil,
+                blacklistKeys: nil,
+                notes: [
+                    "OTP codes live in Redis with a 5 minute TTL.",
+                    "Refresh sessions and logout blacklist also use Redis."
+                ]
+            ),
+            ai: DemoAISnapshot(
+                title: "AI Corridor Matching",
+                engine: "Deterministic scoring for route grouping",
+                input: [
+                    DemoField(key: "origin", value: "Алатау"),
+                    DemoField(key: "destination", value: "Есентай"),
+                    DemoField(key: "timeWindow", value: "+/-15 min")
+                ],
+                scoring: [
+                    DemoField(key: "distanceRadius", value: "500 m"),
+                    DemoField(key: "seatAvailability", value: "2-4 passengers"),
+                    DemoField(key: "priceSaving", value: "52% vs taxi")
+                ],
+                candidates: [
+                    DemoAICandidate(
+                        id: "demo-corridor",
+                        route: "Алатау -> Есентай",
+                        matchPercent: 98,
+                        priceTenge: 890,
+                        seatsLeft: 1,
+                        reason: "Closest route and departure window match."
+                    )
+                ],
+                explanation: "The app shows this as AI because it applies route similarity, time window, seat and price scoring without an external LLM."
+            )
+        )
     }
 }
 
@@ -933,6 +1184,9 @@ public struct APIClient: Sendable {
     public var markDriverArrived: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
     public var startDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
     public var completeDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
+    public var fetchDemoState: @Sendable () async throws -> DemoStateResponse
+    public var seedDemoData: @Sendable () async throws -> DemoStateResponse
+    public var resetDemoData: @Sendable () async throws -> DemoStateResponse
 
     public init(
         fetchRide: @escaping @Sendable (_ rideID: String) async throws -> RideDTO = { _ in
@@ -1077,6 +1331,15 @@ public struct APIClient: Sendable {
         },
         completeDriverRide: @escaping @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO = { rideID in
             DriverRideOfferDTO.demo(rideID: rideID, status: "completed")
+        },
+        fetchDemoState: @escaping @Sendable () async throws -> DemoStateResponse = {
+            DemoStateResponse.sample()
+        },
+        seedDemoData: @escaping @Sendable () async throws -> DemoStateResponse = {
+            DemoStateResponse.sample()
+        },
+        resetDemoData: @escaping @Sendable () async throws -> DemoStateResponse = {
+            DemoStateResponse.sample()
         }
     ) {
         self.requestOTP = requestOTP
@@ -1105,6 +1368,9 @@ public struct APIClient: Sendable {
         self.markDriverArrived = markDriverArrived
         self.startDriverRide = startDriverRide
         self.completeDriverRide = completeDriverRide
+        self.fetchDemoState = fetchDemoState
+        self.seedDemoData = seedDemoData
+        self.resetDemoData = resetDemoData
     }
 }
 
@@ -1326,6 +1592,27 @@ extension APIClient: DependencyKey {
                     method: "POST",
                     responseType: DriverRideOfferDTO.self
                 )
+            },
+            fetchDemoState: {
+                try await transport.sendAuthenticated(
+                    path: ["demo", "state"],
+                    method: "GET",
+                    responseType: DemoStateResponse.self
+                )
+            },
+            seedDemoData: {
+                try await transport.sendAuthenticated(
+                    path: ["demo", "seed"],
+                    method: "POST",
+                    responseType: DemoStateResponse.self
+                )
+            },
+            resetDemoData: {
+                try await transport.sendAuthenticated(
+                    path: ["demo", "reset"],
+                    method: "POST",
+                    responseType: DemoStateResponse.self
+                )
             }
         )
     }
@@ -1480,11 +1767,7 @@ private actor LiveAPITransport {
     }
 
     private static var baseURLString: String {
-        #if DEBUG
-        "http://localhost:8080/api/v1"
-        #else
-        "https://api.birge.kz/api/v1"
-        #endif
+        BIRGEAPIConfiguration.baseURLString
     }
 }
 
@@ -1658,11 +1941,7 @@ private actor TokenRefreshTransport {
     }
 
     private static var baseURLString: String {
-        #if DEBUG
-        "http://localhost:8080/api/v1"
-        #else
-        "https://api.birge.kz/api/v1"
-        #endif
+        BIRGEAPIConfiguration.baseURLString
     }
 }
 

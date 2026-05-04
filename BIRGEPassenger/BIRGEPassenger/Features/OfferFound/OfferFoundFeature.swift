@@ -1,3 +1,4 @@
+import BIRGECore
 import ComposableArchitecture
 import Foundation
 
@@ -13,6 +14,7 @@ struct OfferFoundFeature {
         var driverInfo: SearchingFeature.DriverInfo
         var secondsRemaining = 45
         var isConfirming = false
+        var errorMessage: String?
 
         var originTitle = "Алатау, пр. Аль-Фараби 21"
         var destinationTitle = "Есентай Парк, 77/8"
@@ -27,6 +29,9 @@ struct OfferFoundFeature {
     enum Action: ViewAction, Sendable {
         case view(View)
         case countdownTicked
+        case declineCancelSucceeded
+        case expiryCancelSucceeded
+        case offerCancelFailed(String)
         case delegate(Delegate)
 
         @CasePathable
@@ -46,6 +51,7 @@ struct OfferFoundFeature {
     }
 
     @Dependency(\.continuousClock) var clock
+    @Dependency(\.apiClient) var apiClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -65,22 +71,49 @@ struct OfferFoundFeature {
 
             case .view(.confirmTapped):
                 state.isConfirming = true
+                state.errorMessage = nil
                 return .send(.delegate(.confirmed(
                     rideID: state.rideId,
                     state.driverInfo
                 )))
 
             case .view(.declineTapped):
-                return .send(.delegate(.declined))
+                guard !state.isConfirming else { return .none }
+                return cancelAcceptedOffer(
+                    rideId: state.rideId,
+                    reason: "passenger_declined_offer",
+                    successAction: .declineCancelSucceeded,
+                    state: &state
+                )
 
             case .countdownTicked:
-                guard state.secondsRemaining > 0 else {
+                guard !state.isConfirming, state.secondsRemaining > 0 else {
                     return .none
                 }
                 state.secondsRemaining -= 1
                 if state.secondsRemaining == 0 {
-                    return .send(.delegate(.expired))
+                    return cancelAcceptedOffer(
+                        rideId: state.rideId,
+                        reason: "offer_expired",
+                        successAction: .expiryCancelSucceeded,
+                        state: &state
+                    )
                 }
+                return .none
+
+            case .declineCancelSucceeded:
+                state.isConfirming = false
+                state.errorMessage = nil
+                return .send(.delegate(.declined))
+
+            case .expiryCancelSucceeded:
+                state.isConfirming = false
+                state.errorMessage = nil
+                return .send(.delegate(.expired))
+
+            case .offerCancelFailed(let message):
+                state.isConfirming = false
+                state.errorMessage = message
                 return .none
 
             case .delegate:
@@ -88,5 +121,27 @@ struct OfferFoundFeature {
                 return .cancel(id: OfferFoundCancelID.countdown)
             }
         }
+    }
+
+    private func cancelAcceptedOffer(
+        rideId: String,
+        reason: String,
+        successAction: Action,
+        state: inout State
+    ) -> Effect<Action> {
+        state.isConfirming = true
+        state.errorMessage = nil
+        let apiClient = self.apiClient
+        return .merge(
+            .cancel(id: OfferFoundCancelID.countdown),
+            .run { send in
+                do {
+                    try await apiClient.cancelRide(rideId, reason)
+                    await send(successAction)
+                } catch {
+                    await send(.offerCancelFailed("Не удалось отменить оффер: \(error.localizedDescription)"))
+                }
+            }
+        )
     }
 }
