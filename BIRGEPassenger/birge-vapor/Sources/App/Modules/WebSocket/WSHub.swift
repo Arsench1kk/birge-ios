@@ -18,7 +18,9 @@ actor WSHub {
 
     func broadcast(to channel: String, text: String) {
         for connection in connections.values where connection.channel == channel {
-            connection.socket.send(text)
+            connection.socket.eventLoop.execute {
+                connection.socket.send(text)
+            }
         }
     }
 }

@@ -151,6 +151,7 @@ struct DriverAppFeature {
         case todayCorridorsResponse(Result<DriverTodayCorridorsResponse, DriverDashboardError>)
         case driverOffersResponse(Result<DriverRideOffersResponse, DriverDashboardError>)
         case acceptRideResponse(Result<DriverRideOfferDTO, DriverDashboardError>)
+        case declineRideResponse(Result<String, DriverDashboardError>)
         case driverCommandResponse(Result<DriverRideOfferDTO, DriverDashboardError>)
         case auth(DriverAuthFeature.Action)
         case toggleOnline
@@ -255,6 +256,14 @@ struct DriverAppFeature {
                 state.currentOffer = nil
                 return pollDriverOffers(after: .seconds(3))
 
+            case .declineRideResponse(.success):
+                state.todayCorridorsError = nil
+                return pollDriverOffers(after: .seconds(2))
+
+            case .declineRideResponse(.failure(let error)):
+                state.todayCorridorsError = error.message
+                return pollDriverOffers(after: .seconds(6))
+
             case .driverCommandResponse(.success(let offer)):
                 state.activeRide?.etaMinutes = offer.etaMinutes
                 return .none
@@ -309,11 +318,15 @@ struct DriverAppFeature {
                 }
 
             case .declineOffer:
+                guard let offer = state.currentOffer else { return .none }
                 state.currentOffer = nil
-                // Wait and show next offer
                 return .run { send in
-                    try await Task.sleep(for: .seconds(6))
-                    await send(.offerAppeared)
+                    do {
+                        try await apiClient.declineDriverRide(offer.rideID)
+                        await send(.declineRideResponse(.success(offer.rideID)))
+                    } catch {
+                        await send(.declineRideResponse(.failure(DriverDashboardError(error))))
+                    }
                 }
 
             case .arrivedAtPickup:

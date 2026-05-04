@@ -929,6 +929,7 @@ public struct APIClient: Sendable {
     public var fetchDriverTodayCorridors: @Sendable () async throws -> DriverTodayCorridorsResponse
     public var fetchDriverRideOffers: @Sendable () async throws -> DriverRideOffersResponse
     public var acceptDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
+    public var declineDriverRide: @Sendable (_ rideID: String) async throws -> Void
     public var markDriverArrived: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
     public var startDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
     public var completeDriverRide: @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO
@@ -1067,6 +1068,7 @@ public struct APIClient: Sendable {
         acceptDriverRide: @escaping @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO = { rideID in
             DriverRideOfferDTO.demo(rideID: rideID, status: "driver_accepted")
         },
+        declineDriverRide: @escaping @Sendable (_ rideID: String) async throws -> Void = { _ in },
         markDriverArrived: @escaping @Sendable (_ rideID: String) async throws -> DriverRideOfferDTO = { rideID in
             DriverRideOfferDTO.demo(rideID: rideID, status: "passenger_wait")
         },
@@ -1099,6 +1101,7 @@ public struct APIClient: Sendable {
         self.fetchDriverTodayCorridors = fetchDriverTodayCorridors
         self.fetchDriverRideOffers = fetchDriverRideOffers
         self.acceptDriverRide = acceptDriverRide
+        self.declineDriverRide = declineDriverRide
         self.markDriverArrived = markDriverArrived
         self.startDriverRide = startDriverRide
         self.completeDriverRide = completeDriverRide
@@ -1294,6 +1297,13 @@ extension APIClient: DependencyKey {
                     path: ["rides", rideID, "driver", "accept"],
                     method: "POST",
                     responseType: DriverRideOfferDTO.self
+                )
+            },
+            declineDriverRide: { rideID in
+                let _: EmptyResponse = try await transport.sendAuthenticated(
+                    path: ["rides", rideID, "driver", "decline"],
+                    method: "POST",
+                    responseType: EmptyResponse.self
                 )
             },
             markDriverArrived: { rideID in

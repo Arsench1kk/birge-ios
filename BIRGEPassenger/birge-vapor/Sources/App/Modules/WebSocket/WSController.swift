@@ -62,9 +62,28 @@ struct WSController {
             req.logger.info("WebSocket connected: \(channel)")
             try await ws.send("{\"type\":\"connected\",\"channel\":\"\(channel)\",\"userId\":\"\(payload.userID)\"}")
 
-            ws.onText { _, text in
+            registerHandlers(
+                application: req.application,
+                channel: channel,
+                connectionID: connectionID,
+                ws: ws
+            )
+        } catch {
+            req.logger.warning("WebSocket authentication failed: \(error)")
+            try await ws.close()
+        }
+    }
+
+    private func registerHandlers(
+        application: Application,
+        channel: String,
+        connectionID: UUID,
+        ws: WebSocket
+    ) {
+        ws.eventLoop.execute {
+            ws.onText { socket, text in
                 if text == "ping" {
-                    ws.send("pong")
+                    socket.send("pong")
                     return
                 }
 
@@ -76,17 +95,14 @@ struct WSController {
                 }
 
                 let subscribedChannel = message.channel ?? channel
-                ws.send("{\"type\":\"subscribed\",\"channel\":\"\(subscribedChannel)\"}")
+                socket.send("{\"type\":\"subscribed\",\"channel\":\"\(subscribedChannel)\"}")
             }
 
             ws.onClose.whenComplete { _ in
                 Task {
-                    await req.application.wsHub.disconnect(id: connectionID)
+                    await application.wsHub.disconnect(id: connectionID)
                 }
             }
-        } catch {
-            req.logger.warning("WebSocket authentication failed: \(error)")
-            try await ws.close()
         }
     }
 

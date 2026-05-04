@@ -103,6 +103,32 @@ final class SearchingFeatureTests: XCTestCase {
         await store.receive(\.delegate.rideMatched)
     }
 
+    func testDriverAcceptedStatusEventDelegatesDriverInfo() async {
+        let store = TestStore(
+            initialState: SearchingFeature.State(rideId: "ride-123")
+        ) {
+            SearchingFeature()
+        }
+
+        let json = """
+        {
+          "event": "ride.status_changed",
+          "ride_id": "ride-123",
+          "payload": {
+            "status": "driver_accepted",
+            "driver_name": "Асан Б.",
+            "driver_rating": 4.9,
+            "driver_vehicle": "Toyota Camry 2018",
+            "driver_plate": "123 ABC 02",
+            "eta_seconds": 360
+          },
+          "timestamp_ms": 1800000000000
+        }
+        """
+        await store.send(.webSocketEventReceived(.message(.text(json))))
+        await store.receive(\.delegate.rideMatched)
+    }
+
     func testConnectionLossUpdatesSearchingState() async {
         let store = TestStore(
             initialState: SearchingFeature.State(rideId: "ride-123")

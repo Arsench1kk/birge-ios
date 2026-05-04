@@ -3,6 +3,7 @@ import Vapor
 
 struct RidesService {
     let req: Request
+    private static let offerTTL = DriverOfferPolicy.offerTTL
 
     func create(dto: CreateRideDTO) async throws -> RideDTO {
         guard try req.authenticatedUserRole == User.UserRole.passenger.rawValue else {
@@ -59,18 +60,39 @@ struct RidesService {
 
     func driverOffers() async throws -> DriverRideOffersDTO {
         try requireDriver()
+        let driverID = try req.authenticatedUserID
+        let cutoff = Date().addingTimeInterval(-Self.offerTTL)
 
         let rides = try await Ride.query(on: req.db)
             .filter(\.$status == .requested)
             .filter(\.$driver.$id == nil)
+            .filter(\.$requestedAt >= cutoff)
             .sort(\.$requestedAt)
-            .limit(5)
+            .limit(20)
             .all()
 
         var offers: [DriverRideOfferDTO] = []
         for ride in rides {
+            let rideID = try ride.requireID()
+            let wasDeclined = try await DriverRideDecision.query(on: req.db)
+                .filter(\.$ride.$id == rideID)
+                .filter(\.$driver.$id == driverID)
+                .filter(\.$decision == .declined)
+                .first() != nil
+            if !DriverOfferPolicy.isVisibleToDriver(
+                status: ride.status,
+                assignedDriverID: ride.$driver.id,
+                requestedAt: ride.requestedAt,
+                wasDeclined: wasDeclined
+            ) {
+                continue
+            }
+
             let passenger = try await User.find(ride.$passenger.id, on: req.db)
             offers.append(try DriverRideOfferDTO(ride: ride, passenger: passenger))
+            if offers.count == 5 {
+                break
+            }
         }
 
         return DriverRideOffersDTO(offers: offers)
@@ -80,26 +102,82 @@ struct RidesService {
         try requireDriver()
         let driverID = try req.authenticatedUserID
 
-        guard let ride = try await Ride.find(rideID, on: req.db) else {
-            throw Abort(.notFound, reason: "Ride not found")
-        }
+        let ride = try await req.db.transaction { database in
+            guard let ride = try await Ride.find(rideID, on: database) else {
+                throw Abort(.notFound, reason: "Ride not found")
+            }
 
-        guard ride.status == .requested || ride.status == .matched else {
-            throw Abort(.conflict, reason: "Ride is no longer available")
-        }
+            guard ride.status == .requested || ride.status == .matched else {
+                throw Abort(.conflict, reason: "Ride is no longer available")
+            }
 
-        if let assignedDriverID = ride.$driver.id, assignedDriverID != driverID {
-            throw Abort(.conflict, reason: "Ride already assigned to another driver")
-        }
+            if !DriverOfferPolicy.isFresh(requestedAt: ride.requestedAt) {
+                throw Abort(.conflict, reason: "Ride request expired")
+            }
 
-        ride.$driver.id = driverID
-        ride.status = .driverAccepted
-        ride.fareTenge = ride.fareTenge ?? 1850
-        try await ride.save(on: req.db)
+            if let assignedDriverID = ride.$driver.id, assignedDriverID != driverID {
+                throw Abort(.conflict, reason: "Ride already assigned to another driver")
+            }
+
+            if let decision = try await DriverRideDecision.query(on: database)
+                .filter(\.$ride.$id == rideID)
+                .filter(\.$driver.$id == driverID)
+                .first() {
+                switch decision.decision {
+                case .accepted:
+                    break
+                case .declined:
+                    throw Abort(.conflict, reason: "Ride was declined by this driver")
+                }
+            } else {
+                let decision = DriverRideDecision(
+                    rideID: rideID,
+                    driverID: driverID,
+                    decision: .accepted
+                )
+                try await decision.save(on: database)
+            }
+
+            ride.$driver.id = driverID
+            ride.status = .driverAccepted
+            ride.fareTenge = ride.fareTenge ?? 1850
+            try await ride.save(on: database)
+            return ride
+        }
         try await broadcastStatus(for: ride)
 
         let passenger = try await User.find(ride.$passenger.id, on: req.db)
         return try DriverRideOfferDTO(ride: ride, passenger: passenger)
+    }
+
+    func driverDecline(rideID: UUID) async throws {
+        try requireDriver()
+        let driverID = try req.authenticatedUserID
+
+        guard let ride = try await Ride.find(rideID, on: req.db) else {
+            throw Abort(.notFound, reason: "Ride not found")
+        }
+
+        guard ride.status == .requested, ride.$driver.id == nil else {
+            throw Abort(.conflict, reason: "Ride is no longer available")
+        }
+
+        if let existing = try await DriverRideDecision.query(on: req.db)
+            .filter(\.$ride.$id == rideID)
+            .filter(\.$driver.$id == driverID)
+            .first() {
+            if existing.decision == .accepted {
+                throw Abort(.conflict, reason: "Ride already accepted by this driver")
+            }
+            return
+        }
+
+        let decision = DriverRideDecision(
+            rideID: rideID,
+            driverID: driverID,
+            decision: .declined
+        )
+        try await decision.save(on: req.db)
     }
 
     func driverUpdate(rideID: UUID, status: Ride.RideStatus) async throws -> DriverRideOfferDTO {
@@ -188,5 +266,27 @@ struct RidesService {
             to: "ride/\(try ride.requireID().uuidString)",
             text: text
         )
+    }
+}
+
+enum DriverOfferPolicy {
+    static let offerTTL: TimeInterval = 15 * 60
+
+    static func isFresh(requestedAt: Date?, now: Date = Date()) -> Bool {
+        guard let requestedAt else { return true }
+        return requestedAt >= now.addingTimeInterval(-offerTTL)
+    }
+
+    static func isVisibleToDriver(
+        status: Ride.RideStatus,
+        assignedDriverID: UUID?,
+        requestedAt: Date?,
+        wasDeclined: Bool,
+        now: Date = Date()
+    ) -> Bool {
+        status == .requested &&
+            assignedDriverID == nil &&
+            !wasDeclined &&
+            isFresh(requestedAt: requestedAt, now: now)
     }
 }

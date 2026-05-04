@@ -7,6 +7,7 @@ struct RidesController: RouteCollection {
         rides.get("driver", "offers", use: driverOffers)
         rides.get(":rideID", use: get)
         rides.post(":rideID", "driver", "accept", use: driverAccept)
+        rides.post(":rideID", "driver", "decline", use: driverDecline)
         rides.post(":rideID", "driver", "arrived", use: driverArrived)
         rides.post(":rideID", "driver", "start", use: driverStart)
         rides.post(":rideID", "driver", "complete", use: driverComplete)
@@ -40,6 +41,12 @@ struct RidesController: RouteCollection {
     func driverAccept(req: Request) async throws -> DriverRideOfferDTO {
         let rideID = try req.parameters.require("rideID", as: UUID.self)
         return try await RidesService(req: req).driverAccept(rideID: rideID)
+    }
+
+    func driverDecline(req: Request) async throws -> HTTPStatus {
+        let rideID = try req.parameters.require("rideID", as: UUID.self)
+        try await RidesService(req: req).driverDecline(rideID: rideID)
+        return .noContent
     }
 
     func driverArrived(req: Request) async throws -> DriverRideOfferDTO {

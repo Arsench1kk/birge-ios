@@ -34,6 +34,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateRides())
     app.migrations.add(AddRideRequestAPIFields())
     app.migrations.add(AddRideAddressLabels())
+    app.migrations.add(CreateDriverRideDecisions())
     app.migrations.add(CreateCorridors())
     app.migrations.add(CreateCorridorBookings())
     app.migrations.add(CreatePassengerSubscriptions())

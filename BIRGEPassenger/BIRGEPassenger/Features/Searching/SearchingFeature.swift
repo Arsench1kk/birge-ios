@@ -198,7 +198,7 @@ private enum SearchingCancelID {
 
         if let rideEvent = try? JSONDecoder().decode(RideEvent.self, from: data),
            rideEvent.event == RideEvent.EventType.statusChanged,
-           rideEvent.payload.status == RideStatus.matched.rawValue {
+           Self.isMatchedStatus(rideEvent.payload.status) {
             return DriverInfo(
                 driverName: rideEvent.payload.driverName,
                 driverRating: rideEvent.payload.driverRating,
@@ -214,6 +214,10 @@ private enum SearchingCancelID {
         }
 
         return matchedEvent.driverInfo
+    }
+
+    private static func isMatchedStatus(_ status: String?) -> Bool {
+        status == RideStatus.matched.rawValue || status == "driver_accepted"
     }
 }
 
