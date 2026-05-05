@@ -23,18 +23,29 @@ struct DriverAppView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            driverMapBackground
+            DriverMapBackgroundView(
+                isOnline: store.isOnline,
+                hasActiveRide: store.activeRide != nil
+            )
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                topBar
+                DriverTopBarView(
+                    driverName: store.driverName,
+                    vehicleTitle: store.vehicleTitle,
+                    isOnline: store.isOnline,
+                    isLoadingDriverProfile: store.isLoadingDriverProfile,
+                    todayTenge: store.earnings.todayTenge
+                ) {
+                    store.send(.earningsTapped)
+                }
                 Spacer()
                 centerContent
                 Spacer()
             }
 
             if let offer = store.currentOffer {
-                offerAlert(offer)
+                DriverOfferAlertView(offer: offer)
                     .padding(.horizontal, BIRGELayout.m)
                     .padding(.top, 112)
                     .frame(maxHeight: .infinity, alignment: .top)
@@ -42,14 +53,27 @@ struct DriverAppView: View {
             }
 
             if store.isOnline && store.activeRide == nil && store.currentOffer == nil {
-                onlineControlSheet
+                DriverOnlineControlSheet(
+                    earnings: store.earnings,
+                    isLoadingTodayCorridors: store.isLoadingTodayCorridors,
+                    todayCorridorsError: store.todayCorridorsError,
+                    todayCorridors: store.todayCorridors
+                ) {
+                    store.send(.toggleOnline)
+                }
                     .padding(.bottom, 32)
                     .padding(.horizontal, 20)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             if let offer = store.currentOffer {
-                offerCard(offer)
+                DriverOfferSheet(
+                    offer: offer,
+                    secondsRemaining: offerSecondsRemaining,
+                    reduceMotion: reduceMotion,
+                    accept: { store.send(.acceptOffer) },
+                    decline: { store.send(.declineOffer) }
+                )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
@@ -85,138 +109,6 @@ struct DriverAppView: View {
         .navigationBarHidden(true)
     }
 
-    // MARK: - Map Background
-
-    private var driverMapBackground: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    BIRGEColors.brandPrimary.opacity(0.16),
-                    Color(.systemBackground),
-                    BIRGEColors.success.opacity(0.10)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            VStack(spacing: 34) {
-                ForEach(0..<12, id: \.self) { _ in
-                    Rectangle()
-                        .fill(BIRGEColors.textTertiary.opacity(0.08))
-                        .frame(height: 1)
-                }
-            }
-            .rotationEffect(.degrees(-14))
-            .scaleEffect(1.35)
-
-            HStack(spacing: 44) {
-                ForEach(0..<8, id: \.self) { _ in
-                    Rectangle()
-                        .fill(BIRGEColors.textTertiary.opacity(0.06))
-                        .frame(width: 1)
-                }
-            }
-            .rotationEffect(.degrees(18))
-            .scaleEffect(1.5)
-
-            RoundedRectangle(cornerRadius: 32)
-                .stroke(BIRGEColors.brandPrimary.opacity(0.24), style: StrokeStyle(lineWidth: 8, lineCap: .round, dash: [34, 22]))
-                .frame(width: 260, height: 420)
-                .rotationEffect(.degrees(27))
-                .offset(x: -30, y: 78)
-
-            RoundedRectangle(cornerRadius: 28)
-                .stroke(BIRGEColors.success.opacity(0.24), style: StrokeStyle(lineWidth: 6, lineCap: .round, dash: [24, 18]))
-                .frame(width: 210, height: 320)
-                .rotationEffect(.degrees(-22))
-                .offset(x: 96, y: -120)
-
-            if store.isOnline {
-                ZStack {
-                    Circle()
-                        .stroke((store.activeRide == nil ? BIRGEColors.success : BIRGEColors.brandPrimary).opacity(0.16), lineWidth: 24)
-                        .frame(width: store.activeRide == nil ? 280 : 190, height: store.activeRide == nil ? 280 : 190)
-                    Circle()
-                        .fill((store.activeRide == nil ? BIRGEColors.success : BIRGEColors.brandPrimary).opacity(0.08))
-                        .frame(width: store.activeRide == nil ? 210 : 136, height: store.activeRide == nil ? 210 : 136)
-                    Image(systemName: "car.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(BIRGEColors.textOnBrand)
-                        .frame(width: 54, height: 54)
-                        .background(Circle().fill(BIRGEColors.brandPrimary))
-                        .shadow(color: BIRGEColors.brandPrimary.opacity(0.28), radius: 14, y: 7)
-
-                    if store.activeRide != nil {
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(BIRGEColors.textOnBrand)
-                            .frame(width: 42, height: 42)
-                            .background(Circle().fill(BIRGEColors.success))
-                            .offset(x: 72, y: -58)
-                            .shadow(color: BIRGEColors.success.opacity(0.24), radius: 12, y: 6)
-                    }
-                }
-                .offset(y: -12)
-            }
-        }
-    }
-
-    // MARK: - Top Bar
-
-    private var topBar: some View {
-        HStack(spacing: BIRGELayout.xs) {
-            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                Text(store.driverName)
-                    .font(BIRGEFonts.sectionTitle)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-                    .lineLimit(1)
-
-                Text(store.vehicleTitle)
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-                    .lineLimit(1)
-
-                HStack(spacing: BIRGELayout.xxs) {
-                    Image(systemName: store.isOnline ? "dot.radiowaves.left.and.right" : "power")
-                        .font(BIRGEFonts.captionBold)
-                    Text(store.isOnline ? "Онлайн" : "Офлайн")
-                        .font(BIRGEFonts.captionBold)
-                }
-                .foregroundStyle(store.isOnline ? BIRGEColors.success : BIRGEColors.textSecondary)
-            }
-
-            Spacer()
-
-            if store.isLoadingDriverProfile {
-                ProgressView()
-                    .tint(BIRGEColors.brandPrimary)
-                    .frame(width: 36, height: 36)
-            }
-
-            Button {
-                store.send(.earningsTapped)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(BIRGEFonts.captionBold)
-                    Text("\(store.earnings.todayTenge)₸")
-                        .font(BIRGEFonts.captionBold)
-                }
-                .foregroundStyle(BIRGEColors.success)
-                .padding(.horizontal, BIRGELayout.xs)
-                .padding(.vertical, BIRGELayout.xs)
-                .liquidGlass(.pill, tint: BIRGEColors.success.opacity(0.08), isInteractive: true)
-            }
-            .accessibilityLabel("Заработок сегодня: \(store.earnings.todayTenge) тенге")
-        }
-        .padding(.horizontal, BIRGELayout.m)
-        .padding(.top, BIRGELayout.s)
-        .padding(.bottom, BIRGELayout.xs)
-        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04))
-        .padding(.horizontal, BIRGELayout.s)
-        .padding(.top, BIRGELayout.xs)
-    }
-
     // MARK: - Center Content
 
     @ViewBuilder
@@ -224,364 +116,12 @@ struct DriverAppView: View {
         if let ride = store.activeRide {
             activeRouteStatus(ride)
         } else if !store.isOnline {
-            offlineCenter
-        } else {
-            onlineWaiting
-        }
-    }
-
-    // MARK: - Offline Center
-
-    private var offlineCenter: some View {
-        VStack(spacing: BIRGELayout.l) {
-            ZStack {
-                Circle()
-                    .fill(BIRGEColors.brandPrimary.opacity(0.12))
-                    .frame(width: 140, height: 140)
-
-                Circle()
-                    .fill(BIRGEColors.brandPrimary.opacity(0.08))
-                    .frame(width: 110, height: 110)
-
-                Image(systemName: "car.fill")
-                    .font(BIRGEFonts.heroNumber)
-                    .foregroundStyle(BIRGEColors.brandPrimary)
-            }
-
-            VStack(spacing: BIRGELayout.xxs) {
-                Text("Вы офлайн")
-                    .font(BIRGEFonts.title)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-
-                Text(store.driverProfileError ?? "Нажмите, чтобы начать принимать заказы")
-                    .font(BIRGEFonts.subtext)
-                    .foregroundStyle(store.driverProfileError == nil ? BIRGEColors.textSecondary : BIRGEColors.danger)
-                    .multilineTextAlignment(.center)
-            }
-
-            BIRGEPrimaryButton(title: "Начать работу") {
+            DriverOfflineCenterView(driverProfileError: store.driverProfileError) {
                 store.send(.toggleOnline)
             }
-            .padding(.horizontal, BIRGELayout.xl)
+        } else {
+            DriverOnlineWaitingView()
         }
-        .padding(BIRGELayout.xl)
-        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.05), isInteractive: true)
-        .padding(.horizontal, BIRGELayout.m)
-    }
-
-    // MARK: - Online Waiting
-
-    private var onlineWaiting: some View {
-        VStack(spacing: BIRGELayout.m) {
-            ZStack {
-                if reduceMotion {
-                    ProgressView()
-                        .tint(BIRGEColors.success)
-                        .scaleEffect(1.3)
-                } else {
-                    PulseRing(delay: 0.0, color: BIRGEColors.success)
-                    PulseRing(delay: 0.5, color: BIRGEColors.success)
-                    PulseRing(delay: 1.0, color: BIRGEColors.success)
-                }
-
-                Circle()
-                    .fill(BIRGEColors.success)
-                    .frame(width: 70, height: 70)
-                    .overlay(
-                        Image(systemName: "location.north.line.fill")
-                            .font(BIRGEFonts.title)
-                            .foregroundStyle(BIRGEColors.textOnBrand)
-                    )
-                    .shadow(color: BIRGEColors.success.opacity(0.32), radius: 18, y: 8)
-            }
-            .frame(width: 160, height: 160)
-
-            VStack(spacing: BIRGELayout.xxs) {
-                HStack(spacing: BIRGELayout.xxs) {
-                    Circle()
-                        .fill(BIRGEColors.success)
-                        .frame(width: 8, height: 8)
-                    Text("Онлайн • Ожидание")
-                        .font(BIRGEFonts.sectionTitle)
-                        .foregroundStyle(BIRGEColors.textPrimary)
-                }
-                Text("Сканируем ближайшие коридоры")
-                    .font(BIRGEFonts.subtext)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-            }
-            .padding(.horizontal, BIRGELayout.m)
-            .padding(.vertical, BIRGELayout.s)
-            .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.05))
-        }
-    }
-
-    private func miniStat(label: String, value: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(BIRGEFonts.bodyMedium)
-                .foregroundStyle(BIRGEColors.textPrimary)
-            Text(label)
-                .font(BIRGEFonts.caption)
-                .foregroundStyle(BIRGEColors.textSecondary)
-        }
-    }
-
-    private var onlineControlSheet: some View {
-        VStack(spacing: BIRGELayout.s) {
-            todayCorridorsStrip
-
-            HStack(spacing: BIRGELayout.s) {
-                miniStat(label: "Поездок", value: "\(store.earnings.todayRides)")
-                Divider().frame(height: 32)
-                miniStat(label: "Сегодня", value: "\(store.earnings.todayTenge)₸")
-                Divider().frame(height: 32)
-                miniStat(label: "Неделя", value: "\(store.earnings.weekTenge)₸")
-            }
-            .padding(.horizontal, BIRGELayout.s)
-            .padding(.vertical, BIRGELayout.xs)
-            .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.04))
-
-            VStack(spacing: BIRGELayout.xs) {
-                Label("Алматы • активная зона", systemImage: "scope")
-                    .font(BIRGEFonts.captionBold)
-                    .foregroundStyle(BIRGEColors.success)
-                    .lineLimit(1)
-
-                endShiftButton
-            }
-        }
-        .padding(BIRGELayout.s)
-        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.05), isInteractive: true)
-    }
-
-    @ViewBuilder
-    private var todayCorridorsStrip: some View {
-        if store.isLoadingTodayCorridors {
-            HStack(spacing: BIRGELayout.xs) {
-                ProgressView()
-                    .tint(BIRGEColors.brandPrimary)
-                Text("Загружаем коридоры")
-                    .font(BIRGEFonts.captionBold)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-                Spacer()
-            }
-            .padding(BIRGELayout.s)
-            .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.035))
-        } else if let error = store.todayCorridorsError {
-            Label(error, systemImage: "exclamationmark.triangle.fill")
-                .font(BIRGEFonts.caption)
-                .foregroundStyle(BIRGEColors.danger)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(BIRGELayout.s)
-                .liquidGlass(.card, tint: BIRGEColors.danger.opacity(0.04))
-        } else if let corridor = store.todayCorridors.first {
-            VStack(alignment: .leading, spacing: BIRGELayout.xs) {
-                HStack {
-                    Label("Ближайший коридор", systemImage: "point.topleft.filled.down.to.point.bottomright.curvepath")
-                        .font(BIRGEFonts.captionBold)
-                        .foregroundStyle(BIRGEColors.brandPrimary)
-                    Spacer()
-                    Text(corridor.departure)
-                        .font(BIRGEFonts.captionBold)
-                        .foregroundStyle(BIRGEColors.textPrimary)
-                }
-
-                VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                    Text(corridor.name)
-                        .font(BIRGEFonts.bodyMedium)
-                        .foregroundStyle(BIRGEColors.textPrimary)
-                        .lineLimit(1)
-                    Text("\(corridor.originName) → \(corridor.destinationName)")
-                        .font(BIRGEFonts.caption)
-                        .foregroundStyle(BIRGEColors.textSecondary)
-                        .lineLimit(1)
-                }
-
-                HStack(spacing: BIRGELayout.xs) {
-                    Label("\(corridor.seatsTotal) места", systemImage: "person.2.fill")
-                    Label("\(corridor.estimatedEarnings)₸", systemImage: "tengesign.circle.fill")
-                    Spacer()
-                    Text("\(store.todayCorridors.count) активн.")
-                }
-                .font(BIRGEFonts.caption)
-                .foregroundStyle(BIRGEColors.textSecondary)
-            }
-            .padding(BIRGELayout.s)
-            .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04))
-        }
-    }
-
-    private func offerAlert(_ offer: DriverAppFeature.RideOffer) -> some View {
-        HStack(spacing: BIRGELayout.xs) {
-            Image(systemName: "bell.badge.fill")
-                .font(BIRGEFonts.bodyMedium)
-                .foregroundStyle(BIRGEColors.textOnBrand)
-                .frame(width: 42, height: 42)
-                .background(Circle().fill(BIRGEColors.success))
-
-            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                Text("Новый заказ")
-                    .font(BIRGEFonts.captionBold)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-                Text("\(offer.etaMinutes) мин до подачи • \(offer.fare)₸")
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.down")
-                .font(BIRGEFonts.captionBold)
-                .foregroundStyle(BIRGEColors.textTertiary)
-        }
-        .padding(BIRGELayout.xs)
-        .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.07), isInteractive: true)
-        .shadow(color: BIRGEColors.success.opacity(0.14), radius: 18, y: 8)
-    }
-
-    // MARK: - Offer Card
-
-    private func offerCard(_ offer: DriverAppFeature.RideOffer) -> some View {
-        BIRGEGlassSheet {
-            BIRGESheetHandle()
-
-            VStack(alignment: .leading, spacing: BIRGELayout.s) {
-                HStack(alignment: .top, spacing: BIRGELayout.s) {
-                    countdownRing
-
-                    VStack(alignment: .leading, spacing: BIRGELayout.xxs) {
-                        HStack(spacing: BIRGELayout.xxs) {
-                            Image(systemName: "sparkles")
-                                .font(BIRGEFonts.captionBold)
-                            Text("98% совпадение")
-                                .font(BIRGEFonts.captionBold)
-                        }
-                        .foregroundStyle(BIRGEColors.brandPrimary)
-                        .padding(.horizontal, BIRGELayout.xs)
-                        .padding(.vertical, BIRGELayout.xxs)
-                        .liquidGlass(.pill, tint: BIRGEColors.brandPrimary.opacity(0.08))
-
-                        Text(offer.passengerName)
-                            .font(BIRGEFonts.sectionTitle)
-                            .foregroundStyle(BIRGEColors.textPrimary)
-                        Text("Комфортный маршрут рядом с вашей зоной")
-                            .font(BIRGEFonts.caption)
-                            .foregroundStyle(BIRGEColors.textSecondary)
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: BIRGELayout.xxxs) {
-                        Text("\(offer.fare)₸")
-                            .font(BIRGEFonts.heroNumber)
-                            .foregroundStyle(BIRGEColors.success)
-                        Text("за поездку")
-                            .font(BIRGEFonts.caption)
-                            .foregroundStyle(BIRGEColors.textSecondary)
-                    }
-                }
-
-                VStack(spacing: BIRGELayout.xxs) {
-                    routeRow(
-                        icon: "circle.fill",
-                        color: BIRGEColors.success,
-                        label: "Забрать",
-                        address: offer.pickup
-                    )
-                    routeRow(
-                        icon: "mappin.circle.fill",
-                        color: BIRGEColors.danger,
-                        label: "Назначение",
-                        address: offer.destination
-                    )
-                }
-                .padding(BIRGELayout.s)
-                .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.035))
-
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: BIRGELayout.xs), count: 2), spacing: BIRGELayout.xs) {
-                    metricTile(icon: "ruler", label: "Дистанция", value: "\(String(format: "%.1f", offer.distanceKm)) км")
-                    metricTile(icon: "clock", label: "До подачи", value: "\(offer.etaMinutes) мин")
-                    metricTile(icon: "person.2.fill", label: "Пассажиры", value: "1 место")
-                    metricTile(icon: "bolt.car.fill", label: "Приоритет", value: "Высокий")
-                }
-
-                HStack(spacing: BIRGELayout.xs) {
-                    passengerAvatar(name: offer.passengerName)
-                    VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                        Text("Пассажир подтвержден")
-                            .font(BIRGEFonts.captionBold)
-                            .foregroundStyle(BIRGEColors.textPrimary)
-                        Text("Рейтинг 4.9 • оплата в приложении")
-                            .font(BIRGEFonts.caption)
-                            .foregroundStyle(BIRGEColors.textSecondary)
-                    }
-                    Spacer()
-                }
-                .padding(BIRGELayout.xs)
-                .liquidGlass(.card, tint: BIRGEColors.success.opacity(0.04))
-
-                VStack(spacing: BIRGELayout.xs) {
-                    BIRGEPrimaryButton(title: "Принять") {
-                        store.send(.acceptOffer)
-                    }
-
-                    BIRGESecondaryButton(title: "Отклонить") {
-                        store.send(.declineOffer)
-                    }
-                }
-            }
-        }
-    }
-
-    private func routeRow(icon: String, color: Color, label: String, address: String) -> some View {
-        HStack(spacing: BIRGELayout.xs) {
-            Image(systemName: icon)
-                .font(BIRGEFonts.captionBold)
-                .foregroundStyle(color)
-                .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                Text(label)
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-                Text(address)
-                    .font(label == "Назначение" ? BIRGEFonts.bodyMedium : BIRGEFonts.body)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-                    .lineLimit(2)
-            }
-        }
-    }
-
-    private func metricTile(icon: String, label: String, value: String) -> some View {
-        HStack(spacing: BIRGELayout.xs) {
-            Image(systemName: icon)
-                .font(BIRGEFonts.bodyMedium)
-                .foregroundStyle(BIRGEColors.brandPrimary)
-                .frame(width: 28, height: 28)
-                .background(Circle().fill(BIRGEColors.brandPrimary.opacity(0.1)))
-
-            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                Text(value)
-                    .font(BIRGEFonts.captionBold)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-                Text(label)
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(BIRGELayout.xs)
-        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.025))
-    }
-
-    private func passengerAvatar(name: String) -> some View {
-        Text(String(name.prefix(1)))
-            .font(BIRGEFonts.bodyMedium)
-            .foregroundStyle(BIRGEColors.textOnBrand)
-            .frame(width: 42, height: 42)
-            .background(Circle().fill(BIRGEColors.brandPrimary))
-            .overlay(Circle().stroke(BIRGEColors.background.opacity(0.72), lineWidth: 2))
     }
 
     // MARK: - Active Ride
@@ -640,13 +180,13 @@ struct DriverAppView: View {
             navigationPanel(ride)
 
             VStack(spacing: BIRGELayout.xxs) {
-                routeRow(
+                DriverRouteRow(
                     icon: "location.circle.fill",
                     color: BIRGEColors.success,
                     label: ride.status == .pickingUp ? "Точка посадки" : "Посадка завершена",
                     address: ride.pickup
                 )
-                routeRow(
+                DriverRouteRow(
                     icon: "mappin.circle.fill",
                     color: BIRGEColors.danger,
                     label: "Назначение",
@@ -663,8 +203,8 @@ struct DriverAppView: View {
             }
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: BIRGELayout.xs), count: 2), spacing: BIRGELayout.xs) {
-                metricTile(icon: "clock", label: ride.status == .pickingUp ? "До посадки" : "Осталось", value: ride.status == .pickingUp ? "\(ride.etaMinutes) мин" : "~\(ride.etaMinutes) мин")
-                metricTile(icon: "ruler", label: "Маршрут", value: String(format: "%.1f км", ride.distanceKm))
+                DriverMetricTile(icon: "clock", label: ride.status == .pickingUp ? "До посадки" : "Осталось", value: ride.status == .pickingUp ? "\(ride.etaMinutes) мин" : "~\(ride.etaMinutes) мин")
+                DriverMetricTile(icon: "ruler", label: "Маршрут", value: String(format: "%.1f км", ride.distanceKm))
             }
 
             BIRGEPrimaryButton(title: actionText(for: ride.status)) {
@@ -1068,41 +608,6 @@ struct DriverAppView: View {
         }
     }
 
-    // MARK: - End Shift Button
-
-    private var endShiftButton: some View {
-        BIRGESecondaryButton(title: "Завершить смену") {
-            store.send(.toggleOnline)
-        }
-    }
-
-    private var countdownRing: some View {
-        ZStack {
-            Circle()
-                .stroke(BIRGEColors.surfaceElevated, lineWidth: 7)
-                .frame(width: 64, height: 64)
-            Circle()
-                .trim(from: 0, to: CGFloat(max(offerSecondsRemaining, 0)) / 15)
-                .stroke(countdownColor, style: StrokeStyle(lineWidth: 7, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .frame(width: 64, height: 64)
-                .animation(reduceMotion ? nil : .linear(duration: 1), value: offerSecondsRemaining)
-            Text("\(offerSecondsRemaining)")
-                .font(BIRGEFonts.sectionTitle)
-                .foregroundStyle(countdownColor)
-        }
-        .accessibilityLabel("Осталось \(offerSecondsRemaining) секунд")
-    }
-
-    private var countdownColor: Color {
-        if offerSecondsRemaining <= 3 {
-            return BIRGEColors.danger
-        } else if offerSecondsRemaining <= 7 {
-            return BIRGEColors.warning
-        }
-        return BIRGEColors.success
-    }
-
     private func startOfferCountdown() {
         offerTimerTask?.cancel()
         offerSecondsRemaining = 15
@@ -1113,32 +618,6 @@ struct DriverAppView: View {
                 offerSecondsRemaining -= 1
             }
         }
-    }
-}
-
-// MARK: - Pulse Ring Animation
-
-private struct PulseRing: View {
-    let delay: Double
-    let color: Color
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var scale: CGFloat = 0.4
-    @State private var opacity: Double = 0.8
-
-    var body: some View {
-        Circle()
-            .fill(color.opacity(opacity))
-            .scaleEffect(scale)
-            .onAppear {
-                let animation = Animation.easeOut(duration: 1.5)
-                    .repeatForever(autoreverses: false)
-                    .delay(delay)
-                withAnimation(reduceMotion ? nil : animation) {
-                    scale = 1.6
-                    opacity = 0
-                }
-            }
     }
 }
 
