@@ -102,6 +102,7 @@ struct DriverTopBarView: View {
     let isOnline: Bool
     let isLoadingDriverProfile: Bool
     let todayTenge: Int
+    let logoutTapped: () -> Void
     let earningsTapped: () -> Void
 
     var body: some View {
@@ -133,6 +134,22 @@ struct DriverTopBarView: View {
                     .tint(BIRGEColors.brandPrimary)
                     .frame(width: 36, height: 36)
             }
+
+            Menu {
+                Button(action: earningsTapped) {
+                    Label("Доходы", systemImage: "chart.line.uptrend.xyaxis")
+                }
+                Button(role: .destructive, action: logoutTapped) {
+                    Label("Выйти", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            } label: {
+                Image(systemName: "person.crop.circle")
+                    .font(BIRGEFonts.bodyMedium)
+                    .foregroundStyle(BIRGEColors.brandPrimary)
+                    .frame(width: BIRGELayout.minTapTarget, height: BIRGELayout.minTapTarget)
+                    .liquidGlass(.button, tint: BIRGEColors.brandPrimary.opacity(0.08), isInteractive: true)
+            }
+            .accessibilityLabel("Аккаунт водителя")
 
             Button(action: earningsTapped) {
                 HStack(spacing: 6) {

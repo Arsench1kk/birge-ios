@@ -26,10 +26,14 @@ struct DriverAppView: View {
                     vehicleTitle: store.vehicleTitle,
                     isOnline: store.isOnline,
                     isLoadingDriverProfile: store.isLoadingDriverProfile,
-                    todayTenge: store.earnings.todayTenge
-                ) {
-                    store.send(.earningsTapped)
-                }
+                    todayTenge: store.earnings.todayTenge,
+                    logoutTapped: {
+                        store.send(.logoutTapped)
+                    },
+                    earningsTapped: {
+                        store.send(.earningsTapped)
+                    }
+                )
                 Spacer()
                 centerContent
                 Spacer()
@@ -104,6 +108,18 @@ struct DriverAppView: View {
         }
         .onDisappear {
             offerTimerTask?.cancel()
+        }
+        .confirmationDialog(
+            "Аккаунт водителя",
+            isPresented: $store.isLogoutConfirmationPresented.sending(\.logoutConfirmationPresented),
+            titleVisibility: .visible
+        ) {
+            Button("Выйти", role: .destructive) {
+                store.send(.logoutConfirmed)
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Сессия будет очищена на этом устройстве. Текущая смена завершится.")
         }
         .navigationBarHidden(true)
     }

@@ -19,13 +19,14 @@ struct BIRGEDriveApp: App {
             NavigationStack(
                 path: $store.scope(state: \.path, action: \.path)
             ) {
-                if !store.isAuthenticated {
+                switch store.root {
+                case .auth:
                     DriverAuthView(
                         store: store.scope(state: \.auth, action: \.auth)
                     )
-                } else if store.isRegistrationComplete {
+                case .dashboard, .activeRide:
                     DriverAppView(store: store)
-                } else {
+                case .registration:
                     DriverRegistrationView(
                         store: store.scope(state: \.registration, action: \.registration)
                     )

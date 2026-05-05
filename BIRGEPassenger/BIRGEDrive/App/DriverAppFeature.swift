@@ -96,10 +96,10 @@ struct DriverAppFeature {
 
     @ObservableState
     struct State: Equatable {
-        var isAuthenticated = false
+        var root: Root = .auth
         var auth = DriverAuthFeature.State()
-        var isRegistrationComplete = false
         var registration = DriverRegistrationFeature.State()
+        var isLogoutConfirmationPresented = false
         var isOnline: Bool = false
         var currentOffer: RideOffer? = nil
         var activeRide: DriverActiveRide? = nil
@@ -114,11 +114,18 @@ struct DriverAppFeature {
         var todayCorridorsError: String?
         var path = StackState<Path.State>()
 
+        enum Root: Equatable, Sendable {
+            case auth
+            case registration
+            case dashboard
+            case activeRide
+        }
+
         static func == (lhs: State, rhs: State) -> Bool {
-            lhs.isAuthenticated == rhs.isAuthenticated &&
+            lhs.root == rhs.root &&
             lhs.auth == rhs.auth &&
-            lhs.isRegistrationComplete == rhs.isRegistrationComplete &&
             lhs.registration == rhs.registration &&
+            lhs.isLogoutConfirmationPresented == rhs.isLogoutConfirmationPresented &&
             lhs.isOnline == rhs.isOnline &&
             lhs.currentOffer == rhs.currentOffer &&
             lhs.activeRide == rhs.activeRide &&
@@ -163,6 +170,10 @@ struct DriverAppFeature {
         case completeRide
         case dismissCompletedRide
         case findNextRide
+        case logoutTapped
+        case logoutConfirmationPresented(Bool)
+        case logoutConfirmed
+        case logoutClearResponse(Result<Void, DriverDashboardError>)
         case earningsTapped
         case path(StackActionOf<Path>)
         case registration(DriverRegistrationFeature.Action)
@@ -172,6 +183,7 @@ struct DriverAppFeature {
 
     @Dependency(\.locationClient) var locationClient
     @Dependency(\.apiClient) var apiClient
+    @Dependency(\.tokenRefreshClient) var tokenRefreshClient
 
     var body: some Reducer<State, Action> {
         Scope(state: \.auth, action: \.auth) {
@@ -206,7 +218,6 @@ struct DriverAppFeature {
 
             case .driverProfileResponse(.success(let profile)):
                 state.isLoadingDriverProfile = false
-                state.isAuthenticated = true
                 state.driverProfileError = nil
                 state.apply(driverProfile: profile)
                 return .none
@@ -214,7 +225,9 @@ struct DriverAppFeature {
             case .driverProfileResponse(.failure(let error)):
                 state.isLoadingDriverProfile = false
                 if error.isMissingAccessToken {
-                    state.isAuthenticated = false
+                    state.resetToAuth()
+                    state.driverProfileError = nil
+                    return .none
                 }
                 state.driverProfileError = error.message
                 return .none
@@ -249,6 +262,7 @@ struct DriverAppFeature {
             case .acceptRideResponse(.success(let offer)):
                 state.currentOffer = nil
                 state.activeRide = DriverActiveRide(offer: offer, status: .pickingUp)
+                state.root = .activeRide
                 return startDriverLocationTracking(rideID: offer.rideID.uuidString)
 
             case .acceptRideResponse(.failure(let error)):
@@ -272,11 +286,10 @@ struct DriverAppFeature {
                 return .none
 
             case .auth(.delegate(.authenticated)):
-                state.isAuthenticated = true
+                state.root = .registration
                 return .send(.task)
 
             case .registration(.delegate(.completed(let profile))):
-                state.isRegistrationComplete = true
                 state.apply(driverProfile: profile)
                 state.isLoadingTodayCorridors = true
                 return .run { send in
@@ -290,17 +303,16 @@ struct DriverAppFeature {
             case .toggleOnline:
                 state.isOnline.toggle()
                 if !state.isOnline {
-                    // Going offline — clear active state
                     let rideID = state.activeRide?.rideID
                     state.currentOffer = nil
                     state.activeRide = nil
                     state.completedRideSummary = nil
+                    state.root = .dashboard
                     return .merge(
                         .cancel(id: DriverLocationCancelID.tracking),
                         stopAndSyncDriverLocation(rideID: rideID)
                     )
                 }
-                // Going online — simulate offer arriving after 4s
                 return pollDriverOffers(after: .seconds(1))
 
             case .offerAppeared:
@@ -344,6 +356,7 @@ struct DriverAppFeature {
             case .completeRide:
                 let completedRide = state.activeRide
                 state.activeRide = nil
+                state.root = .dashboard
                 let fare = completedRide?.fare ?? 1850
                 let distance = completedRide?.distanceKm ?? 7.2
                 state.earnings.todayTenge += fare
@@ -369,6 +382,37 @@ struct DriverAppFeature {
             case .findNextRide:
                 state.completedRideSummary = nil
                 return pollDriverOffers(after: .seconds(2))
+
+            case .logoutTapped:
+                state.isLogoutConfirmationPresented = true
+                return .none
+
+            case .logoutConfirmationPresented(let isPresented):
+                state.isLogoutConfirmationPresented = isPresented
+                return .none
+
+            case .logoutConfirmed:
+                let rideID = state.activeRide?.rideID
+                state.resetToAuth()
+                return .merge(
+                    .cancel(id: DriverLocationCancelID.tracking),
+                    stopAndSyncDriverLocation(rideID: rideID),
+                    .run { send in
+                        do {
+                            try await tokenRefreshClient.clearTokens()
+                            await send(.logoutClearResponse(.success(())))
+                        } catch {
+                            await send(.logoutClearResponse(.failure(DriverDashboardError(error))))
+                        }
+                    }
+                )
+
+            case .logoutClearResponse(.success):
+                return .none
+
+            case .logoutClearResponse(.failure(let error)):
+                state.auth.errorMessage = error.message
+                return .none
 
             case .earningsTapped:
                 state.path.append(.earnings(EarningsFeature.State(
@@ -654,6 +698,26 @@ private extension DriverAppFeature.State {
         }
 
         let hasCoreRegistration = profile.firstName?.isEmpty == false && profile.vehicleModel?.isEmpty == false
-        isRegistrationComplete = hasCoreRegistration
+        root = hasCoreRegistration ? .dashboard : .registration
+    }
+
+    mutating func resetToAuth() {
+        root = .auth
+        auth = DriverAuthFeature.State()
+        registration = DriverRegistrationFeature.State()
+        isLogoutConfirmationPresented = false
+        isOnline = false
+        currentOffer = nil
+        activeRide = nil
+        completedRideSummary = nil
+        earnings = .mock
+        driverName = "Водитель"
+        vehicleTitle = "Автомобиль не указан"
+        todayCorridors = []
+        isLoadingDriverProfile = false
+        isLoadingTodayCorridors = false
+        driverProfileError = nil
+        todayCorridorsError = nil
+        path.removeAll()
     }
 }
