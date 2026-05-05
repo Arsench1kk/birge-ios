@@ -11,10 +11,7 @@ struct MyCorridorsView: View {
                 header
 
                 if store.isLoading {
-                    ProgressView()
-                        .tint(BIRGEColors.brandPrimary)
-                        .frame(maxWidth: .infinity, minHeight: 140)
-                        .liquidGlass(.card)
+                    BIRGELoadingState(title: "Загружаем коридоры")
                 }
 
                 if let message = store.errorMessage {
@@ -22,7 +19,11 @@ struct MyCorridorsView: View {
                 }
 
                 if store.isEmpty {
-                    emptyState
+                    BIRGEEmptyState(
+                        title: "Пока нет броней",
+                        message: "Выберите коридор на главной, и он появится здесь после подтверждения.",
+                        systemImage: "map.circle.fill"
+                    )
                 }
 
                 ForEach(store.bookings) { booking in
@@ -63,24 +64,6 @@ struct MyCorridorsView: View {
         }
         .padding(BIRGELayout.s)
         .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04))
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: BIRGELayout.xs) {
-            Image(systemName: "map.circle.fill")
-                .font(.system(size: 42, weight: .semibold))
-                .foregroundStyle(BIRGEColors.brandPrimary)
-            Text("Пока нет броней")
-                .font(BIRGEFonts.sectionTitle)
-                .foregroundStyle(BIRGEColors.textPrimary)
-            Text("Выберите коридор на главной, и он появится здесь после подтверждения.")
-                .font(BIRGEFonts.caption)
-                .foregroundStyle(BIRGEColors.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(BIRGELayout.l)
-        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.025))
     }
 
     private func bookingCard(_ booking: CorridorBookingItemDTO) -> some View {

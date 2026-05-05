@@ -29,11 +29,13 @@ struct ProjectDemoView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button { send(.refreshTapped) } label: {
-                    Image(systemName: "arrow.clockwise")
+                BIRGEToolbarButton(
+                    title: "Обновить demo state",
+                    systemImage: "arrow.clockwise",
+                    isDisabled: store.isLoading || store.isMutating
+                ) {
+                    send(.refreshTapped)
                 }
-                .disabled(store.isLoading || store.isMutating)
-                .accessibilityLabel("Обновить demo state")
 
                 Menu {
                     Button { send(.seedTapped) } label: {

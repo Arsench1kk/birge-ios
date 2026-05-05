@@ -29,16 +29,20 @@ struct ProfileView: View {
             }
 
             Section("Settings") {
-                settingsRow(icon: "bell.fill", color: .orange, title: "Уведомления")
-                settingsRow(icon: "globe", color: .blue, title: "Язык")
+                BIRGEListRow(title: "Уведомления", systemImage: "bell.fill", tint: .orange)
+                BIRGEListRow(title: "Язык", systemImage: "globe", tint: .blue)
             }
 
             Section("Support") {
-                settingsRow(icon: "questionmark.circle.fill", color: .gray, title: "Помощь")
+                BIRGEListRow(title: "Помощь", systemImage: "questionmark.circle.fill", tint: .gray)
             }
 
             Section("Legal") {
-                settingsRow(icon: "doc.text.fill", color: BIRGEColors.textSecondary, title: "Правовые документы")
+                BIRGEListRow(
+                    title: "Правовые документы",
+                    systemImage: "doc.text.fill",
+                    tint: BIRGEColors.textSecondary
+                )
             }
 
             if let errorMessage = store.errorMessage {
@@ -186,28 +190,6 @@ struct ProfileView: View {
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     
-    private func settingsRow(icon: String, color: Color, title: String) -> some View {
-        HStack(spacing: BIRGELayout.xs) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(color.opacity(0.1))
-                    .frame(width: 32, height: 32)
-                
-                Image(systemName: icon)
-                    .font(BIRGEFonts.captionBold)
-                    .foregroundStyle(color)
-            }
-            
-            Text(title)
-                .font(BIRGEFonts.body)
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(BIRGEFonts.captionBold)
-                .foregroundStyle(Color.gray.opacity(0.5))
-        }
-    }
 }
 
 #Preview {
