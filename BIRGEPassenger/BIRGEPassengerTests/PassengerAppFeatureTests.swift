@@ -89,6 +89,26 @@ final class PassengerAppFeatureTests: XCTestCase {
         }
     }
 
+    func testRideRequestBackReturnsToHome() async {
+        var initialState = PassengerAppFeature.State()
+        initialState.path.append(.rideRequest(RideRequestFeature.State()))
+
+        let store = TestStore(initialState: initialState) {
+            PassengerAppFeature()
+        }
+
+        await store.send(
+            .path(
+                .element(
+                    id: 0,
+                    action: .rideRequest(.delegate(.back))
+                )
+            )
+        )
+
+        XCTAssertTrue(store.state.path.isEmpty)
+    }
+
     func testRideMatchedNavigatesToOfferFoundWithDriverInfo() async {
         var initialState = PassengerAppFeature.State()
         initialState.path.append(.searching(SearchingFeature.State(rideId: "ride-123")))
@@ -207,5 +227,81 @@ final class PassengerAppFeatureTests: XCTestCase {
         )
 
         XCTAssertTrue(store.state.path.isEmpty)
+    }
+
+    func testSearchingCancelledClearsRideFlow() async {
+        var initialState = PassengerAppFeature.State()
+        initialState.path.append(.rideRequest(RideRequestFeature.State()))
+        initialState.path.append(.searching(SearchingFeature.State(rideId: "ride-123")))
+
+        let store = TestStore(initialState: initialState) {
+            PassengerAppFeature()
+        }
+
+        await store.send(
+            .path(
+                .element(
+                    id: 1,
+                    action: .searching(.delegate(.cancelled))
+                )
+            )
+        )
+
+        XCTAssertTrue(store.state.path.isEmpty)
+    }
+
+    func testRideCompleteDoneClearsRideFlow() async {
+        var initialState = PassengerAppFeature.State()
+        initialState.path.append(.ride(PassengerAppFeature.State.testRideState()))
+        initialState.path.append(.rideComplete(RideCompleteFeature.State()))
+
+        let store = TestStore(initialState: initialState) {
+            PassengerAppFeature()
+        }
+
+        await store.send(
+            .path(
+                .element(
+                    id: 1,
+                    action: .rideComplete(.delegate(.done))
+                )
+            )
+        )
+
+        XCTAssertTrue(store.state.path.isEmpty)
+    }
+
+    func testProfileLogoutDelegatesToRoot() async {
+        var initialState = PassengerAppFeature.State()
+        initialState.path.append(.profile(ProfileFeature.State()))
+
+        let store = TestStore(initialState: initialState) {
+            PassengerAppFeature()
+        }
+
+        await store.send(
+            .path(
+                .element(
+                    id: 0,
+                    action: .profile(.delegate(.loggedOut))
+                )
+            )
+        )
+
+        await store.receive(\.delegate.loggedOut)
+    }
+}
+
+private extension PassengerAppFeature.State {
+    static func testRideState() -> RideFeature.State {
+        RideFeature.State(
+            rideId: "ride-123",
+            status: .matched,
+            etaSeconds: 240,
+            driverName: "Асан",
+            driverRating: 4.9,
+            driverVehicle: "Toyota Camry",
+            driverPlate: "777 ABA 02"
+        )
     }
 }

@@ -12,8 +12,8 @@ struct AppView: View {
                     SplashView(store: splashStore)
                         .transition(.opacity)
                 }
-            case .onboarding:
-                if let onboardingStore = store.scope(state: \.onboarding, action: \.onboarding) {
+            case .needsOnboarding:
+                if let onboardingStore = store.scope(state: \.needsOnboarding, action: \.onboarding) {
                     OnboardingView(store: onboardingStore)
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 1.04)),

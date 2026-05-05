@@ -14,7 +14,7 @@ struct AppFeature {
     @ObservableState
     enum State: Equatable {
         case splash(SplashFeature.State)
-        case onboarding(OnboardingFeature.State)
+        case needsOnboarding(OnboardingFeature.State)
         case unauthenticated(OTPFeature.State)
         case authenticated(PassengerAppFeature.State)
 
@@ -37,13 +37,13 @@ struct AppFeature {
         Reduce { state, action in
             switch action {
 
-            // Splash → Onboarding или Authenticated
+            // Splash → needs onboarding or authenticated
             case .splash(.delegate(.splashFinished)):
                 let token = try? keychainClient.load("birge_access_token")
                 if token != nil {
                     state = .authenticated(PassengerAppFeature.State())
                 } else {
-                    state = .onboarding(OnboardingFeature.State())
+                    state = .needsOnboarding(OnboardingFeature.State())
                 }
                 return .none
 
@@ -81,7 +81,7 @@ struct AppFeature {
         .ifCaseLet(\.splash, action: \.splash) {
             SplashFeature()
         }
-        .ifCaseLet(\.onboarding, action: \.onboarding) {
+        .ifCaseLet(\.needsOnboarding, action: \.onboarding) {
             OnboardingFeature()
         }
         .ifCaseLet(\.unauthenticated, action: \.otp) {
