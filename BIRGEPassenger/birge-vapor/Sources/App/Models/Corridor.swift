@@ -1,6 +1,8 @@
 import Fluent
 import Vapor
 
+// TODO(subscription-pivot): Add weekdays, departure_window_start/end, is_recurring fields.
+// Current model treats corridors as static listings without schedule recurrence.
 final class Corridor: Model, Content, @unchecked Sendable {
     static let schema = "corridors"
 
@@ -51,6 +53,19 @@ final class Corridor: Model, Content, @unchecked Sendable {
 
     @Field(key: "is_active")
     var isActive: Bool
+
+    // Subscription-pivot: schedule fields for recurring corridors
+    @OptionalField(key: "weekdays")
+    var weekdays: [String]?
+
+    @OptionalField(key: "departure_window_start")
+    var departureWindowStart: String?
+
+    @OptionalField(key: "departure_window_end")
+    var departureWindowEnd: String?
+
+    @OptionalField(key: "is_recurring")
+    var isRecurring: Bool?
 
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?

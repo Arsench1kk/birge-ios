@@ -40,6 +40,16 @@ final class Ride: Model, Content, @unchecked Sendable {
     @OptionalField(key: "fare_tenge")
     var fareTenge: Int?
 
+    // Subscription-pivot: link rides to corridor/commute context
+    @OptionalParent(key: "corridor_id")
+    var corridor: Corridor?
+
+    @OptionalParent(key: "recurring_route_id")
+    var recurringRoute: RecurringRoute?
+
+    @OptionalParent(key: "commute_plan_id")
+    var commutePlan: MonthlyCommutePlan?
+
     @Timestamp(key: "requested_at", on: .create)
     var requestedAt: Date?
 

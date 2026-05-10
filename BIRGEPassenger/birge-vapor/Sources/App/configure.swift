@@ -41,6 +41,14 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreatePaymentEvents())
     app.migrations.add(CreateDriverLocationRecords())
 
+    // Subscription-pivot Phase 1: new tables + additive extensions
+    app.migrations.add(CreateRecurringRoutes())
+    app.migrations.add(CreateMonthlyCommutePlans())
+    app.migrations.add(CreateCommutePlanRoutes())
+    app.migrations.add(AddCorridorScheduleFields())
+    app.migrations.add(AddRideCommuteFields())
+    app.migrations.add(AddDriverSubscriptionBillingFields())
+
     try await app.autoMigrate()
     try routes(app)
 }

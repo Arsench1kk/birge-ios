@@ -1,6 +1,8 @@
 import Fluent
 import Vapor
 
+// TODO(subscription-pivot): Rewrite plans array to solo_corridor/multi_corridor/flex_pack
+// with monthly pricing. Current plans (free/lite/standard/pro) are stale.
 struct SubscriptionsService {
     let req: Request
 

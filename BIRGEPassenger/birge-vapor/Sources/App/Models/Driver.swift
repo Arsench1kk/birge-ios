@@ -49,6 +49,16 @@ final class DriverProfile: Model, Content, @unchecked Sendable {
     @OptionalField(key: "subscription_tier")
     var subscriptionTier: String?
 
+    // Subscription-pivot: driver billing fields
+    @OptionalField(key: "subscription_price_tenge")
+    var subscriptionPriceTenge: Int?
+
+    @OptionalField(key: "subscription_status")
+    var subscriptionStatus: String?
+
+    @OptionalField(key: "trial_end_date")
+    var trialEndDate: Date?
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 

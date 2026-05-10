@@ -1,6 +1,9 @@
 import Fluent
 import Vapor
 
+// TODO(subscription-pivot): Extend with plan_type (solo_corridor/multi_corridor/flex_pack),
+// billing_period_start/end, status, price_tenge, flex_rides_total/used, kaspi_payment_id.
+// Current model only stores a plan_id string — insufficient for subscription commute.
 final class PassengerSubscription: Model, Content, @unchecked Sendable {
     static let schema = "passenger_subscriptions"
 
