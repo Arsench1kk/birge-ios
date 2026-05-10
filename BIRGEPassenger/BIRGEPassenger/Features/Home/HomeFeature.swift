@@ -3,6 +3,8 @@ import ComposableArchitecture
 import SwiftUI
 
 @Reducer struct HomeFeature {
+    // TODO(subscription-pivot): Add activeSubscription, commuteRoutes, todaySchedule
+    // to State. Home should show commute dashboard when subscribed.
     @ObservableState
     struct State: Equatable {
         var corridors: [CorridorOption] = CorridorOption.mock

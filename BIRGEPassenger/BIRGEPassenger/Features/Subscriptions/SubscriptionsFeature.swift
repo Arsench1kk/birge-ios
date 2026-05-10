@@ -1,3 +1,7 @@
+// TODO(subscription-pivot): Replace plan IDs free/lite/standard/pro with
+// solo_corridor/multi_corridor/flex_pack. Replace per-ride pricing with monthly.
+// See: Business_Department/Subscription_Strategy.md
+
 import BIRGECore
 import ComposableArchitecture
 import Foundation
@@ -205,6 +209,8 @@ struct SubscriptionPlan: Equatable, Identifiable, Sendable {
         }
     }
 
+    // TODO(subscription-pivot): Remove free/lite/standard/pro static plans.
+    // Replace with solo_corridor, multi_corridor, flex_pack from API.
     static let free = SubscriptionPlan(
         id: "free",
         title: "Бесплатно",

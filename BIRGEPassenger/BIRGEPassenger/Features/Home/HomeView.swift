@@ -238,7 +238,8 @@ struct HomeView: View {
     }
 
     // MARK: - Quick Taxi
-
+    // TODO(subscription-pivot): Demote "Вызвать такси" to secondary/fallback.
+    // Primary CTA should be commute setup or today's commute plan.
     private var quickTaxiCard: some View {
         Button { send(.callTaxiTapped) } label: {
             HStack(spacing: BIRGELayout.s) {

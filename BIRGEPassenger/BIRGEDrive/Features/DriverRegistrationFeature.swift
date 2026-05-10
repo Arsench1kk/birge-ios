@@ -230,9 +230,9 @@ enum DriverTier: String, CaseIterable, Equatable, Sendable {
 
     var price: String {
         switch self {
-        case .starter: return "4 900₸ / мес"
-        case .professional: return "8 900₸ / мес"
-        case .premium: return "14 900₸ / мес"
+        case .starter: return "19 000₸ / мес"
+        case .professional: return "28 000₸ / мес"
+        case .premium: return "38 000₸ / мес"
         }
     }
 
@@ -240,14 +240,14 @@ enum DriverTier: String, CaseIterable, Equatable, Sendable {
         switch self {
         case .starter: return "Для первых коридоров"
         case .professional: return "Лучший баланс для полной смены"
-        case .premium: return "Максимальный приоритет"
+        case .premium: return "Максимальный приоритет и поддержка"
         }
     }
 
     var features: [String] {
         switch self {
         case .starter:
-            return ["До 30 коридоров", "Стандартная поддержка", "Гарантия дохода 90 дней"]
+            return ["До 30 коридоров", "Стандартная поддержка", "0% комиссии с поездок"]
         case .professional:
             return ["Безлимит коридоров", "Высокий приоритет", "Поддержка 24/7", "Аналитика смен"]
         case .premium:
