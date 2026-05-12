@@ -189,15 +189,29 @@ final class OTPFlowE2ETests: XCTestCase {
             }
         }
         
-        await store.receive(\.otp._verifySucceeded, timeout: .seconds(5)) {
+        await store.receive(
+            \.otp._verifySucceeded,
+            OTPAuthentication(role: "passenger", phone: self.testPhone),
+            timeout: .seconds(5)
+        ) {
             self.updateUnauthenticatedState(&$0) {
                 $0.isLoading = false
             }
         }
         
-        // Check transition to authenticated state
-        await store.receive(\.otp.delegate.authenticated) {
-            $0 = .authenticated(PassengerAppFeature.State())
+        // Check transition through the mock passenger auth decision layer.
+        await store.receive(
+            \.otp.delegate.authenticated,
+            OTPAuthentication(role: "passenger", phone: self.testPhone)
+        )
+        await store.receive(
+            \.passengerAuthDecisionResolved,
+            PassengerAuthRouting(phoneNumber: self.testPhone, decision: .registration)
+        ) {
+            $0 = .needsOnboarding(OnboardingFeature.State(
+                phoneNumber: self.testPhone,
+                passengerSetupStep: .profileBasics
+            ))
         }
         
         // 6. Verify Keychain Token
@@ -267,8 +281,12 @@ final class OTPFlowE2ETests: XCTestCase {
             $0.keychainClient = .liveValue
         }
 
-        await store.send(.splash(.delegate(.splashFinished))) {
-            $0 = .authenticated(PassengerAppFeature.State())
+        await store.send(.splash(.delegate(.splashFinished)))
+        await store.receive(
+            \.passengerAuthDecisionResolved,
+            PassengerAuthRouting(phoneNumber: nil, decision: .phoneLogin)
+        ) {
+            $0 = .unauthenticated(OTPFeature.State())
         }
         
         let loadedToken = try KeychainClient.liveValue.load("birge_access_token")

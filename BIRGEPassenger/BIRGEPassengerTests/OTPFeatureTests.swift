@@ -56,11 +56,11 @@ final class OTPFeatureTests: XCTestCase {
             $0.isLoading = true
         }
         
-        await store.receive(\._verifySucceeded, "passenger") {
+        await store.receive(\._verifySucceeded, OTPAuthentication(role: "passenger", phone: "+7777123456")) {
             $0.isLoading = false
         }
         
-        await store.receive(\.delegate.authenticated, "passenger")
+        await store.receive(\.delegate.authenticated, OTPAuthentication(role: "passenger", phone: "+7777123456"))
     }
     
     func testOTPVerifyFailure() async {
