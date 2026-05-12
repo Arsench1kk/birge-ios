@@ -65,6 +65,23 @@ public enum BIRGEProductFixtures {
             )
         ]
 
+        public static let addressSearchResults: [MockAddressSearchResult] = [
+            MockAddressSearchResult(
+                id: UUID(uuidString: "31000000-0000-0000-0000-000000000001")!,
+                title: "Alatau City",
+                subtitle: "Residential cluster",
+                fullAddress: "Alatau City, Almaty",
+                coordinate: LatLng(latitude: 43.2632, longitude: 76.8217)
+            ),
+            MockAddressSearchResult(
+                id: UUID(uuidString: "31000000-0000-0000-0000-000000000002")!,
+                title: "Esentai / Al-Farabi",
+                subtitle: "Business corridor",
+                fullAddress: "Esentai / Al-Farabi, Almaty",
+                coordinate: LatLng(latitude: 43.2189, longitude: 76.9275)
+            )
+        ]
+
         public static let morningSchedule = MockRouteSchedule(
             weekdays: ["mon", "tue", "wed", "thu", "fri"],
             departureWindowStart: "07:15",
@@ -73,6 +90,7 @@ public enum BIRGEProductFixtures {
 
         public static let draftRoute = MockRouteDraft(
             id: UUID(uuidString: "20000000-0000-0000-0000-000000000010")!,
+            displayName: "Alatau City -> Esentai / Al-Farabi",
             originAddress: "Alatau City",
             destinationAddress: "Esentai / Al-Farabi",
             suggestedPickupNodes: pickupNodes,
@@ -108,6 +126,87 @@ public enum BIRGEProductFixtures {
                 ),
                 status: .matching,
                 reliabilityPercent: 81
+            )
+        ]
+
+        public static let plannedRideSegment = MockPlannedRideSegment(
+            id: UUID(uuidString: "81000000-0000-0000-0000-000000000001")!,
+            routeID: IDs.routeAlatauEsentai,
+            pickupNode: pickupNodes[0],
+            dropoffNode: dropoffNodes[0],
+            departureWindowStart: morningSchedule.departureWindowStart,
+            departureWindowEnd: morningSchedule.departureWindowEnd,
+            rideDayStatus: .scheduled
+        )
+
+        public static let todayCommutePlan = MockTodayCommutePlan(
+            id: UUID(uuidString: "82000000-0000-0000-0000-000000000001")!,
+            status: .planned,
+            dateLabel: "Today",
+            nextSegment: plannedRideSegment
+        )
+
+        public static let noCommuteTodayPlan = MockTodayCommutePlan(
+            id: UUID(uuidString: "82000000-0000-0000-0000-000000000002")!,
+            status: .noCommuteToday,
+            dateLabel: "Today",
+            nextSegment: nil
+        )
+
+        public static let insights: [MockPassengerInsight] = [
+            MockPassengerInsight(
+                id: UUID(uuidString: "83000000-0000-0000-0000-000000000001")!,
+                title: "Morning corridor confidence",
+                body: "Your active route has stable pickup demand this week."
+            )
+        ]
+
+        public static let fallbackTaxi = MockFallbackTaxiOption(
+            id: UUID(uuidString: "84000000-0000-0000-0000-000000000001")!,
+            title: "Fallback taxi",
+            subtitle: "Secondary option when commute corridor is unavailable",
+            estimatedPickupMinutes: 6
+        )
+
+        public static let homeDashboard = MockPassengerHomeDashboard(
+            activePlan: activeCommutePlan,
+            recurringRoutes: recurringRoutes,
+            todayPlan: todayCommutePlan,
+            insights: insights,
+            fallbackTaxi: fallbackTaxi
+        )
+
+        public static let routeStatusDetails: [MockRouteStatus: MockRouteStatusDetail] = [
+            .active: MockRouteStatusDetail(
+                title: "Route active",
+                body: "This recurring commute route is included in the active monthly plan.",
+                actionTitle: "Manage route"
+            ),
+            .paused: MockRouteStatusDetail(
+                title: "Route paused",
+                body: "This route is paused and will not appear in today's commute plan.",
+                actionTitle: "Resume route"
+            ),
+            .lowDensity: MockRouteStatusDetail(
+                title: "Low match",
+                body: "Demand is lower than usual for this corridor window.",
+                actionTitle: "Adjust schedule"
+            ),
+            .waitlist: MockRouteStatusDetail(
+                title: "Waitlist",
+                body: "The route is waiting for enough recurring commuters.",
+                actionTitle: "View waitlist",
+                waitlistPosition: 3
+            ),
+            .matching: MockRouteStatusDetail(
+                title: "Matching",
+                body: "BIRGE is matching this route with nearby recurring commuters.",
+                actionTitle: "Review route"
+            ),
+            .draft: MockRouteStatusDetail(
+                title: "Draft",
+                body: "This route draft is not active yet.",
+                actionTitle: "Continue setup"
             )
         ]
 
@@ -168,6 +267,32 @@ public enum BIRGEProductFixtures {
                 type: .savedCard,
                 title: "Saved card",
                 subtitle: "•••• 4242"
+            ),
+            MockPaymentMethod(
+                id: UUID(uuidString: "70000000-0000-0000-0000-000000000004")!,
+                type: .card,
+                title: "New card",
+                subtitle: "Mock card entry"
+            )
+        ]
+
+        public static let checkoutSession = MockCheckoutSession(
+            id: UUID(uuidString: "71000000-0000-0000-0000-000000000001")!,
+            planType: .multiCorridor,
+            paymentMethodID: paymentMethods[0].id,
+            routeDraftID: draftRoute.id,
+            amountTenge: 59900,
+            status: "mock_checkout_created"
+        )
+
+        public static let billingReceipts: [MockBillingReceipt] = [
+            MockBillingReceipt(
+                id: UUID(uuidString: "72000000-0000-0000-0000-000000000001")!,
+                checkoutID: checkoutSession.id,
+                planType: .multiCorridor,
+                amountTenge: 59900,
+                issuedAt: Date(timeIntervalSince1970: 1_777_593_600),
+                status: "mock_paid"
             )
         ]
 
@@ -186,14 +311,188 @@ public enum BIRGEProductFixtures {
             )
         ]
 
+        public static let plannedRideDriver = MockPlannedRideDriver(
+            id: UUID(uuidString: "85000000-0000-0000-0000-000000000001")!,
+            displayName: "Серик А.",
+            rating: 4.9,
+            phoneLabel: "Mock call"
+        )
+
+        public static let plannedRideVehicle = MockPlannedRideVehicle(
+            id: UUID(uuidString: "85000000-0000-0000-0000-000000000002")!,
+            make: "Hyundai",
+            model: "Accent",
+            plateNumber: "777 ABA 02",
+            color: "White"
+        )
+
+        public static let boardingCode = MockBoardingCode(
+            value: "4821",
+            refreshesInSeconds: 60
+        )
+
+        public static let plannedRideTimeline: [MockRideTimelineItem] = [
+            MockRideTimelineItem(
+                id: UUID(uuidString: "85000000-0000-0000-0000-000000000010")!,
+                title: "Driver assigned",
+                detail: "Driver and vehicle are reserved for this planned commute.",
+                status: .driverAssigned
+            ),
+            MockRideTimelineItem(
+                id: UUID(uuidString: "85000000-0000-0000-0000-000000000011")!,
+                title: "Driver en route",
+                detail: "Pickup ETA is tracked against the recurring route window.",
+                status: .driverEnRoute
+            ),
+            MockRideTimelineItem(
+                id: UUID(uuidString: "85000000-0000-0000-0000-000000000012")!,
+                title: "Boarding",
+                detail: "Passenger confirms boarding with the route code.",
+                status: .boarding
+            )
+        ]
+
+        public static let completedCommuteSummary = MockCompletedCommuteSummary(
+            title: "Commute completed",
+            arrivalText: "Arrived inside the planned window",
+            routeSummary: "Alatau City -> Esentai / Al-Farabi"
+        )
+
+        public static let rideDayEdgeCases: [PlannedRideStatus: MockRideDayEdgeCase] = [
+            .delayed: MockRideDayEdgeCase(
+                status: .delayed,
+                title: "Driver delayed",
+                body: "The planned pickup is running later than the route window.",
+                actionTitle: "Contact support"
+            ),
+            .replacementAssigned: MockRideDayEdgeCase(
+                status: .replacementAssigned,
+                title: "Replacement assigned",
+                body: "A replacement driver has been assigned to keep the commute active.",
+                actionTitle: "View driver"
+            ),
+            .pickupChanged: MockRideDayEdgeCase(
+                status: .pickupChanged,
+                title: "Pickup node changed",
+                body: "The pickup node changed for today's planned commute.",
+                actionTitle: "Review pickup"
+            ),
+            .passengerMissedPickup: MockRideDayEdgeCase(
+                status: .passengerMissedPickup,
+                title: "Pickup missed",
+                body: "The driver could not confirm boarding inside the pickup window.",
+                actionTitle: "Report issue"
+            ),
+            .cancelled: MockRideDayEdgeCase(
+                status: .cancelled,
+                title: "Commute cancelled",
+                body: "Today's planned commute is no longer active.",
+                actionTitle: "Get help"
+            )
+        ]
+
+        public static let plannedCommuteRide = MockPlannedCommuteRide(
+            id: plannedRideSegment.id,
+            routeID: IDs.routeAlatauEsentai,
+            routeName: recurringRoutes[0].name,
+            pickupNode: pickupNodes[0],
+            dropoffNode: dropoffNodes[0],
+            departureWindow: "\(morningSchedule.departureWindowStart)-\(morningSchedule.departureWindowEnd)",
+            status: .driverEnRoute,
+            driver: plannedRideDriver,
+            vehicle: plannedRideVehicle,
+            boardingCode: boardingCode,
+            etaText: "4 min to pickup",
+            timeline: plannedRideTimeline
+        )
+
         public static let supportTickets: [MockSupportTicket] = [
             MockSupportTicket(
                 id: UUID(uuidString: "90000000-0000-0000-0000-000000000001")!,
                 title: "Driver running late",
                 routeID: IDs.routeAlatauEsentai,
+                plannedRideID: plannedCommuteRide.id,
+                driverID: plannedRideDriver.id,
+                updatedAtLabel: "Today",
                 status: .open
+            ),
+            MockSupportTicket(
+                id: UUID(uuidString: "90000000-0000-0000-0000-000000000002")!,
+                title: "Subscription route question",
+                routeID: IDs.routeEsentaiAlatau,
+                plannedRideID: nil,
+                driverID: nil,
+                updatedAtLabel: "Yesterday",
+                status: .waitingForPassenger
             )
         ]
+
+        public static let supportMessages: [MockSupportMessage] = [
+            MockSupportMessage(
+                id: UUID(uuidString: "90000000-0000-0000-0000-000000000011")!,
+                ticketID: supportTickets[0].id,
+                senderTitle: "BIRGE support",
+                body: "We are checking the planned pickup window with the driver.",
+                sentAtLabel: "Today"
+            ),
+            MockSupportMessage(
+                id: UUID(uuidString: "90000000-0000-0000-0000-000000000012")!,
+                ticketID: supportTickets[0].id,
+                senderTitle: "Passenger",
+                body: "Please keep the route active for this morning.",
+                sentAtLabel: "Today"
+            )
+        ]
+
+        public static let issueCategories: [MockIssueCategory] = [
+            MockIssueCategory(
+                id: UUID(uuidString: "90000000-0000-0000-0000-000000000021")!,
+                title: "Driver timing",
+                contextHint: "Ride-day timing or arrival issue"
+            ),
+            MockIssueCategory(
+                id: UUID(uuidString: "90000000-0000-0000-0000-000000000022")!,
+                title: "Pickup node",
+                contextHint: "Pickup point or walking access issue"
+            ),
+            MockIssueCategory(
+                id: UUID(uuidString: "90000000-0000-0000-0000-000000000023")!,
+                title: "Route comfort",
+                contextHint: "Vehicle, route, or commute experience"
+            )
+        ]
+
+        public static let supportContext = MockSupportContext(
+            plannedRideID: plannedCommuteRide.id,
+            routeID: IDs.routeAlatauEsentai,
+            driverID: plannedRideDriver.id,
+            subscriptionPlanID: .multiCorridor,
+            title: "Today planned commute"
+        )
+
+        public static let liveSupportSession = MockLiveSupportSession(
+            id: UUID(uuidString: "90000000-0000-0000-0000-000000000031")!,
+            context: supportContext,
+            title: "Live support",
+            status: "mock_active"
+        )
+
+        public static let safetyContacts: [MockSafetyContact] = [
+            MockSafetyContact(
+                id: UUID(uuidString: "90000000-0000-0000-0000-000000000041")!,
+                name: "Aigerim",
+                phoneNumber: "+77770000101",
+                relationship: "Family"
+            )
+        ]
+
+        public static let shareStatusSession = MockShareStatusSession(
+            id: UUID(uuidString: "90000000-0000-0000-0000-000000000051")!,
+            context: supportContext,
+            title: "Share route status",
+            statusText: "Driver en route to pickup node",
+            expiresAtLabel: "Today"
+        )
 
         public static let authRecords: [MockPassengerAuthRecord] = [
             MockPassengerAuthRecord(

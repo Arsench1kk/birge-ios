@@ -15,19 +15,31 @@ public enum BIRGEColors {
 
     // MARK: - Surfaces
 
-    public static let background = Color(.systemBackground)
-    public static let surfacePrimary = Color(.secondarySystemBackground)
-    public static let surfaceGrouped = Color(.systemGroupedBackground)
-    public static let surfaceElevated = Color(.secondarySystemGroupedBackground)
+    public static let passengerBackground = Color("PassengerBackground")
+    public static let passengerSurface = Color("PassengerSurface")
+    public static let passengerSurfaceElevated = Color("PassengerSurfaceElevated")
+    public static let passengerSurfaceSubtle = Color("PassengerSurfaceSubtle")
+    public static let routeCanvasBackground = Color("RouteCanvasBackground")
+    public static let borderSubtle = Color("BorderSubtle")
+    public static let background = Color("PassengerBackground")
+    public static let surfacePrimary = Color("PassengerSurface")
+    public static let surfaceGrouped = Color("PassengerSurfaceSubtle")
+    public static let surfaceElevated = Color("PassengerSurfaceElevated")
     public static let overlay = Color.black.opacity(0.4)
 
     // MARK: - Text
 
-    public static let textPrimary = Color(.label)
-    public static let textSecondary = Color(.secondaryLabel)
-    public static let textTertiary = Color(.tertiaryLabel)
-    public static let textDisabled = Color(.quaternaryLabel)
-    public static let textOnBrand = Color.white
+    public static let textPrimary = Color("TextPrimary")
+    public static let textSecondary = Color("TextSecondary")
+    public static let textTertiary = Color("TextTertiary")
+    public static let textDisabled = Color("TextDisabled")
+    public static let textOnBrand = Color("TextOnBrand")
+
+    // MARK: - Payments
+
+    public static let paymentApplePay = Color("PaymentApplePay")
+    public static let paymentKaspi = Color("PaymentKaspi")
+    public static let paymentCard = Color("PaymentCard")
 
     // MARK: - Map
 
