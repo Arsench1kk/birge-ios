@@ -1,45 +1,56 @@
 import BIRGECore
 import ComposableArchitecture
-import SwiftUI
+import Foundation
 
-@Reducer struct HomeFeature {
-    // TODO(subscription-pivot): Add activeSubscription, commuteRoutes, todaySchedule
-    // to State. Home should show commute dashboard when subscribed.
+@Reducer
+struct HomeFeature {
     @ObservableState
     struct State: Equatable {
-        var corridors: [CorridorOption] = CorridorOption.mock
-        var aiMatchCount: Int = 3
-        var driverLat: Double = 43.2220
-        var driverLng: Double = 76.8512
-        var isLoadingCorridors = false
-        var corridorError: String?
+        var activePlan: MockMonthlyCommutePlan?
+        var recurringRoutes: [MockRecurringRoute] = []
+        var todayPlan: MockTodayCommutePlan?
+        var insights: [MockPassengerInsight] = []
+        var fallbackTaxi: MockFallbackTaxiOption?
+        var isLoadingDashboard = false
+        var dashboardError: String?
+
+        var nextPlannedRideSegment: MockPlannedRideSegment? {
+            todayPlan?.nextSegment
+        }
+
+        var hasNoCommuteToday: Bool {
+            todayPlan?.status == .noCommuteToday
+        }
     }
 
-    enum Action: ViewAction, Sendable {
+    enum Action: ViewAction, Equatable, Sendable {
         case view(View)
-        case corridorsLoaded(CorridorListResponse)
-        case corridorsFailed(String)
+        case dashboardLoaded(MockPassengerHomeDashboard)
+        case dashboardFailed(String)
+        case todayPlanLoaded(MockTodayCommutePlan)
         case delegate(Delegate)
 
         @CasePathable
-        enum View: Sendable {
+        enum View: Equatable, Sendable {
             case onAppear
-            case searchBarTapped
-            case callTaxiTapped
-            case corridorTapped(CorridorOption)
-            case showAllCorridorsTapped
-            case aiExplanationTapped
-            case projectDemoTapped
+            case refreshTodayPlan
+            case routeTapped(MockRecurringRoute.ID)
+            case manageRoutesTapped
+            case todayRideTapped
+            case fallbackTaxiTapped
             case profileButtonTapped
             case rideHistoryTapped
             case subscriptionTapped
+            case aiExplanationTapped
+            case projectDemoTapped
         }
 
         @CasePathable
-        enum Delegate: Sendable {
-            case openRideRequest
-            case openCorridor(CorridorOption)
-            case openCorridorList
+        enum Delegate: Equatable, Sendable {
+            case openRouteManagement(MockRecurringRoute)
+            case openRouteList
+            case openTodayPlannedRide(MockPlannedRideSegment)
+            case openFallbackTaxi
             case openAIExplanation
             case openProjectDemo
             case openProfile
@@ -48,49 +59,88 @@ import SwiftUI
         }
     }
 
-    @Dependency(\.apiClient) var apiClient
+    @Dependency(\.passengerRouteClient) var passengerRouteClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .view(.onAppear):
-                state.isLoadingCorridors = true
-                state.corridorError = nil
+                state.isLoadingDashboard = true
+                state.dashboardError = nil
                 return .run { send in
                     do {
-                        let response = try await apiClient.fetchCorridors()
-                        await send(.corridorsLoaded(response))
+                        let dashboard = try await passengerRouteClient.homeDashboard()
+                        await send(.dashboardLoaded(dashboard))
                     } catch {
-                        await send(.corridorsFailed(error.localizedDescription))
+                        await send(.dashboardFailed(error.localizedDescription))
                     }
                 }
 
-            case .view(.searchBarTapped), .view(.callTaxiTapped):
-                return .send(.delegate(.openRideRequest))
-            case .view(.corridorTapped(let corridor)):
-                return .send(.delegate(.openCorridor(corridor)))
-            case .view(.showAllCorridorsTapped):
-                return .send(.delegate(.openCorridorList))
-            case .view(.aiExplanationTapped):
-                return .send(.delegate(.openAIExplanation))
-            case .view(.projectDemoTapped):
-                return .send(.delegate(.openProjectDemo))
+            case .view(.refreshTodayPlan):
+                state.isLoadingDashboard = true
+                state.dashboardError = nil
+                return .run { send in
+                    do {
+                        let todayPlan = try await passengerRouteClient.todayCommutePlan()
+                        await send(.todayPlanLoaded(todayPlan))
+                    } catch {
+                        await send(.dashboardFailed(error.localizedDescription))
+                    }
+                }
+
+            case let .view(.routeTapped(id)):
+                guard let route = state.recurringRoutes.first(where: { $0.id == id }) else {
+                    return .none
+                }
+                return .send(.delegate(.openRouteManagement(route)))
+
+            case .view(.manageRoutesTapped):
+                return .send(.delegate(.openRouteList))
+
+            case .view(.todayRideTapped):
+                guard let segment = state.nextPlannedRideSegment else { return .none }
+                return .send(.delegate(.openTodayPlannedRide(segment)))
+
+            case .view(.fallbackTaxiTapped):
+                guard state.fallbackTaxi != nil else { return .none }
+                return .send(.delegate(.openFallbackTaxi))
+
             case .view(.profileButtonTapped):
                 return .send(.delegate(.openProfile))
+
             case .view(.rideHistoryTapped):
                 return .send(.delegate(.openRideHistory))
+
             case .view(.subscriptionTapped):
                 return .send(.delegate(.openSubscription))
-            case .corridorsLoaded(let response):
-                state.isLoadingCorridors = false
-                state.corridorError = nil
-                state.corridors = Array(response.corridors.map(CorridorOption.init(dto:)).prefix(3))
-                state.aiMatchCount = response.corridors.count
+
+            case .view(.aiExplanationTapped):
+                return .send(.delegate(.openAIExplanation))
+
+            case .view(.projectDemoTapped):
+                return .send(.delegate(.openProjectDemo))
+
+            case let .dashboardLoaded(dashboard):
+                state.isLoadingDashboard = false
+                state.dashboardError = nil
+                state.activePlan = dashboard.activePlan
+                state.recurringRoutes = dashboard.recurringRoutes
+                state.todayPlan = dashboard.todayPlan
+                state.insights = dashboard.insights
+                state.fallbackTaxi = dashboard.fallbackTaxi
                 return .none
-            case .corridorsFailed(let message):
-                state.isLoadingCorridors = false
-                state.corridorError = message
+
+            case let .todayPlanLoaded(todayPlan):
+                state.isLoadingDashboard = false
+                state.dashboardError = nil
+                state.todayPlan = todayPlan
                 return .none
+
+            case let .dashboardFailed(message):
+                state.isLoadingDashboard = false
+                state.dashboardError = message
+                return .none
+
             case .delegate:
                 return .none
             }

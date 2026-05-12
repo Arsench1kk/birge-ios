@@ -31,6 +31,10 @@ struct PassengerAppView: View {
                 ProjectDemoView(store: store)
             case .subscriptions(let store):
                 SubscriptionsView(store: store)
+            case .plannedRide(let store):
+                PassengerPlannedRideView(store: store)
+            case .support(let store):
+                PassengerSupportView(store: store)
             #if DEBUG
             case .activeRide(let store):
                 ActiveRideView(store: store)

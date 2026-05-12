@@ -6,104 +6,142 @@ struct MyCorridorsView: View {
     @Bindable var store: StoreOf<MyCorridorsFeature>
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: BIRGELayout.s) {
-                header
-
+        ScrollView {
+            VStack(alignment: .leading, spacing: BIRGELayout.m) {
                 if store.isLoading {
-                    BIRGELoadingState(title: "Загружаем коридоры")
+                    ProgressView()
                 }
 
-                if let message = store.errorMessage {
-                    BIRGEToast(message: message, style: .error)
+                if let errorMessage = store.errorMessage {
+                    Text(errorMessage)
+                        .font(BIRGEFonts.caption)
+                        .foregroundStyle(BIRGEColors.danger)
                 }
 
-                if store.isEmpty {
-                    BIRGEEmptyState(
-                        title: "Пока нет броней",
-                        message: "Выберите коридор на главной, и он появится здесь после подтверждения.",
-                        systemImage: "map.circle.fill"
-                    )
-                }
-
-                ForEach(store.bookings) { booking in
-                    bookingCard(booking)
+                switch store.mode {
+                case .list:
+                    routeList
+                case .detail:
+                    routeDetail
+                case let .addRouteDraft(draft):
+                    draftPlaceholder(draft)
+                case let .editRouteDraft(route):
+                    routePlaceholder(route)
+                case let .editPickup(route):
+                    routePlaceholder(route)
+                case let .editDropoff(route):
+                    routePlaceholder(route)
+                case let .editSchedule(route):
+                    routePlaceholder(route)
                 }
             }
             .padding(BIRGELayout.m)
         }
-        .background(background)
-        .navigationTitle("Мои коридоры")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(BIRGEColors.background.ignoresSafeArea())
+        .navigationTitle("My Routes")
         .task {
             await store.send(.onAppear).finish()
         }
     }
 
-    private var background: some View {
-        LinearGradient(
-            colors: [
-                BIRGEColors.brandPrimary.opacity(0.10),
-                BIRGEColors.background,
-                BIRGEColors.background
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: BIRGELayout.xxs) {
-            Label("Регулярные поездки", systemImage: "point.topleft.filled.down.to.point.bottomright.curvepath")
-                .font(BIRGEFonts.captionBold)
-                .foregroundStyle(BIRGEColors.brandPrimary)
-            Text("Здесь собраны коридоры, где ваше место уже сохранено.")
-                .font(BIRGEFonts.subtext)
-                .foregroundStyle(BIRGEColors.textSecondary)
-        }
-        .padding(BIRGELayout.s)
-        .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.04))
-    }
-
-    private func bookingCard(_ booking: CorridorBookingItemDTO) -> some View {
-        let corridor = CorridorOption(dto: booking.corridor)
-
-        return Button {
-            store.send(.bookingTapped(booking))
-        } label: {
-            VStack(alignment: .leading, spacing: BIRGELayout.xs) {
-                HStack {
-                    BIRGEMatchBadge(corridor.matchPercent)
-                    Spacer()
-                    Label(statusTitle(booking.status), systemImage: "checkmark.seal.fill")
-                        .font(BIRGEFonts.captionBold)
-                        .foregroundStyle(BIRGEColors.success)
-                }
-
-                Text(corridor.name)
-                    .font(BIRGEFonts.sectionTitle)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-
-                HStack(spacing: BIRGELayout.xs) {
-                    Label(corridor.departure, systemImage: "clock.fill")
-                    Label("\(corridor.price)₸", systemImage: "tengesign.circle.fill")
-                }
-                .font(BIRGEFonts.caption)
-                .foregroundStyle(BIRGEColors.textSecondary)
-
-                Text("Бронь \(booking.bookingID.prefix(8))")
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(BIRGEColors.textTertiary)
+    private var routeList: some View {
+        VStack(alignment: .leading, spacing: BIRGELayout.s) {
+            Button("Add") {
+                store.send(.addRouteTapped)
             }
-            .padding(BIRGELayout.s)
-            .liquidGlass(.card, tint: BIRGEColors.brandPrimary.opacity(0.035), isInteractive: true)
+            .buttonStyle(.bordered)
+
+            if store.isEmpty {
+                Text("No routes")
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+            }
+
+            ForEach(store.routes) { route in
+                Button {
+                    store.send(.routeTapped(route.id))
+                } label: {
+                    VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                        Text(route.name)
+                            .font(BIRGEFonts.bodyMedium)
+                        Text("\(route.originName) -> \(route.destinationName)")
+                            .font(BIRGEFonts.caption)
+                            .foregroundStyle(BIRGEColors.textSecondary)
+                        Text(route.status.rawValue)
+                            .font(BIRGEFonts.caption)
+                            .foregroundStyle(BIRGEColors.brandPrimary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+            }
         }
-        .buttonStyle(BIRGEPressableButtonStyle())
     }
 
-    private func statusTitle(_ status: String) -> String {
-        status == "confirmed" ? "Активна" : status.capitalized
+    @ViewBuilder
+    private var routeDetail: some View {
+        if let route = store.selectedRoute {
+            VStack(alignment: .leading, spacing: BIRGELayout.s) {
+                Text(route.name)
+                    .font(BIRGEFonts.title)
+                Text(route.status.rawValue)
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.brandPrimary)
+                Text(route.pickupNode.title)
+                Text(route.dropoffNode.title)
+                Text("\(route.schedule.departureWindowStart)-\(route.schedule.departureWindowEnd)")
+                    .font(BIRGEFonts.caption)
+                    .foregroundStyle(BIRGEColors.textSecondary)
+
+                if let detail = store.selectedStatusDetail {
+                    VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                        Text(detail.title)
+                        Text(detail.body)
+                            .font(BIRGEFonts.caption)
+                            .foregroundStyle(BIRGEColors.textSecondary)
+                        if let waitlistPosition = detail.waitlistPosition {
+                            Text("\(waitlistPosition)")
+                                .font(BIRGEFonts.caption)
+                        }
+                        Button(detail.actionTitle) {
+                            store.send(.routeStatusActionTapped)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                Button("Edit") { store.send(.editRouteTapped) }
+                Button("Pickup") { store.send(.editPickupTapped) }
+                Button("Dropoff") { store.send(.editDropoffTapped) }
+                Button("Schedule") { store.send(.editScheduleTapped) }
+
+                if route.status == .paused {
+                    Button("Resume") { store.send(.resumeRouteTapped) }
+                } else {
+                    Button("Pause") { store.send(.pauseRouteTapped) }
+                }
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    @ViewBuilder
+    private func draftPlaceholder(_ draft: MockRouteDraft?) -> some View {
+        if let draft {
+            Text(draft.displayName)
+                .font(BIRGEFonts.bodyMedium)
+        }
+    }
+
+    private func routePlaceholder(_ route: MockRecurringRoute) -> some View {
+        VStack(alignment: .leading, spacing: BIRGELayout.s) {
+            Text(route.name)
+                .font(BIRGEFonts.bodyMedium)
+            Button("Save") {
+                store.send(.saveEditedRoutePlaceholderTapped)
+            }
+            .buttonStyle(.bordered)
+        }
     }
 }
 

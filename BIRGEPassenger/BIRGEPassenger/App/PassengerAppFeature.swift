@@ -1,3 +1,4 @@
+import BIRGECore
 import ComposableArchitecture
 import Foundation
 
@@ -35,6 +36,8 @@ import Foundation
         case aiExplanation(AIExplanationFeature)
         case projectDemo(ProjectDemoFeature)
         case subscriptions(SubscriptionsFeature)
+        case plannedRide(PassengerPlannedRideFeature)
+        case support(PassengerSupportFeature)
         #if DEBUG
         case activeRide(ActiveRideFeature)
         #endif
@@ -61,14 +64,19 @@ import Foundation
         Reduce { state, action in
             switch action {
 
-            // Home → RideRequest
-            case .home(.delegate(.openRideRequest)):
+            // Home → fallback taxi
+            case .home(.delegate(.openFallbackTaxi)):
                 state.openRideRequest()
                 return .none
 
-            // Home → Corridor detail
-            case .home(.delegate(.openCorridor(let corridor))):
-                state.openCorridorDetail(corridor)
+            // Home → route management placeholder
+            case .home(.delegate(.openRouteManagement)):
+                state.openMyCorridors()
+                return .none
+
+            // Home → today planned commute lifecycle
+            case .home(.delegate(.openTodayPlannedRide(let segment))):
+                state.openPlannedRide(segment)
                 return .none
             
             // Home → Profile
@@ -77,7 +85,7 @@ import Foundation
                 return .none
 
             // Home → Corridor List
-            case .home(.delegate(.openCorridorList)):
+            case .home(.delegate(.openRouteList)):
                 state.openCorridorList()
                 return .none
 
@@ -106,14 +114,43 @@ import Foundation
                 state.openMyCorridors()
                 return .none
 
-            // My Corridors → Corridor Detail
-            case .path(.element(_, action: .myCorridors(.delegate(.corridorSelected(let corridor))))):
-                state.openJoinedCorridorDetail(corridor)
-                return .none
-
             // Home → Subscription
             case .home(.delegate(.openSubscription)):
                 state.openSubscriptions()
+                return .none
+
+            // Subscription activation → Home
+            case .path(.element(_, action: .subscriptions(.delegate(.activationFinished)))):
+                state.path.removeAll()
+                return .none
+
+            // Planned commute → Home
+            case .path(.element(_, action: .plannedRide(.delegate(.back)))),
+                 .path(.element(_, action: .plannedRide(.delegate(.done)))):
+                state.path.removeAll()
+                return .none
+
+            // Planned commute → support and safety foundation
+            case .path(.element(_, action: .plannedRide(.delegate(.reportIssue(let rideID))))):
+                state.openSupport(mode: .issueReport, rideID: rideID)
+                return .none
+
+            case .path(.element(_, action: .plannedRide(.delegate(.support(let rideID))))):
+                state.openSupport(mode: .inbox, rideID: rideID)
+                return .none
+
+            case .path(.element(_, action: .plannedRide(.delegate(.safety(let rideID))))):
+                state.openSupport(mode: .safetyCenter, rideID: rideID)
+                return .none
+
+            case .path(.element(_, action: .plannedRide(.delegate(.shareStatus(let rideID))))):
+                state.openSupport(mode: .shareStatus, rideID: rideID)
+                return .none
+
+            // Support → Home
+            case .path(.element(_, action: .support(.delegate(.back)))),
+                 .path(.element(_, action: .support(.delegate(.done)))):
+                state.path.removeAll()
                 return .none
 
             // RideRequest → Searching
@@ -240,6 +277,19 @@ private extension PassengerAppFeature.State {
 
     mutating func openSubscriptions() {
         path.append(.subscriptions(SubscriptionsFeature.State()))
+    }
+
+    mutating func openPlannedRide(_ segment: MockPlannedRideSegment) {
+        path.append(.plannedRide(PassengerPlannedRideFeature.State(rideID: segment.id)))
+    }
+
+    mutating func openSupport(
+        mode: PassengerSupportFeature.State.Mode,
+        rideID: MockPlannedCommuteRide.ID?
+    ) {
+        var context = BIRGEProductFixtures.Passenger.supportContext
+        context.plannedRideID = rideID
+        path.append(.support(PassengerSupportFeature.State(mode: mode, context: context)))
     }
 
     mutating func openProfile() {

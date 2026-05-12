@@ -1,7 +1,3 @@
-// TODO(subscription-pivot): Replace plan IDs free/lite/standard/pro with
-// solo_corridor/multi_corridor/flex_pack. Replace per-ride pricing with monthly.
-// See: Business_Department/Subscription_Strategy.md
-
 import BIRGECore
 import ComposableArchitecture
 import Foundation
@@ -10,41 +6,80 @@ import Foundation
 struct SubscriptionsFeature {
     @ObservableState
     struct State: Equatable {
-        var currentPlanID = SubscriptionPlan.free.id
-        var selectedPlanID: SubscriptionPlan.ID?
-        var plans = SubscriptionPlan.all
-        var activeSince = "Сегодня"
-        var isLoading = false
-        var isCheckingOut = false
-        var isActivating = false
-        var errorMessage: String?
-        var paymentCheckout: KaspiCheckoutResponse?
-
-        var currentPlan: SubscriptionPlan {
-            plans.first { $0.id == currentPlanID } ?? .free
+        enum CheckoutStatus: Equatable, Sendable {
+            case idle
+            case loading
+            case ready(MockCheckoutSession)
+            case activating(MockCheckoutSession)
+            case succeeded(MockMonthlyCommutePlan)
+            case failed(String)
         }
 
-        var selectedPlan: SubscriptionPlan? {
-            guard let selectedPlanID else { return nil }
-            return plans.first { $0.id == selectedPlanID }
+        var routeDraft: MockRouteDraft?
+        var plans: [MockPassengerPlan] = []
+        var selectedPlanType: PassengerPlanType?
+        var paymentMethods: [MockPaymentMethod] = []
+        var selectedPaymentMethodID: MockPaymentMethod.ID?
+        var checkoutStatus: CheckoutStatus = .idle
+        var activeMonthlyPlan: MockMonthlyCommutePlan?
+        var billingReceipts: [MockBillingReceipt] = []
+        var isLoading = false
+        var errorMessage: String?
+
+        init(routeDraft: MockRouteDraft? = nil) {
+            self.routeDraft = routeDraft
+        }
+
+        var selectedPlan: MockPassengerPlan? {
+            guard let selectedPlanType else { return nil }
+            return plans.first { $0.type == selectedPlanType }
+        }
+
+        var selectedPaymentMethod: MockPaymentMethod? {
+            guard let selectedPaymentMethodID else { return nil }
+            return paymentMethods.first { $0.id == selectedPaymentMethodID }
+        }
+
+        var canStartCheckout: Bool {
+            selectedPlan != nil && selectedPaymentMethodID != nil && checkoutStatus != .loading
+        }
+
+        var canFinishActivation: Bool {
+            if case .succeeded = checkoutStatus { return true }
+            return false
         }
     }
 
+    @CasePathable
     enum Action: Equatable, Sendable {
         case onAppear
-        case subscriptionsLoaded(SubscriptionOverviewResponse)
-        case subscriptionsFailed(String)
-        case planTapped(SubscriptionPlan.ID)
-        case activateSelectedTapped
-        case checkoutCreated(KaspiCheckoutResponse)
+        case subscriptionDataLoaded(
+            plans: [MockPassengerPlan],
+            paymentMethods: [MockPaymentMethod],
+            currentPlan: MockMonthlyCommutePlan?,
+            receipts: [MockBillingReceipt]
+        )
+        case subscriptionDataFailed(String)
+        case planTapped(PassengerPlanType)
+        case paymentMethodTapped(MockPaymentMethod.ID)
+        case continueToCheckoutTapped
+        case checkoutStarted(MockCheckoutSession)
         case checkoutFailed(String)
-        case paymentConfirmedTapped
-        case activationSucceeded(ActivateSubscriptionResponse)
+        case confirmMockPaymentTapped
+        case activationSucceeded(MockMonthlyCommutePlan)
         case activationFailed(String)
+        case retryPaymentTapped
+        case finishActivationTapped
         case closeDetailTapped
+        case delegate(Delegate)
+
+        @CasePathable
+        enum Delegate: Equatable, Sendable {
+            case activationFinished
+        }
     }
 
-    @Dependency(\.apiClient) var apiClient
+    @Dependency(\.passengerSubscriptionClient) var passengerSubscriptionClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -53,223 +88,119 @@ struct SubscriptionsFeature {
                 state.isLoading = true
                 state.errorMessage = nil
                 return .run { send in
-                    do {
-                        let response = try await apiClient.fetchSubscriptions()
-                        await send(.subscriptionsLoaded(response))
-                    } catch {
-                        await send(.subscriptionsFailed(error.localizedDescription))
-                    }
+                    async let plans = passengerSubscriptionClient.plans()
+                    async let paymentMethods = passengerSubscriptionClient.paymentMethods()
+                    async let currentPlan = passengerSubscriptionClient.currentPlan()
+                    async let receipts = passengerSubscriptionClient.billingHistory()
+
+                    await send(.subscriptionDataLoaded(
+                        plans: plans,
+                        paymentMethods: paymentMethods,
+                        currentPlan: currentPlan,
+                        receipts: receipts
+                    ))
                 }
 
-            case .subscriptionsLoaded(let response):
+            case let .subscriptionDataLoaded(plans, paymentMethods, currentPlan, receipts):
                 state.isLoading = false
                 state.errorMessage = nil
-                state.currentPlanID = response.currentPlanID
-                state.activeSince = response.activeSince
-                state.plans = response.plans.map(SubscriptionPlan.init(dto:))
+                state.plans = plans
+                state.paymentMethods = paymentMethods
+                state.activeMonthlyPlan = currentPlan
+                state.billingReceipts = receipts
+                state.selectedPlanType = plans.first(where: \.isRecommended)?.type ?? plans.first?.type
+                state.selectedPaymentMethodID = paymentMethods.first?.id
+                state.checkoutStatus = .idle
                 return .none
 
-            case .subscriptionsFailed(let message):
+            case let .subscriptionDataFailed(message):
                 state.isLoading = false
                 state.errorMessage = message
                 return .none
 
-            case .planTapped(let id):
-                state.selectedPlanID = id
-                state.paymentCheckout = nil
+            case let .planTapped(planType):
+                state.selectedPlanType = planType
+                state.checkoutStatus = .idle
+                state.errorMessage = nil
                 return .none
 
-            case .activateSelectedTapped:
-                guard let selectedPlan = state.selectedPlan else { return .none }
-                state.isCheckingOut = true
+            case let .paymentMethodTapped(id):
+                state.selectedPaymentMethodID = id
+                state.checkoutStatus = .idle
                 state.errorMessage = nil
-                state.paymentCheckout = nil
+                return .none
+
+            case .continueToCheckoutTapped:
+                guard let planType = state.selectedPlanType,
+                      let paymentMethodID = state.selectedPaymentMethodID else {
+                    return .none
+                }
+                state.checkoutStatus = .loading
+                state.errorMessage = nil
+                let routeDraft = state.routeDraft
                 return .run { send in
                     do {
-                        let response = try await apiClient.createKaspiCheckout(
-                            "passenger_subscription",
-                            selectedPlan.amountTenge,
-                            selectedPlan.id
+                        let checkout = try await passengerSubscriptionClient.startMockCheckout(
+                            planType,
+                            paymentMethodID,
+                            routeDraft
                         )
-                        await send(.checkoutCreated(response))
+                        await send(.checkoutStarted(checkout))
                     } catch {
                         await send(.checkoutFailed(error.localizedDescription))
                     }
                 }
 
-            case .checkoutCreated(let response):
-                state.isCheckingOut = false
-                state.paymentCheckout = response
+            case let .checkoutStarted(checkout):
+                state.checkoutStatus = .ready(checkout)
                 return .none
 
-            case .checkoutFailed(let message):
-                state.isCheckingOut = false
+            case let .checkoutFailed(message):
+                state.checkoutStatus = .failed(message)
                 state.errorMessage = message
                 return .none
 
-            case .paymentConfirmedTapped:
-                guard let selectedPlanID = state.selectedPlanID else { return .none }
-                state.isActivating = true
+            case .confirmMockPaymentTapped:
+                guard case let .ready(checkout) = state.checkoutStatus else { return .none }
+                state.checkoutStatus = .activating(checkout)
                 state.errorMessage = nil
                 return .run { send in
                     do {
-                        let response = try await apiClient.activateSubscription(selectedPlanID)
-                        await send(.activationSucceeded(response))
+                        let plan = try await passengerSubscriptionClient.activateMockSubscription(checkout.id)
+                        await send(.activationSucceeded(plan))
                     } catch {
                         await send(.activationFailed(error.localizedDescription))
                     }
                 }
 
-            case .activationSucceeded(let response):
-                state.isActivating = false
-                state.currentPlanID = response.currentPlanID
-                state.activeSince = response.activeSince
-                state.selectedPlanID = nil
-                state.paymentCheckout = nil
+            case let .activationSucceeded(plan):
+                state.activeMonthlyPlan = plan
+                state.checkoutStatus = .succeeded(plan)
+                state.errorMessage = nil
                 return .none
 
-            case .activationFailed(let message):
-                state.isActivating = false
+            case let .activationFailed(message):
+                state.checkoutStatus = .failed(message)
                 state.errorMessage = message
                 return .none
 
+            case .retryPaymentTapped:
+                state.checkoutStatus = .idle
+                state.errorMessage = nil
+                return .none
+
+            case .finishActivationTapped:
+                guard state.canFinishActivation else { return .none }
+                return .send(.delegate(.activationFinished))
+
             case .closeDetailTapped:
-                state.selectedPlanID = nil
-                state.paymentCheckout = nil
+                state.checkoutStatus = .idle
+                state.errorMessage = nil
+                return .none
+
+            case .delegate:
                 return .none
             }
         }
     }
-}
-
-struct SubscriptionPlan: Equatable, Identifiable, Sendable {
-    let id: String
-    let title: String
-    let price: String
-    let subtitle: String
-    let badge: String?
-    let isPopular: Bool
-    let features: [Feature]
-
-    var amountTenge: Int {
-        let digits = price.prefix { $0 != "/" }.filter(\.isNumber)
-        return Int(String(digits)) ?? 0
-    }
-
-    nonisolated init(
-        id: String,
-        title: String,
-        price: String,
-        subtitle: String,
-        badge: String?,
-        isPopular: Bool,
-        features: [Feature]
-    ) {
-        self.id = id
-        self.title = title
-        self.price = price
-        self.subtitle = subtitle
-        self.badge = badge
-        self.isPopular = isPopular
-        self.features = features
-    }
-
-    nonisolated init(dto: SubscriptionPlanDTO) {
-        self.init(
-            id: dto.id,
-            title: dto.title,
-            price: dto.price,
-            subtitle: dto.subtitle,
-            badge: dto.badge,
-            isPopular: dto.isPopular,
-            features: dto.features.map(Feature.init(dto:))
-        )
-    }
-
-    struct Feature: Equatable, Sendable {
-        let title: String
-        let subtitle: String
-        let symbol: String
-        let isIncluded: Bool
-
-        nonisolated init(title: String, subtitle: String, symbol: String, isIncluded: Bool) {
-            self.title = title
-            self.subtitle = subtitle
-            self.symbol = symbol
-            self.isIncluded = isIncluded
-        }
-
-        nonisolated init(dto: SubscriptionFeatureDTO) {
-            self.init(
-                title: dto.title,
-                subtitle: dto.subtitle,
-                symbol: dto.symbol,
-                isIncluded: dto.isIncluded
-            )
-        }
-    }
-
-    // TODO(subscription-pivot): Remove free/lite/standard/pro static plans.
-    // Replace with solo_corridor, multi_corridor, flex_pack from API.
-    static let free = SubscriptionPlan(
-        id: "free",
-        title: "Бесплатно",
-        price: "0₸ / месяц",
-        subtitle: "Такси on-demand и просмотр доступных коридоров.",
-        badge: "Текущий",
-        isPopular: false,
-        features: [
-            .init(title: "Такси On-Demand", subtitle: "Стандартный тариф", symbol: "car.fill", isIncluded: true),
-            .init(title: "Просмотр коридоров", subtitle: "Без бронирования подписки", symbol: "map.fill", isIncluded: true),
-            .init(title: "Подписка на коридоры", subtitle: "Недоступно", symbol: "person.3.fill", isIncluded: false),
-            .init(title: "Приоритет в поиске", subtitle: "Недоступно", symbol: "bolt.fill", isIncluded: false)
-        ]
-    )
-
-    static let all: [SubscriptionPlan] = [
-        .free,
-        SubscriptionPlan(
-            id: "lite",
-            title: "Лайт",
-            price: "650₸ / поездка",
-            subtitle: "Один регулярный коридор для спокойных будней.",
-            badge: nil,
-            isPopular: false,
-            features: [
-                .init(title: "Такси On-Demand", subtitle: "Всегда доступно", symbol: "car.fill", isIncluded: true),
-                .init(title: "1 коридор", subtitle: "Для основного маршрута", symbol: "map.circle.fill", isIncluded: true),
-                .init(title: "До 10 поездок в день", subtitle: "Хватает для дома и работы", symbol: "calendar.badge.clock", isIncluded: true),
-                .init(title: "Приоритет в час пик", subtitle: "Недоступно", symbol: "bolt.fill", isIncluded: false)
-            ]
-        ),
-        SubscriptionPlan(
-            id: "standard",
-            title: "Стандарт",
-            price: "850₸ / поездка",
-            subtitle: "Два коридора и стандартный приоритет.",
-            badge: nil,
-            isPopular: false,
-            features: [
-                .init(title: "2 коридора", subtitle: "Например работа и учёба", symbol: "map.fill", isIncluded: true),
-                .init(title: "До 30 поездок в день", subtitle: "Для активного расписания", symbol: "calendar", isIncluded: true),
-                .init(title: "Стандартный приоритет", subtitle: "Быстрее в популярных районах", symbol: "bolt.circle.fill", isIncluded: true),
-                .init(title: "Поддержка 24/7", subtitle: "В профессиональном тарифе", symbol: "message.fill", isIncluded: false)
-            ]
-        ),
-        SubscriptionPlan(
-            id: "pro",
-            title: "Профессионал",
-            price: "1 200₸ / поездка",
-            subtitle: "Безлимит коридоров, высокий приоритет и поддержка 24/7.",
-            badge: "Популярный выбор",
-            isPopular: true,
-            features: [
-                .init(title: "Безлимит коридоров", subtitle: "Все доступные направления", symbol: "infinity", isIncluded: true),
-                .init(title: "Безлимит поездок", subtitle: "Без дневных ограничений", symbol: "car.2.fill", isIncluded: true),
-                .init(title: "Высокий приоритет", subtitle: "Лучше в час пик", symbol: "bolt.fill", isIncluded: true),
-                .init(title: "Поддержка 24/7", subtitle: "Чат и телефон", symbol: "message.fill", isIncluded: true),
-                .init(title: "Скидка 10%", subtitle: "На тариф Комфорт", symbol: "gift.fill", isIncluded: true)
-            ]
-        )
-    ]
 }

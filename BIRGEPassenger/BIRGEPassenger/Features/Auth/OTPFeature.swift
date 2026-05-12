@@ -22,6 +22,11 @@ enum OTPError: LocalizedError, Sendable {
     }
 }
 
+struct OTPAuthentication: Equatable, Sendable {
+    let role: String
+    let phone: String
+}
+
 // MARK: - OTPFeature
 
 @Reducer
@@ -52,12 +57,12 @@ struct OTPFeature {
         // Internal
         case _otpRequestSucceeded
         case _otpRequestFailed(String)
-        case _verifySucceeded(role: String)
+        case _verifySucceeded(OTPAuthentication)
         case _verifyFailed(String)
 
         @CasePathable
         enum Delegate: Sendable {
-            case authenticated(role: String)
+            case authenticated(OTPAuthentication)
         }
     }
 
@@ -101,7 +106,7 @@ struct OTPFeature {
                     try keychainClient.save("birge_access_token", response.accessToken)
                     try keychainClient.save("birge_refresh_token", response.refreshToken)
                     try keychainClient.save("birge_user_id", response.userId)
-                    await send(._verifySucceeded(role: response.role))
+                    await send(._verifySucceeded(OTPAuthentication(role: response.role, phone: phone)))
                 } catch: { error, send in
                     await send(._verifyFailed(error.localizedDescription))
                 }
@@ -116,9 +121,9 @@ struct OTPFeature {
                 state.errorMessage = message
                 return .none
 
-            case let ._verifySucceeded(role):
+            case let ._verifySucceeded(authentication):
                 state.isLoading = false
-                return .send(.delegate(.authenticated(role: role)))
+                return .send(.delegate(.authenticated(authentication)))
 
             case let ._verifyFailed(message):
                 state.isLoading = false
@@ -131,4 +136,3 @@ struct OTPFeature {
         }
     }
 }
-
