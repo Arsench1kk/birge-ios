@@ -201,23 +201,6 @@ struct OnboardingView: View {
     }
 }
 
-private struct RouteReviewStepView: View {
-    @Bindable var store: StoreOf<OnboardingFeature>
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: BIRGELayout.s) {
-            SetupHero(title: "Review route", subtitle: "Confirm this recurring commute before monthly plans")
-
-            if let draft = store.routeDraftForReview {
-                RouteReviewTicket(draft: draft)
-                    .accessibilityIdentifier("passenger_route_review_card")
-            } else {
-                EmptyStateRow(systemImage: "exclamationmark.circle", title: "Route details incomplete")
-            }
-        }
-    }
-}
-
 struct SetupHero: View {
     let title: String
     let subtitle: String
@@ -237,135 +220,6 @@ struct SetupHero: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: maxTitleWidth, alignment: .leading)
         }
-    }
-}
-
-private struct MockupTextRow: View {
-    let title: String
-    let text: Binding<String>
-    let placeholder: String
-    var keyboardType: UIKeyboardType = .default
-    var textContentType: UITextContentType?
-    var autocapitalization: TextInputAutocapitalization = .words
-    var isAutocorrectionDisabled = false
-    let identifier: String
-    var isLast = false
-
-    var body: some View {
-        HStack(spacing: BIRGELayout.xs) {
-            Text(title)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(BIRGEColors.textPrimary)
-            Spacer(minLength: BIRGELayout.xs)
-            TextField(placeholder, text: text)
-                .keyboardType(keyboardType)
-                .textContentType(textContentType)
-                .textInputAutocapitalization(autocapitalization)
-                .autocorrectionDisabled(isAutocorrectionDisabled)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(BIRGEColors.textSecondary)
-                .multilineTextAlignment(.trailing)
-                .accessibilityIdentifier(identifier)
-        }
-        .frame(minHeight: 58)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Rectangle()
-                    .fill(BIRGEColors.borderSubtle)
-                    .frame(height: 1)
-            }
-        }
-    }
-}
-
-private struct RouteReviewTicket: View {
-    let draft: MockRouteDraft
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: BIRGELayout.s) {
-            VStack(alignment: .leading, spacing: BIRGELayout.xxs) {
-                Text(draft.displayName)
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(BIRGEColors.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Recurring route")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(BIRGEColors.textSecondary)
-            }
-
-            HStack(alignment: .top, spacing: BIRGELayout.xs) {
-                VStack(spacing: BIRGELayout.xxxs) {
-                    Circle()
-                        .fill(BIRGEColors.brandPrimary)
-                        .frame(width: 12, height: 12)
-                        .overlay(Circle().stroke(BIRGEColors.passengerSurfaceElevated, lineWidth: 3))
-                    Rectangle()
-                        .fill(BIRGEColors.brandPrimary.opacity(0.36))
-                        .frame(width: 2, height: 54)
-                    Circle()
-                        .fill(BIRGEColors.textPrimary)
-                        .frame(width: 12, height: 12)
-                        .overlay(Circle().stroke(BIRGEColors.passengerSurfaceElevated, lineWidth: 3))
-                }
-                VStack(alignment: .leading, spacing: BIRGELayout.s) {
-                    ReviewStop(title: "Origin", value: draft.originAddress)
-                    ReviewStop(title: "Destination", value: draft.destinationAddress)
-                }
-            }
-
-            Divider()
-                .overlay(BIRGEColors.borderSubtle)
-
-            HStack(spacing: 0) {
-                ReviewMetric(title: "Days", value: draft.schedule.weekdays.map { String($0.prefix(2)).uppercased() }.joined(separator: " "))
-                ReviewMetric(title: "Window", value: "\(draft.schedule.departureWindowStart)-\(draft.schedule.departureWindowEnd)")
-                ReviewMetric(title: "Nodes", value: "2")
-            }
-        }
-        .padding(BIRGELayout.s)
-        .background(
-            RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
-                .fill(BIRGEColors.passengerSurfaceElevated)
-                .shadow(color: BIRGEColors.textPrimary.opacity(0.08), radius: 18, y: 10)
-        )
-        .overlay(RoundedRectangle(cornerRadius: BIRGELayout.radiusL).stroke(BIRGEColors.brandPrimary.opacity(0.18), lineWidth: 1))
-    }
-}
-
-private struct ReviewStop: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-            Text(title)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(BIRGEColors.textSecondary)
-            Text(value)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(BIRGEColors.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-private struct ReviewMetric: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(BIRGEColors.textSecondary)
-            Text(value)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(BIRGEColors.textPrimary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, BIRGELayout.xxs)
     }
 }
 
@@ -437,23 +291,6 @@ private struct ErrorBanner: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(BIRGEColors.danger.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: BIRGELayout.radiusM))
-    }
-}
-
-private struct RowListBackground: View {
-    var body: some View {
-        RoundedRectangle(cornerRadius: 0)
-            .fill(BIRGEColors.passengerBackground)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(BIRGEColors.borderSubtle)
-                    .frame(height: 1)
-            }
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .fill(BIRGEColors.borderSubtle)
-                    .frame(height: 1)
-            }
     }
 }
 
