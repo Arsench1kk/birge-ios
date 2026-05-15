@@ -6,92 +6,122 @@ import SwiftUI
 struct SplashView: View {
     let store: StoreOf<SplashFeature>
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isAnimating = false
-    @State private var cardAppeared = false
+    @State private var contentAppeared = false
 
     var body: some View {
         ZStack {
-            // BACKGROUND — радиальный синий градиент
-            RadialGradient(
-                colors: [
-                    BIRGEColors.brandPrimary,
-                    BIRGEColors.brandPrimary.opacity(0.7)
-                ],
-                center: .center,
-                startRadius: 0,
-                endRadius: 400
-            )
-            .ignoresSafeArea()
+            BIRGEColors.passengerBackground
+                .ignoresSafeArea()
 
-            // PULSE RINGS
-            if !reduceMotion {
-                ForEach([0, 1, 2], id: \.self) { index in
-                    pulseRing(delay: Double(index) * 0.7)
-                }
-            }
-
-            // CENTER CARD
-            VStack(spacing: BIRGELayout.xs) {
-                Image(systemName: "bolt.car.fill")
-                    .font(.system(size: 52, weight: .bold))
-                    .foregroundStyle(.white)
-
-                Text("BIRGE")
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .kerning(-1)
-
-                Rectangle()
-                    .fill(.white.opacity(0.45))
-                    .frame(width: 40, height: 2)
-                    .cornerRadius(1)
-
-                Text("Поехали вместе")
-                    .font(BIRGEFonts.subtext)
-                    .foregroundStyle(.white.opacity(0.72))
-            }
-            .padding(.horizontal, BIRGELayout.xxxl)
-            .padding(.vertical, BIRGELayout.xxl)
-            .liquidGlass(.card, tint: .white.opacity(0.08))
-            .scaleEffect(cardAppeared ? 1.0 : 0.92)
-            .opacity(cardAppeared ? 1.0 : 0)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.75),
-                value: cardAppeared
-            )
-
-            // FOOTER
             VStack {
                 Spacer()
-                Text("© 2026 BIRGE")
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(.white.opacity(0.4))
-                    .padding(.bottom, BIRGELayout.m)
+
+                VStack(spacing: BIRGELayout.s) {
+                    brandBlock
+                    routeMotif
+                        .padding(.top, BIRGELayout.xxs)
+                }
+                .padding(.horizontal, BIRGELayout.m)
+                .opacity(contentAppeared ? 1 : 0)
+                .offset(y: contentAppeared || reduceMotion ? 0 : 10)
+                .animation(
+                    reduceMotion ? nil : .easeOut(duration: 0.45),
+                    value: contentAppeared
+                )
+
+                Spacer()
+
+                startButton
+                    .padding(.horizontal, BIRGELayout.m)
+                    .padding(.bottom, BIRGELayout.l)
             }
         }
         .onAppear {
-            cardAppeared = true
-            if !reduceMotion {
-                isAnimating = true
-            }
+            contentAppeared = true
             store.send(.onAppear)
         }
     }
 
-    // MARK: - Pulse Ring
+    private var brandBlock: some View {
+        VStack(spacing: BIRGELayout.xxs) {
+            Image("BIRGELogoPassenger")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 88, height: 88)
+                .accessibilityLabel("BIRGE passenger logo")
 
-    private func pulseRing(delay: Double) -> some View {
-        Circle()
-            .stroke(.white.opacity(0.15), lineWidth: 1)
-            .frame(width: 100, height: 100)
-            .scaleEffect(isAnimating ? 5.0 : 1.0)
-            .opacity(isAnimating ? 0 : 0.15)
-            .animation(
-                .easeOut(duration: 2.5)
-                    .repeatForever(autoreverses: false)
-                    .delay(delay),
-                value: isAnimating
-            )
+            Image("BIRGEWordmark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 142)
+                .padding(.top, -BIRGELayout.xxxs)
+                .accessibilityLabel("BIRGE")
+
+            Text("Маршруты по подписке")
+                .font(BIRGEFonts.sectionTitle)
+                .foregroundStyle(BIRGEColors.textPrimary)
+                .padding(.top, BIRGELayout.xxxs)
+
+            Text("Для регулярных поездок по Алматы")
+                .font(BIRGEFonts.captionBold)
+                .foregroundStyle(BIRGEColors.textSecondary)
+        }
+        .multilineTextAlignment(.center)
+    }
+
+    private var routeMotif: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 30)
+                .fill(BIRGEColors.routeCanvasBackground)
+
+            RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
+                .stroke(BIRGEColors.borderSubtle, lineWidth: 1)
+                .padding(.horizontal, BIRGELayout.s)
+                .padding(.vertical, BIRGELayout.l)
+
+            Rectangle()
+                .fill(BIRGEColors.brandPrimary)
+                .frame(height: 4)
+                .clipShape(Capsule())
+                .padding(.horizontal, 52)
+                .rotationEffect(.degrees(-8))
+
+            Circle()
+                .fill(BIRGEColors.brandPrimary)
+                .frame(width: 20, height: 20)
+                .overlay(Circle().stroke(BIRGEColors.passengerSurface, lineWidth: 4))
+                .position(x: 40, y: 82)
+
+            Circle()
+                .fill(BIRGEColors.brandPrimary)
+                .frame(width: 20, height: 20)
+                .overlay(Circle().stroke(BIRGEColors.passengerSurface, lineWidth: 4))
+                .position(x: 295, y: 52)
+
+            Circle()
+                .fill(BIRGEColors.brandPrimary.opacity(0.42))
+                .frame(width: 9, height: 9)
+                .position(x: 116, y: 72)
+
+            Circle()
+                .fill(BIRGEColors.brandPrimary.opacity(0.42))
+                .frame(width: 9, height: 9)
+                .position(x: 220, y: 62)
+        }
+        .frame(height: 134)
+        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .accessibilityHidden(true)
+    }
+
+    private var startButton: some View {
+        Text("Начать")
+            .font(BIRGEFonts.bodyMedium)
+            .foregroundStyle(BIRGEColors.textOnBrand)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(BIRGEColors.brandPrimary)
+            .clipShape(Capsule())
+            .accessibilityHidden(true)
     }
 }
 
