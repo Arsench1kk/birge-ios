@@ -84,4 +84,23 @@ final class OTPFeatureTests: XCTestCase {
             $0.errorMessage = AuthError.verificationFailed.localizedDescription
         }
     }
+
+    func testChangePhoneTappedReturnsToPhoneStep() async {
+        let store = TestStore(initialState: OTPFeature.State(
+            phoneNumber: "+7777123456",
+            otpCode: "481",
+            step: .code,
+            errorMessage: "Неверный код."
+        )) {
+            OTPFeature()
+        }
+
+        await store.send(.changePhoneTapped) {
+            $0.step = .phone
+            $0.otpCode = ""
+            $0.errorMessage = nil
+            // phoneNumber is preserved so the user can edit it
+            $0.phoneNumber = "+7777123456"
+        }
+    }
 }

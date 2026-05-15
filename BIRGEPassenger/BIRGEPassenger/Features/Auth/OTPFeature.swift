@@ -52,6 +52,7 @@ struct OTPFeature {
         case sendOTPTapped
         case otpChanged(String)
         case verifyTapped
+        case changePhoneTapped
         case delegate(Delegate)
 
         // Internal
@@ -92,6 +93,14 @@ struct OTPFeature {
 
             case let .otpChanged(code):
                 state.otpCode = code
+                state.errorMessage = nil
+                return .none
+
+            case .changePhoneTapped:
+                // Return to phone step so the user can edit their number.
+                // phoneNumber is preserved so they don't retype from scratch.
+                state.step = .phone
+                state.otpCode = ""
                 state.errorMessage = nil
                 return .none
 
