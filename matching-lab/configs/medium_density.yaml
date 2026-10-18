@@ -1,0 +1,39 @@
+name: medium_density
+placeholder_note: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+start_date:
+  value: "2026-11-02"
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+horizon_days:
+  value: 14
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+trip_duration_minutes:
+  value: 45
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+passenger_templates_per_week:
+  value: [10, 12]
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+request_windows:
+  value:
+    preferred_start: "07:00"
+    preferred_end: "09:00"
+    width_minutes: [30, 60]
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+cancellation_probability:
+  value: 0.05
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+no_show_probability:
+  value: 0.05
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
+hubs:
+  - {id: hub-a, name: Synthetic hub A}
+  - {id: hub-b, name: Synthetic hub B}
+corridors:
+  - {id: corridor-a-b, origin: hub-a, destination: hub-b}
+  - {id: corridor-b-a, origin: hub-b, destination: hub-a}
+drivers:
+  value:
+    count: 8
+    capacity_range: [2, 4]
+    daily_slots:
+      - {start: "06:30", end: "10:00"}
+  status: "PLACEHOLDER: не откалибровано, согласовать с руководителем"
