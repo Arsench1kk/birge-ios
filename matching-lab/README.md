@@ -33,6 +33,8 @@ PYTHONPATH=src .venv/bin/python -m matching_lab.runner --configs configs/low_den
 
 Команда выводит таблицу по каждому config × seed × solver, `results/results.json` с полным synthetic-сценарием, assignment, metadata и метриками, а также `results/metrics.csv`. Runner проверяет каждый результат независимым validator и прекращает работу при нарушениях. Runtime измеряется отдельно от генерации, валидации и записи файлов.
 
+Метаданные включают `matching_lab_dirty`: при `true` или `null` SHA коммита не описывает гарантированно запущенный код. Для итоговых сравнений используйте чистую зафиксированную версию стенда и сохраняйте конфиги и результаты отдельно.
+
 ## Фиксированный baseline
 
 Заявки сортируются по `(earliest window, preferred time, date, corridor, request template ID, instance ID)`. Solver сначала присоединяет заявку к совместимому существующему рейсу с минимальным отклонением, затем открывает новый на лучшем допустимом driver-slot; tie-break использует время и стабильные IDs. Полное правило записано в design document и не должно меняться после сравнительных запусков без версии нового протокола.

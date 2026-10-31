@@ -36,8 +36,20 @@ def _jsonable(value: Any) -> Any:
 def _git_commit() -> str | None:
     try:
         return subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[2],
+            capture_output=True, text=True, check=True
         ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _git_dirty() -> bool | None:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--", str(Path(__file__).resolve().parents[2])],
+            cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True, check=True,
+        )
+        return bool(result.stdout.strip())
     except (OSError, subprocess.CalledProcessError):
         return None
 
@@ -51,6 +63,7 @@ def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path
     output_dir.mkdir(parents=True, exist_ok=True)
     records: list[dict] = []
     commit = _git_commit()
+    dirty = _git_dirty()
 
     for config_path in config_paths:
         config = load_config(config_path)
@@ -76,6 +89,7 @@ def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path
                             "generator_version": scenario.generator_version,
                             "matching_lab_version": __version__,
                             "git_commit": commit,
+                            "matching_lab_dirty": dirty,
                             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
                             "solver": solver.name,
                             "solver_version": solver.version,

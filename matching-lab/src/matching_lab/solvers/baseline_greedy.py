@@ -49,8 +49,10 @@ def _slot_candidates(
         latest = min(request.latest_departure, slot.end_minute - duration)
         if earliest > latest:
             continue
-        departure = min(max(request.preferred_departure, earliest), latest)
-        if _driver_conflicts(driver.driver_id, request.service_date, departure, duration, trips):
+        feasible = (minute for minute in range(earliest, latest + 1)
+                    if not _driver_conflicts(driver.driver_id, request.service_date, minute, duration, trips))
+        departure = min(feasible, key=lambda minute: (abs(minute - request.preferred_departure), minute), default=None)
+        if departure is None:
             continue
         rank = (abs(departure - request.preferred_departure), departure, driver.driver_id, slot.start_minute)
         candidates.append((rank, departure, slot))
@@ -59,7 +61,7 @@ def _slot_candidates(
 
 class GreedyBaseline:
     name = "baseline_greedy"
-    version = "0.1.0"
+    version = "0.2.0"
 
     def solve(self, scenario: Scenario) -> SolverResult:
         active = [instance for instance in scenario.request_instances if not instance.cancelled]

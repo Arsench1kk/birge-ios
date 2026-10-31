@@ -3,11 +3,19 @@ from pathlib import Path
 
 from matching_lab.generator import generate_scenario, load_config
 from matching_lab.metrics import calculate_metrics
-from matching_lab.model import Assignment, SolverResult, Trip
-from matching_lab.solvers.baseline_greedy import GreedyBaseline
+from matching_lab.model import Assignment, Driver, DriverAvailabilitySlot, RequestInstance, SolverResult, Trip
+from matching_lab.solvers.baseline_greedy import GreedyBaseline, _slot_candidates
 from matching_lab.validator import validate
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def test_baseline_finds_free_time_when_preferred_conflicts():
+    from datetime import date
+    day = date(2026, 10, 19)
+    driver = Driver("d", 1, frozenset({"a", "b"}), (DriverAvailabilitySlot(frozenset({0}), 480, 600),))
+    request = RequestInstance("r", "r", "b", day, 510, 570, 510)
+    existing = Trip("t", "a", day, 510, 30, "d", ("other",))
+    assert _slot_candidates(driver, request, 30, [existing])[0][1] == 540
 
 
 def test_baseline_is_valid_on_twenty_generated_scenarios():
