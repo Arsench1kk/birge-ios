@@ -99,6 +99,9 @@ def generate_scenario(config: dict, seed: int) -> Scenario:
         day_min, day_max = count_range(days_range, "days per week")
         if not 1 <= day_min <= day_max <= 7:
             raise ValueError("days per week must be within 1..7")
+        weekday_pool = tuple(int(day) for day in params.get("weekday_pool", range(7)))
+        if len(set(weekday_pool)) != len(weekday_pool) or any(day < 0 or day > 6 for day in weekday_pool) or day_max > len(weekday_pool):
+            raise ValueError("weekday pool must contain enough distinct days in 0..6")
     peak = params.get("demand_peak")
     if peak is not None:
         peak_minute = _time_to_minute(peak["center"])
@@ -117,7 +120,7 @@ def generate_scenario(config: dict, seed: int) -> Scenario:
         earliest = max(0, preferred - early_width)
         latest = min(1439, preferred + (width - early_width))
         corridor = planned_corridor or rng.choice(corridors)
-        days = (frozenset(rng.sample(range(7), rng.randint(day_min, day_max)))
+        days = (frozenset(rng.sample(weekday_pool, rng.randint(day_min, day_max)))
                 if days_range is not None else frozenset({rng.randrange(7)}))
         requests.append(
             PassengerRequest(
