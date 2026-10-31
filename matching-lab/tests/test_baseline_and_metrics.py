@@ -74,6 +74,8 @@ def test_template_stability_across_days_and_empty_inputs(small_scenario):
     empty = calculate_metrics(replace(scenario, request_instances=(), drivers=()), SolverResult((), (), ()), 0)
     assert empty["trip_lower_bound"] == 0
     assert empty["trips_to_lower_bound"] is None
+    assert empty["template_stability"][first.request_id] == {"distinct_departures": 0, "distinct_drivers": 0}
+    assert empty["mean_distinct_departures_per_template"] == 0
 
 
 def test_invalid_stub_solver_result_is_rejected_by_validator(small_scenario):

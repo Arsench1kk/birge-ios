@@ -78,3 +78,12 @@ def test_reference_runner_matches_baseline_and_exact(tmp_path):
     assert [row["metrics"]["trip_lower_bound"] for row in rows] == [1, 1]
     assert [row["metrics"]["assignment_rate"] for row in rows] == [1, 1]
     assert (tmp_path / "results.json").exists()
+
+
+def test_runner_rejects_oversized_exact_without_writing_results(tmp_path):
+    from matching_lab.runner import run_experiments
+
+    config = Path(__file__).resolve().parents[1] / "configs/families/high_narrow_surplus.yaml"
+    with pytest.raises(ValueError, match="exact_tiny limit exceeded"):
+        run_experiments([config], [17], tmp_path, ["baseline_greedy", "exact_tiny"])
+    assert not (tmp_path / "results.json").exists()

@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Runs: {len(records)}")
     print(f"Raw JSON: {args.output / 'results.json'}")
     print(f"Metrics CSV: {args.output / 'metrics.csv'}")
-    columns = ("scenario_name", "seed", "solver", "active_requests", "assignment_rate", "trip_count", "mean_passengers_per_trip", "trip_lower_bound", "trips_to_lower_bound", "mean_time_deviation_minutes", "mean_distinct_departures_per_template", "mean_distinct_drivers_per_template", "runtime_seconds")
+    columns = ("scenario_name", "seed", "solver", "active_requests", "assignment_rate", "trip_count", "mean_passengers_per_trip", "trip_lower_bound", "trips_to_lower_bound", "mean_time_deviation_minutes", "mean_distinct_departures_per_template", "max_distinct_departures_per_template", "mean_distinct_drivers_per_template", "max_distinct_drivers_per_template", "runtime_seconds")
     print("\t".join(columns))
     for record in records:
         values = {**record["metadata"], **record["metrics"]}

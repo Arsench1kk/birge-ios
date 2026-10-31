@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from math import ceil
-from collections import Counter, defaultdict
+from collections import Counter
 
 from matching_lab.model import Scenario, SolverResult
 
@@ -27,12 +27,12 @@ def calculate_metrics(scenario: Scenario, result: SolverResult, runtime_seconds:
     lower_bound = (sum(ceil(count / max_capacity) for count in active_by_day_corridor.values())
                    if max_capacity else (0 if not active else None))
     trip_by_id = {trip.trip_id: trip for trip in result.trips}
-    times_by_template = defaultdict(set)
-    drivers_by_template = defaultdict(set)
+    times_by_template = {request.request_id: set() for request in scenario.requests}
+    drivers_by_template = {request.request_id: set() for request in scenario.requests}
     for assignment in result.assignments:
         request = assigned_by_id[assignment.request_instance_id]
-        times_by_template[request.request_id].add(trip_by_id[assignment.trip_id].departure_minute)
-        drivers_by_template[request.request_id].add(assignment.driver_id)
+        times_by_template.setdefault(request.request_id, set()).add(trip_by_id[assignment.trip_id].departure_minute)
+        drivers_by_template.setdefault(request.request_id, set()).add(assignment.driver_id)
     time_counts = [len(values) for values in times_by_template.values()]
     driver_counts = [len(values) for values in drivers_by_template.values()]
     return {
@@ -53,7 +53,8 @@ def calculate_metrics(scenario: Scenario, result: SolverResult, runtime_seconds:
         "mean_passengers_per_trip": assigned_seats / len(result.trips) if result.trips else None,
         "trip_lower_bound": lower_bound,
         "trips_to_lower_bound": len(result.trips) / lower_bound if lower_bound and len(assigned_ids) == len(active) else None,
-        "assigned_templates": len(time_counts),
+        "templates_total": len(time_counts),
+        "assigned_templates": sum(bool(values) for values in times_by_template.values()),
         "template_stability": {template: {"distinct_departures": len(times), "distinct_drivers": len(drivers_by_template[template])}
                                for template, times in sorted(times_by_template.items())},
         "mean_distinct_departures_per_template": sum(time_counts) / len(time_counts) if time_counts else None,
