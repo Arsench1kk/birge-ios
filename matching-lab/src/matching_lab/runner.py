@@ -55,8 +55,8 @@ def _git_dirty() -> bool | None:
         return None
 
 
-def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path, solver_names: list[str], exact_max_states: int = 100_000) -> list[dict]:
-    registry = {"baseline_greedy": GreedyBaseline, "exact_tiny": lambda: ExactTiny(max_states=exact_max_states)}
+def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path, solver_names: list[str], exact_max_states: int = 100_000, exact_max_requests_per_day: int = 8) -> list[dict]:
+    registry = {"baseline_greedy": GreedyBaseline, "exact_tiny": lambda: ExactTiny(max_requests_per_day=exact_max_requests_per_day, max_states=exact_max_states)}
     unknown = sorted(set(solver_names) - set(registry))
     if unknown:
         raise ValueError(f"unknown solver(s): {', '.join(unknown)}")
@@ -95,6 +95,7 @@ def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path
                             "solver": solver.name,
                             "solver_version": solver.version,
                             "exact_max_states": exact_max_states if solver.name == "exact_tiny" else None,
+                            "exact_max_requests_per_day": exact_max_requests_per_day if solver.name == "exact_tiny" else None,
                         },
                         "scenario": _jsonable(scenario),
                         "result": _jsonable(result),
@@ -125,6 +126,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--solvers", nargs="+", choices=["baseline_greedy"], default=["baseline_greedy"])
     parser.add_argument("--exact", action="store_true", help="add exact_tiny reference for instances with at most 8 active requests per day")
     parser.add_argument("--exact-max-states", type=int, default=100_000, help="maximum exact solver states per day; failure is not an optimum")
+    parser.add_argument("--exact-max-requests-per-day", type=int, default=8, help="maximum active requests across all corridors per day")
     parser.add_argument("--output", type=Path, default=Path("results"))
     return parser.parse_args(argv)
 
@@ -136,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
         if not seeds:
             raise ValueError("at least one seed is required")
         solver_names = [*args.solvers, *(["exact_tiny"] if args.exact else [])]
-        records = run_experiments(args.configs, seeds, args.output, solver_names, args.exact_max_states)
+        records = run_experiments(args.configs, seeds, args.output, solver_names, args.exact_max_states, args.exact_max_requests_per_day)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
