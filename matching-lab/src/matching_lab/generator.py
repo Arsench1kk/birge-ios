@@ -80,25 +80,50 @@ def generate_scenario(config: dict, seed: int) -> Scenario:
     width_min, width_max = map(int, windows["width_minutes"])
     if width_min <= 0 or width_max < width_min:
         raise ValueError("invalid request window width range")
-    count_min, count_max = map(int, params["passenger_templates_per_week"])
-    if count_min < 0 or count_max < count_min:
-        raise ValueError("invalid passenger template count range")
+    def count_range(value, label):
+        low, high = map(int, value)
+        if low < 0 or high < low:
+            raise ValueError(f"invalid {label} range")
+        return low, high
 
-    request_count = rng.randint(count_min, count_max)
+    per_corridor = params.get("passenger_templates_per_corridor")
+    if per_corridor is not None:
+        low, high = count_range(per_corridor, "templates per corridor")
+        planned_corridors = [corridor for corridor in corridors for _ in range(rng.randint(low, high))]
+    else:
+        low, high = count_range(params["passenger_templates_per_week"], "passenger template count")
+        planned_corridors = [None] * rng.randint(low, high)
+
+    days_range = params.get("days_per_week")
+    if days_range is not None:
+        day_min, day_max = count_range(days_range, "days per week")
+        if not 1 <= day_min <= day_max <= 7:
+            raise ValueError("days per week must be within 1..7")
+    peak = params.get("demand_peak")
+    if peak is not None:
+        peak_minute = _time_to_minute(peak["center"])
+        peak_radius = int(peak["radius_minutes"])
+        peak_probability = float(peak["probability"])
+        if peak_radius < 0 or not 0 <= peak_probability <= 1 or not pref_start <= peak_minute <= pref_end:
+            raise ValueError("invalid demand peak")
     requests: list[PassengerRequest] = []
-    for index in range(request_count):
-        preferred = rng.randint(pref_start, pref_end)
+    for index, planned_corridor in enumerate(planned_corridors):
+        if peak is not None and rng.random() < peak_probability:
+            preferred = rng.randint(max(pref_start, peak_minute - peak_radius), min(pref_end, peak_minute + peak_radius))
+        else:
+            preferred = rng.randint(pref_start, pref_end)
         width = rng.randint(width_min, width_max)
         early_width = width // 2
         earliest = max(0, preferred - early_width)
         latest = min(1439, preferred + (width - early_width))
-        corridor = rng.choice(corridors)
-        weekday = rng.randrange(7)
+        corridor = planned_corridor or rng.choice(corridors)
+        days = (frozenset(rng.sample(range(7), rng.randint(day_min, day_max)))
+                if days_range is not None else frozenset({rng.randrange(7)}))
         requests.append(
             PassengerRequest(
                 request_id=f"request-{index + 1:04d}",
                 corridor_id=corridor.corridor_id,
-                days_of_week=frozenset({weekday}),
+                days_of_week=days,
                 earliest_departure=earliest,
                 latest_departure=latest,
                 preferred_departure=preferred,

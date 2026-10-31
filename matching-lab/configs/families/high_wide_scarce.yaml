@@ -1,0 +1,63 @@
+name: high_wide_scarce
+placeholder_note: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+start_date:
+  value: '2026-11-02'
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+horizon_days:
+  value: 14
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+trip_duration_minutes:
+  value: 30
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+passenger_templates_per_corridor:
+  value:
+  - 16
+  - 16
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+days_per_week:
+  value:
+  - 2
+  - 3
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+request_windows:
+  value:
+    preferred_start: 07:00
+    preferred_end: 09:00
+    width_minutes:
+    - 50
+    - 70
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+demand_peak:
+  value:
+    center: 08:00
+    radius_minutes: 15
+    probability: 0.85
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+cancellation_probability:
+  value: 0.0
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+no_show_probability:
+  value: 0.0
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+hubs:
+- id: a
+  name: Synthetic A
+- id: b
+  name: Synthetic B
+corridors:
+- id: ab
+  origin: a
+  destination: b
+- id: ba
+  origin: b
+  destination: a
+drivers:
+  value:
+    count: 1
+    capacity_range:
+    - 3
+    - 4
+    daily_slots:
+    - start: 07:00
+      end: 09:00
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
