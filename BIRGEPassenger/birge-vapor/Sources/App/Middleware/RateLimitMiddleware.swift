@@ -44,9 +44,9 @@ struct RateLimitMiddleware: AsyncMiddleware {
     }
 
     func respond(to req: Request, chainingTo next: AsyncResponder) async throws -> Response {
-        let clientIP = req.headers.first(name: "X-Forwarded-For")
-            ?? req.remoteAddress?.ipAddress
-            ?? "unknown"
+        // Never trust a client-supplied forwarding header. A trusted proxy
+        // integration must explicitly validate its peer before using one.
+        let clientIP = req.remoteAddress?.ipAddress ?? "unknown"
         let key = "\(clientIP):\(req.url.path)"
 
         guard await req.application.rateLimitStore.allows(

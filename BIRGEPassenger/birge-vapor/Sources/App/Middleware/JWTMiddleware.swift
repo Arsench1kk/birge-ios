@@ -20,6 +20,10 @@ struct JWTMiddleware: AsyncMiddleware {
         guard blacklisted == nil else {
             throw Abort(.unauthorized, reason: "Token revoked")
         }
+        if let sessionID = payload.sessionID,
+           try await req.redis.get(RedisKey("revoked-session:\(sessionID)"), as: String.self).get() != nil {
+            throw Abort(.unauthorized, reason: "Session revoked")
+        }
 
         req.storage[UserIDKey.self] = userID
         req.storage[UserRoleKey.self] = payload.role

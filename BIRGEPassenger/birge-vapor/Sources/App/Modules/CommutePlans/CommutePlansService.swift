@@ -79,6 +79,9 @@ struct CommutePlansService {
         }
 
         let userID = try req.authenticatedUserID
+        guard Set(dto.routeIDs).count == dto.routeIDs.count else {
+            throw Abort(.badRequest, reason: "Duplicate routes are not allowed")
+        }
         let now = Date()
         let calendar = Calendar.current
         let endOfMonth = calendar.date(byAdding: .month, value: 1, to: now) ?? now
@@ -94,13 +97,20 @@ struct CommutePlansService {
             flexRidesUsed: planType == .flexPack ? 0 : nil
         )
 
-        try await plan.save(on: req.db)
-
-        // Link routes to plan
-        let planID = try plan.requireID()
-        for routeID in dto.routeIDs {
-            let link = CommutePlanRoute(planID: planID, recurringRouteID: routeID)
-            try await link.save(on: req.db)
+        try await req.db.transaction { database in
+            let ownedCount = try await RecurringRoute.query(on: database)
+                .filter(\.$id ~~ dto.routeIDs)
+                .filter(\.$passenger.$id == userID)
+                .filter(\.$isActive == true)
+                .count()
+            guard ownedCount == dto.routeIDs.count else {
+                throw Abort(.badRequest, reason: "Routes must be active and belong to the passenger")
+            }
+            try await plan.save(on: database)
+            let planID = try plan.requireID()
+            for routeID in dto.routeIDs {
+                try await CommutePlanRoute(planID: planID, recurringRouteID: routeID).save(on: database)
+            }
         }
 
         return try CommutePlansDTO.PlanResponse(plan: plan, routeIDs: dto.routeIDs)

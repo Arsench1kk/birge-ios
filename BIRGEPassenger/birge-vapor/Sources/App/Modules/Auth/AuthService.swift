@@ -12,6 +12,9 @@ struct AuthService {
     private let refreshTokenTTL: TimeInterval = 60 * 60 * 24 * 30
 
     func requestOTP(phone: String) async throws {
+        guard req.application.environment != .production else {
+            throw Abort(.serviceUnavailable, reason: "OTP delivery is not configured")
+        }
         let normalizedPhone = normalizePhone(phone)
         let code = String(format: "%06d", Int.random(in: 0...999999))
 
@@ -24,7 +27,7 @@ struct AuthService {
             after: .seconds(300)
         ).get()
 
-        req.logger.info("OTP generated for \(normalizedPhone): \(code)")
+        req.logger.debug("Development OTP generated")
         
         // E2E Test Logging: [YYYY-MM-DD HH:mm:ss] Phone: +7777123456 | OTP: 123456
         let formatter = DateFormatter()
@@ -153,6 +156,11 @@ struct AuthService {
             throw Abort(.unauthorized, reason: "Invalid token type")
         }
 
+        if let sessionID = payload.sessionID {
+            _ = try await req.redis.set(RedisKey("revoked-session:\(sessionID)"), to: RESPValue(from: "1")).get()
+            _ = try await req.redis.expire(RedisKey("revoked-session:\(sessionID)"), after: .seconds(Int64(refreshTokenTTL))).get()
+        }
+
         _ = max(1, Int(payload.expiration.timeIntervalSinceNow))
         _ = try await req.redis.set(
             RedisKey("blacklist:\(payload.jti)"),
@@ -162,12 +170,17 @@ struct AuthService {
             RedisKey("blacklist:\(payload.jti)"),
             after: .seconds(3600)
         ).get()
+        await req.application.wsHub.revoke(sessionID: payload.sessionID, tokenID: payload.jti)
     }
 
     func refresh() async throws -> AuthResponseDTO {
         let payload = try decodeRefreshPayload()
         guard payload.type == .refresh else {
             throw Abort(.unauthorized, reason: "Invalid token type")
+        }
+        guard let sessionID = payload.sessionID,
+              try await req.redis.get(RedisKey("revoked-session:\(sessionID)"), as: String.self).get() == nil else {
+            throw Abort(.unauthorized, reason: "Session revoked or obsolete")
         }
 
         let refreshKey = RedisKey("refresh:\(payload.jti)")
@@ -182,10 +195,10 @@ struct AuthService {
             throw Abort(.notFound, reason: "User not found")
         }
 
-        return try await issueTokens(for: user)
+        return try await issueTokens(for: user, sessionID: sessionID)
     }
 
-    private func issueTokens(for user: User) async throws -> AuthResponseDTO {
+    private func issueTokens(for user: User, sessionID: String = UUID().uuidString) async throws -> AuthResponseDTO {
         let userID = try user.requireID().uuidString
         let role = user.role.rawValue
 
@@ -193,13 +206,13 @@ struct AuthService {
             userID: userID,
             role: role,
             type: .access,
-            expiration: Date().addingTimeInterval(accessTokenTTL)
+            expiration: Date().addingTimeInterval(accessTokenTTL), sessionID: sessionID
         )
         let refreshPayload = BIRGEJWTPayload(
             userID: userID,
             role: role,
             type: .refresh,
-            expiration: Date().addingTimeInterval(refreshTokenTTL)
+            expiration: Date().addingTimeInterval(refreshTokenTTL), sessionID: sessionID
         )
 
         let accessToken = try req.jwt.sign(accessPayload)
@@ -252,6 +265,7 @@ struct BIRGEJWTPayload: JWTPayload {
         case type
         case expiration = "exp"
         case jti
+        case sessionID = "sid"
     }
 
     enum TokenType: String, Codable, Sendable {
@@ -264,19 +278,22 @@ struct BIRGEJWTPayload: JWTPayload {
     var type: TokenType
     var expiration: Date
     var jti: String
+    var sessionID: String?
 
     init(
         userID: String,
         role: String,
         type: TokenType,
         expiration: Date,
-        jti: String = UUID().uuidString
+        jti: String = UUID().uuidString,
+        sessionID: String? = nil
     ) {
         self.userID = userID
         self.role = role
         self.type = type
         self.expiration = expiration
         self.jti = jti
+        self.sessionID = sessionID
     }
 
     func verify(using signer: JWTSigner) throws {

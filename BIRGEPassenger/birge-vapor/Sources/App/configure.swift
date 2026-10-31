@@ -25,7 +25,11 @@ public func configure(_ app: Application) async throws {
 
     app.views.use(.leaf)
 
-    let secret = Environment.get("JWT_SECRET") ?? "dev_secret_birge_2026"
+    let configuredSecret = Environment.get("JWT_SECRET")?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if app.environment == .production && (configuredSecret?.isEmpty != false || configuredSecret == "dev_secret_birge_2026") {
+        throw Abort(.internalServerError, reason: "A non-default JWT_SECRET is required in production")
+    }
+    let secret = configuredSecret.flatMap { $0.isEmpty ? nil : $0 } ?? "dev_secret_birge_2026"
     try app.jwt.signers.use(.hs256(key: secret))
 
     app.migrations.add(CreateUsers())

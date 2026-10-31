@@ -4,12 +4,24 @@ actor WSHub {
     private struct Connection {
         let channel: String
         let socket: WebSocket
+        let sessionID: String?
+        let tokenID: String
     }
 
     private var connections: [UUID: Connection] = [:]
 
-    func connect(id: UUID, channel: String, socket: WebSocket) {
-        connections[id] = Connection(channel: channel, socket: socket)
+    func connect(id: UUID, channel: String, socket: WebSocket, sessionID: String?, tokenID: String) {
+        connections[id] = Connection(channel: channel, socket: socket, sessionID: sessionID, tokenID: tokenID)
+    }
+
+    func revoke(sessionID: String?, tokenID: String) {
+        let matches = connections.filter { _, connection in
+            connection.tokenID == tokenID || (sessionID != nil && connection.sessionID == sessionID)
+        }
+        for (id, connection) in matches {
+            connections[id] = nil
+            connection.socket.eventLoop.execute { connection.socket.close(promise: nil) }
+        }
     }
 
     func disconnect(id: UUID) {

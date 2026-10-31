@@ -1,4 +1,5 @@
 import Fluent
+import Redis
 import Vapor
 
 struct MatchRideDebugRequest: Content {
@@ -42,6 +43,13 @@ struct WSController {
     func handleConnection(req: Request, ws: WebSocket) async throws {
         do {
             let payload = try verifyAccessPayload(req: req)
+            guard try await req.redis.get(RedisKey("blacklist:\(payload.jti)"), as: String.self).get() == nil else {
+                throw Abort(.unauthorized, reason: "Token revoked")
+            }
+            if let sessionID = payload.sessionID,
+               try await req.redis.get(RedisKey("revoked-session:\(sessionID)"), as: String.self).get() != nil {
+                throw Abort(.unauthorized, reason: "Session revoked")
+            }
             guard let userID = UUID(uuidString: payload.userID) else {
                 throw Abort(.unauthorized, reason: "Invalid token subject")
             }
@@ -56,8 +64,23 @@ struct WSController {
             await req.application.wsHub.connect(
                 id: connectionID,
                 channel: channel,
-                socket: ws
+                socket: ws,
+                sessionID: payload.sessionID,
+                tokenID: payload.jti
             )
+
+            // Catch a logout racing with authorization and connection registration.
+            let tokenRevoked = try await req.redis.get(RedisKey("blacklist:\(payload.jti)"), as: String.self).get() != nil
+            let sessionRevoked: Bool
+            if let sessionID = payload.sessionID {
+                sessionRevoked = try await req.redis.get(RedisKey("revoked-session:\(sessionID)"), as: String.self).get() != nil
+            } else {
+                sessionRevoked = false
+            }
+            guard !tokenRevoked && !sessionRevoked else {
+                await req.application.wsHub.revoke(sessionID: payload.sessionID, tokenID: payload.jti)
+                return
+            }
 
             req.logger.info("WebSocket connected: \(channel)")
             try await ws.send("{\"type\":\"connected\",\"channel\":\"\(channel)\",\"userId\":\"\(payload.userID)\"}")

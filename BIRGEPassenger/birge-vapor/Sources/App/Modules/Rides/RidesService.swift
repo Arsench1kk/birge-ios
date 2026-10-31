@@ -41,20 +41,24 @@ struct RidesService {
     }
 
     func cancel(rideID: UUID) async throws -> RideDTO {
-        guard let ride = try await Ride.find(rideID, on: req.db) else {
-            throw Abort(.notFound, reason: "Ride not found")
+        let ride = try await req.db.transaction { database in
+            if let sql = database as? SQLDatabase {
+                try await sql.raw("SELECT id FROM \(ident: Ride.schema) WHERE id = \(bind: rideID) FOR UPDATE").run()
+            }
+            guard let ride = try await Ride.find(rideID, on: database) else {
+                throw Abort(.notFound, reason: "Ride not found")
+            }
+            try authorizeAccess(to: ride)
+            guard ride.status != .completed && ride.status != .inProgress else {
+                throw Abort(.conflict, reason: "Started or completed rides cannot be cancelled")
+            }
+            if ride.status != .cancelled {
+                ride.status = .cancelled
+                try await ride.save(on: database)
+            }
+            return ride
         }
-
-        try authorizeAccess(to: ride)
-
-        guard ride.status != .completed else {
-            throw Abort(.conflict, reason: "Completed rides cannot be cancelled")
-        }
-
-        if ride.status != .cancelled {
-            ride.status = .cancelled
-            try await ride.save(on: req.db)
-        }
+        try await broadcastStatus(for: ride)
 
         return try RideDTO(ride: ride)
     }
@@ -190,16 +194,19 @@ struct RidesService {
 
     func driverUpdate(rideID: UUID, status: Ride.RideStatus) async throws -> DriverRideOfferDTO {
         try requireDriver()
-
-        guard let ride = try await Ride.find(rideID, on: req.db) else {
-            throw Abort(.notFound, reason: "Ride not found")
+        let ride = try await req.db.transaction { database in
+            if let sql = database as? SQLDatabase {
+                try await sql.raw("SELECT id FROM \(ident: Ride.schema) WHERE id = \(bind: rideID) FOR UPDATE").run()
+            }
+            guard let ride = try await Ride.find(rideID, on: database) else {
+                throw Abort(.notFound, reason: "Ride not found")
+            }
+            try authorizeDriverAccess(to: ride)
+            try validateDriverTransition(from: ride.status, to: status)
+            ride.status = status
+            try await ride.save(on: database)
+            return ride
         }
-
-        try authorizeDriverAccess(to: ride)
-        try validateDriverTransition(from: ride.status, to: status)
-
-        ride.status = status
-        try await ride.save(on: req.db)
         try await broadcastStatus(for: ride)
 
         let passenger = try await User.find(ride.$passenger.id, on: req.db)

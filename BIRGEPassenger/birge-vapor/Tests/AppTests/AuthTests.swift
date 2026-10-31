@@ -2,6 +2,16 @@ import XCTest
 @testable import App
 
 final class AuthTests: XCTestCase {
+    func testSessionClaimRoundTripsAndLegacyPayloadDecodes() throws {
+        let payload = BIRGEJWTPayload(userID: UUID().uuidString, role: "passenger", type: .refresh,
+                                     expiration: Date().addingTimeInterval(3600), sessionID: "session-1")
+        let data = try JSONEncoder().encode(payload)
+        XCTAssertEqual(try JSONDecoder().decode(BIRGEJWTPayload.self, from: data).sessionID, "session-1")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "sid")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        XCTAssertNil(try JSONDecoder().decode(BIRGEJWTPayload.self, from: legacy).sessionID)
+    }
     func testUserResponseDTOEncodesProfileFields() throws {
         let userID = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
         let createdAt = Date(timeIntervalSince1970: 1_735_689_600)

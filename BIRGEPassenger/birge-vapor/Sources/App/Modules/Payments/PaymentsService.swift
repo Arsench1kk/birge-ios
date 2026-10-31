@@ -5,6 +5,9 @@ struct PaymentsService {
     let req: Request
 
     func createKaspiCheckout(_ dto: KaspiCheckoutRequestDTO) async throws -> KaspiCheckoutResponseDTO {
+        guard req.application.environment != .production else {
+            throw Abort(.serviceUnavailable, reason: "Kaspi checkout is not implemented for production")
+        }
         guard dto.amountTenge > 0 else {
             throw Abort(.badRequest, reason: "Payment amount must be positive")
         }
@@ -38,6 +41,9 @@ struct PaymentsService {
     }
 
     func handleKaspiWebhook(_ dto: KaspiWebhookDTO, signature: String?) async throws -> KaspiWebhookResponseDTO {
+        guard req.application.environment != .production else {
+            throw Abort(.serviceUnavailable, reason: "Kaspi webhook is not implemented for production")
+        }
         try validateKaspiSignature(dto, signature: signature)
 
         if let existing = try await PaymentEvent.query(on: req.db)
@@ -71,7 +77,7 @@ struct PaymentsService {
 
     private func validateKaspiSignature(_ dto: KaspiWebhookDTO, signature: String?) throws {
         guard let secret = Environment.get("KASPI_WEBHOOK_SECRET"), !secret.isEmpty else {
-            return
+            throw Abort(.serviceUnavailable, reason: "Kaspi webhook is not configured")
         }
 
         guard let signature, !signature.isEmpty else {
