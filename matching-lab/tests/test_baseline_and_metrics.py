@@ -49,6 +49,31 @@ def test_metrics_on_manual_example(small_scenario):
     assert metrics["unresolved_requests"] == 1
     assert metrics["cancelled_requests"] == 1
     assert metrics["runtime_seconds"] == 0.25
+    assert metrics["trip_count"] == 1
+    assert metrics["mean_passengers_per_trip"] == 2
+    assert metrics["trip_lower_bound"] == 1
+    assert metrics["trips_to_lower_bound"] is None  # not all requests assigned
+    assert metrics["mean_distinct_departures_per_template"] == 1
+    assert metrics["max_distinct_drivers_per_template"] == 1
+
+
+def test_template_stability_across_days_and_empty_inputs(small_scenario):
+    from datetime import timedelta
+    first = small_scenario.request_instances[0]
+    second = replace(first, instance_id="second", service_date=first.service_date + timedelta(days=1))
+    scenario = replace(small_scenario, request_instances=(first, second))
+    trips = (Trip("t1", "ab", first.service_date, 480, 45, "d1", (first.instance_id,)),
+             Trip("t2", "ab", second.service_date, 490, 45, "d2", (second.instance_id,)))
+    assignments = (Assignment(first.instance_id, "t1", "d1", first.service_date, 0),
+                   Assignment(second.instance_id, "t2", "d2", second.service_date, 10))
+    metrics = calculate_metrics(scenario, SolverResult(trips, assignments, ()), 0)
+    assert metrics["mean_distinct_departures_per_template"] == 2
+    assert metrics["max_distinct_drivers_per_template"] == 2
+    assert metrics["trip_lower_bound"] == 2
+    assert metrics["trips_to_lower_bound"] == 1
+    empty = calculate_metrics(replace(scenario, request_instances=(), drivers=()), SolverResult((), (), ()), 0)
+    assert empty["trip_lower_bound"] == 0
+    assert empty["trips_to_lower_bound"] is None
 
 
 def test_invalid_stub_solver_result_is_rejected_by_validator(small_scenario):
