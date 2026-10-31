@@ -5,56 +5,51 @@ struct TrustConsentStepView: View {
     @Bindable var store: StoreOf<OnboardingFeature>
     var body: some View {
         VStack(alignment: .leading, spacing: BIRGELayout.s) {
-            BIRGESectionHeader(
-                title: "Trust and consent",
-                subtitle: "Choose what BIRGE can use for your commute"
+            SetupHero(
+                title: "Разрешения",
+                subtitle: "Для поездок по расписанию"
             )
             VStack(spacing: 0) {
                 TrustConsentToggleRow(
-                    title: "Notifications",
-                    subtitle: "Pickup reminders and schedule changes",
+                    title: "Уведомления",
+                    subtitle: "статусы поездок",
                     systemImage: "bell.badge",
-                    isOn: notificationsBinding,
+                    isOn: store.notificationsConsent,
                     identifier: "passenger_consent_notifications"
-                )
+                ) { store.send(.notificationsConsentToggled) }
                 TrustConsentToggleRow(
-                    title: "Location",
-                    subtitle: "Suggested pickup and dropoff nodes",
+                    title: "Локация",
+                    subtitle: "точка посадки",
                     systemImage: "location.fill",
-                    isOn: locationBinding,
+                    isOn: store.locationConsent,
                     identifier: "passenger_consent_location"
-                )
+                ) { store.send(.locationConsentToggled) }
                 TrustConsentToggleRow(
-                    title: "Route privacy",
-                    subtitle: "Share only what matching needs",
+                    title: "Приватность маршрутов",
+                    subtitle: "адрес скрыт",
                     systemImage: "lock.shield.fill",
-                    isOn: routePrivacyBinding,
+                    isOn: store.routePrivacyConsent,
                     identifier: "passenger_consent_route_privacy",
                     isLast: true
-                )
+                ) { store.send(.routePrivacyConsentToggled) }
             }
-            .background(BIRGEColors.passengerBackground)
+            .padding(.top, BIRGELayout.xxxs)
             .overlay(alignment: .top) { divider }
             .overlay(alignment: .bottom) { divider }
             Label {
-                Text("Route details stay limited to your commute coordination.")
-                    .font(BIRGEFonts.captionBold)
+                Text("Точный адрес скрыт")
+                    .font(.system(size: 14, weight: .bold))
                     .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: "lock.shield.fill")
-                    .font(BIRGEFonts.bodyMedium)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(BIRGEColors.brandPrimary)
+                    .frame(width: 36, height: 36)
+                    .background(BIRGEColors.brandPrimary.opacity(0.10))
+                    .clipShape(Circle())
             }
             .foregroundStyle(BIRGEColors.textPrimary)
         }
-    }
-    private var notificationsBinding: Binding<Bool> {
-        Binding(get: { store.notificationsConsent }, set: { if $0 != store.notificationsConsent { store.send(.notificationsConsentToggled) } })
-    }
-    private var locationBinding: Binding<Bool> {
-        Binding(get: { store.locationConsent }, set: { if $0 != store.locationConsent { store.send(.locationConsentToggled) } })
-    }
-    private var routePrivacyBinding: Binding<Bool> {
-        Binding(get: { store.routePrivacyConsent }, set: { if $0 != store.routePrivacyConsent { store.send(.routePrivacyConsentToggled) } })
     }
     private var divider: some View {
         Rectangle().fill(BIRGEColors.borderSubtle).frame(height: 1)
@@ -64,29 +59,36 @@ private struct TrustConsentToggleRow: View {
     let title: String
     let subtitle: String
     let systemImage: String
-    let isOn: Binding<Bool>
+    let isOn: Bool
     let identifier: String
     var isLast = false
+    let onTap: () -> Void
+
     var body: some View {
-        HStack(spacing: BIRGELayout.xs) {
-            Image(systemName: systemImage)
-                .font(BIRGEFonts.bodyMedium)
-                .foregroundStyle(BIRGEColors.brandPrimary)
-                .frame(width: 34, height: 34)
-            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                Text(title)
-                    .font(BIRGEFonts.bodyMedium)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-                Text(subtitle)
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        Button(action: onTap) {
+            HStack(spacing: BIRGELayout.s) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(BIRGEColors.brandPrimary)
+                    .frame(width: 34, height: 34)
+
+                VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(BIRGEColors.textPrimary)
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(BIRGEColors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: BIRGELayout.xs)
+
+                TrustConsentSwitchIndicator(isOn: isOn)
             }
-            Spacer(minLength: BIRGELayout.xs)
-            Toggle(title, isOn: isOn)
-                .labelsHidden()
-                .tint(BIRGEColors.brandPrimary)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(BIRGEPressableButtonStyle())
         .frame(minHeight: 62)
         .overlay(alignment: .bottom) {
             if !isLast {
@@ -96,6 +98,23 @@ private struct TrustConsentToggleRow: View {
             }
         }
         .accessibilityIdentifier(identifier)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+    }
+}
+
+private struct TrustConsentSwitchIndicator: View {
+    let isOn: Bool
+
+    var body: some View {
+        Capsule()
+            .fill(isOn ? BIRGEColors.brandPrimary.opacity(0.16) : BIRGEColors.borderSubtle.opacity(0.75))
+            .frame(width: 28, height: 17)
+            .overlay(alignment: isOn ? .trailing : .leading) {
+                Circle()
+                    .fill(isOn ? BIRGEColors.brandPrimary : BIRGEColors.textTertiary.opacity(0.65))
+                    .frame(width: 13, height: 13)
+                    .padding(2)
+            }
     }
 }
 #Preview("Trust Consent Step") {

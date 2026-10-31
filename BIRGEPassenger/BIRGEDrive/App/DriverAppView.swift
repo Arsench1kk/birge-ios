@@ -121,6 +121,14 @@ struct DriverAppView: View {
         } message: {
             Text("Сессия будет очищена на этом устройстве. Текущая смена завершится.")
         }
+        .alert("Не удалось выйти", isPresented: Binding(
+            get: { store.logoutError != nil },
+            set: { if !$0 { store.send(.dismissLogoutError) } }
+        )) {
+            Button("OK") { store.send(.dismissLogoutError) }
+        } message: {
+            Text(store.logoutError ?? "")
+        }
         .navigationBarHidden(true)
     }
 

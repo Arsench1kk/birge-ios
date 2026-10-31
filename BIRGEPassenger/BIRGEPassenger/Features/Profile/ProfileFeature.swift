@@ -17,6 +17,7 @@ struct ProfileFeature {
         var totalRides: Int = 0
         var isLoading: Bool = false
         var errorMessage: String?
+        var isLogoutError = false
     }
 
     @CasePathable
@@ -26,6 +27,7 @@ struct ProfileFeature {
         case profileLoadFailed(String)
         case profileUnauthorized
         case logoutTapped
+        case logoutFailed
         case delegate(Delegate)
         
         @CasePathable
@@ -42,6 +44,7 @@ struct ProfileFeature {
             switch action {
             case .onAppear:
                 guard !state.isLoading else { return .none }
+                state.isLogoutError = false
                 state.isLoading = true
                 state.errorMessage = nil
                 return .run { send in
@@ -77,10 +80,22 @@ struct ProfileFeature {
                 return .send(.delegate(.loggedOut))
                 
             case .logoutTapped:
+                state.errorMessage = nil
+                state.isLogoutError = false
                 return .run { send in
-                    try? await tokenRefreshClient.clearTokens()
-                    await send(.delegate(.loggedOut))
+                    do {
+                        try await tokenRefreshClient.revokeSession()
+                        try await tokenRefreshClient.clearTokens()
+                        await send(.delegate(.loggedOut))
+                    } catch {
+                        await send(.logoutFailed)
+                    }
                 }
+
+            case .logoutFailed:
+                state.isLogoutError = true
+                state.errorMessage = "Проверьте подключение и попробуйте ещё раз."
+                return .none
                 
             case .delegate:
                 return .none

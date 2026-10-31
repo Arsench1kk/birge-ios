@@ -110,7 +110,7 @@ struct OnboardingView: View {
                         .frame(width: max(18, proxy.size.width * progress))
                 }
             }
-            .frame(height: 7)
+            .frame(height: 5)
             .accessibilityIdentifier("passenger_setup_progress")
         }
         .padding(.horizontal, BIRGELayout.m)
@@ -175,25 +175,25 @@ struct OnboardingView: View {
 
     private var primaryButtonTitle: String {
         if store.step == .firstRouteEntry, store.routeStep == .review {
-            return "Review monthly plans"
+            return "Сохранить маршрут"
         }
         if store.step == .firstRouteEntry {
             switch store.routeStep {
             case .originAddress where store.selectedOriginAddress == nil:
-                return "Select an address"
+                return "Выберите адрес"
             case .destinationAddress where store.selectedDestinationAddress == nil:
-                return "Select a destination"
+                return "Выберите адрес"
             case .pickupNode where store.selectedPickupNodeID == nil:
-                return "Select pickup node"
+                return "Выберите точку"
             case .dropoffNode where store.selectedDropoffNodeID == nil:
-                return "Select dropoff node"
+                return "Выберите точку"
             case .schedule where store.selectedWeekdays.isEmpty || store.departureTime.isEmpty:
-                return "Set schedule"
+                return "Настройте расписание"
             default:
                 break
             }
         }
-        return "Continue"
+        return "Продолжить"
     }
 
     private var progress: Double {
@@ -204,7 +204,7 @@ struct OnboardingView: View {
 struct SetupHero: View {
     let title: String
     let subtitle: String
-    var maxTitleWidth: CGFloat? = nil
+    var maxTitleWidth: CGFloat? = 240
 
     var body: some View {
         VStack(alignment: .leading, spacing: BIRGELayout.xxs) {

@@ -18,13 +18,18 @@ struct RouteReviewStepView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: BIRGELayout.s) {
             SetupHero(
-                title: "Review route",
-                subtitle: "Confirm this recurring commute before monthly plans"
+                title: "Проверьте маршрут",
+                subtitle: "Перед созданием месячного плана",
+                maxTitleWidth: nil
             )
 
             if let draft = store.routeDraftForReview {
                 BIRGERouteReviewTicket(draft: draft)
                     .accessibilityIdentifier("passenger_route_review_card")
+                Text("Обратный маршрут можно добавить позже.")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(BIRGEColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 EmptyStateRow(systemImage: "exclamationmark.circle", title: "Route details incomplete")
                     .accessibilityIdentifier("passenger_route_review_empty")

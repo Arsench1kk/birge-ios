@@ -1788,17 +1788,20 @@ public struct TokenRefreshClient: Sendable {
     public var storeTokens: @Sendable (_ accessToken: String, _ refreshToken: String) async throws -> Void
     public var refreshAccessToken: @Sendable () async throws -> String
     public var clearTokens: @Sendable () async throws -> Void
+    public var revokeSession: @Sendable () async throws -> Void
 
     public init(
         currentAccessToken: @escaping @Sendable () async throws -> String?,
         storeTokens: @escaping @Sendable (_ accessToken: String, _ refreshToken: String) async throws -> Void,
         refreshAccessToken: @escaping @Sendable () async throws -> String,
-        clearTokens: @escaping @Sendable () async throws -> Void
+        clearTokens: @escaping @Sendable () async throws -> Void,
+        revokeSession: @escaping @Sendable () async throws -> Void = {}
     ) {
         self.currentAccessToken = currentAccessToken
         self.storeTokens = storeTokens
         self.refreshAccessToken = refreshAccessToken
         self.clearTokens = clearTokens
+        self.revokeSession = revokeSession
     }
 }
 
@@ -1822,7 +1825,8 @@ extension TokenRefreshClient: DependencyKey {
                 try KeychainCredentialStore.live.delete(Self.refreshTokenKey)
                 try KeychainCredentialStore.live.delete(Self.legacyAccessTokenKey)
                 try KeychainCredentialStore.live.delete(Self.userIDKey)
-            }
+            },
+            revokeSession: { try await transport.revokeSession() }
         )
     }
 
@@ -1910,8 +1914,10 @@ private actor TokenRefreshTransport {
         }
 
         guard (200...299).contains(http.statusCode) else {
-            try? KeychainCredentialStore.live.delete(TokenRefreshClient.refreshTokenKey)
-            await AccessTokenStore.shared.clear()
+            if http.statusCode == 401 || http.statusCode == 403 {
+                try? KeychainCredentialStore.live.delete(TokenRefreshClient.refreshTokenKey)
+                await AccessTokenStore.shared.clear()
+            }
             if let apiError = try? decoder.decode(BIRGEAPIError.self, from: data) {
                 throw apiError
             }
@@ -1929,6 +1935,38 @@ private actor TokenRefreshTransport {
             try KeychainCredentialStore.live.save(TokenRefreshClient.refreshTokenKey, rotatedRefreshToken)
         }
         return refreshResponse.accessToken
+    }
+
+    func revokeSession() async throws {
+        let storedAccess = await AccessTokenStore.shared.token
+        let accessToken = try storedAccess ?? KeychainCredentialStore.live.load(TokenRefreshClient.legacyAccessTokenKey)
+        let refreshToken = try KeychainCredentialStore.live.load(TokenRefreshClient.refreshTokenKey)
+        guard accessToken != nil || refreshToken != nil else { return } // Mock-only session.
+        let token: String
+        if let accessToken {
+            token = accessToken
+        } else {
+            token = try await refreshAccessToken()
+        }
+        var status = try await logoutStatus(token: token)
+        if status == 401, refreshToken != nil {
+            status = try await logoutStatus(token: try await refreshAccessToken())
+        }
+        guard (200...299).contains(status) else {
+            throw BIRGEAPIError(errorCode: "HTTP_\(status)", message: "Не удалось завершить сессию на сервере.")
+        }
+    }
+
+    private func logoutStatus(token: String) async throws -> Int {
+        guard var url = URL(string: Self.baseURLString) else { throw BIRGEAPIError.invalidBaseURL() }
+        url.appendPathComponent("auth")
+        url.appendPathComponent("logout")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let response = response as? HTTPURLResponse else { throw BIRGEAPIError.invalidResponse() }
+        return response.statusCode
     }
 
     private func refreshURL() throws -> URL {

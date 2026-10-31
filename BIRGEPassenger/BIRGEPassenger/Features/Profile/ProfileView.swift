@@ -48,13 +48,13 @@ struct ProfileView: View {
             if let errorMessage = store.errorMessage {
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(Texts.profileUnavailable)
+                        Text(store.isLogoutError ? "Не удалось выйти" : Texts.profileUnavailable)
                             .font(BIRGEFonts.sectionTitle)
                         Text(errorMessage)
                             .font(BIRGEFonts.subtext)
                             .foregroundStyle(BIRGEColors.textSecondary)
                         Button(Texts.retry) {
-                            store.send(.onAppear)
+                            store.send(store.isLogoutError ? .logoutTapped : .onAppear)
                         }
                         .font(.subheadline.weight(.semibold))
                     }

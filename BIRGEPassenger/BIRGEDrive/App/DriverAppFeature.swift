@@ -100,6 +100,8 @@ struct DriverAppFeature {
         var auth = DriverAuthFeature.State()
         var registration = DriverRegistrationFeature.State()
         var isLogoutConfirmationPresented = false
+        var isLogoutInProgress = false
+        var logoutError: String?
         var isOnline: Bool = false
         var currentOffer: RideOffer? = nil
         var activeRide: DriverActiveRide? = nil
@@ -126,6 +128,8 @@ struct DriverAppFeature {
             lhs.auth == rhs.auth &&
             lhs.registration == rhs.registration &&
             lhs.isLogoutConfirmationPresented == rhs.isLogoutConfirmationPresented &&
+            lhs.isLogoutInProgress == rhs.isLogoutInProgress &&
+            lhs.logoutError == rhs.logoutError &&
             lhs.isOnline == rhs.isOnline &&
             lhs.currentOffer == rhs.currentOffer &&
             lhs.activeRide == rhs.activeRide &&
@@ -174,6 +178,7 @@ struct DriverAppFeature {
         case logoutConfirmationPresented(Bool)
         case logoutConfirmed
         case logoutClearResponse(Result<Void, DriverDashboardError>)
+        case dismissLogoutError
         case earningsTapped
         case path(StackActionOf<Path>)
         case registration(DriverRegistrationFeature.Action)
@@ -392,26 +397,31 @@ struct DriverAppFeature {
                 return .none
 
             case .logoutConfirmed:
-                let rideID = state.activeRide?.rideID
-                state.resetToAuth()
-                return .merge(
-                    .cancel(id: DriverLocationCancelID.tracking),
-                    stopAndSyncDriverLocation(rideID: rideID),
-                    .run { send in
-                        do {
-                            try await tokenRefreshClient.clearTokens()
-                            await send(.logoutClearResponse(.success(())))
-                        } catch {
-                            await send(.logoutClearResponse(.failure(DriverDashboardError(error))))
-                        }
+                guard !state.isLogoutInProgress else { return .none }
+                state.isLogoutInProgress = true
+                return .run { send in
+                    do {
+                        try await tokenRefreshClient.revokeSession()
+                        try await tokenRefreshClient.clearTokens()
+                        await send(.logoutClearResponse(.success(())))
+                    } catch {
+                        await send(.logoutClearResponse(.failure(DriverDashboardError(error))))
                     }
-                )
+                }
 
             case .logoutClearResponse(.success):
-                return .none
+                let rideID = state.activeRide?.rideID
+                state.resetToAuth()
+                state.isLogoutInProgress = false
+                return .merge(.cancel(id: DriverLocationCancelID.tracking), stopAndSyncDriverLocation(rideID: rideID))
 
             case .logoutClearResponse(.failure(let error)):
-                state.auth.errorMessage = error.message
+                state.isLogoutInProgress = false
+                state.logoutError = error.message
+                return .none
+
+            case .dismissLogoutError:
+                state.logoutError = nil
                 return .none
 
             case .earningsTapped:

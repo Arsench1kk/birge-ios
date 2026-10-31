@@ -4,16 +4,15 @@ import SwiftUI
 
 /// A polished, fully reusable route-review card for the BIRGE passenger design system.
 ///
-/// Displays a `MockRouteDraft` in three stacked sections that match the
-/// `review-route-panel` → `review-schedule-strip` CSS pattern from
+/// Displays a `MockRouteDraft` in two stacked sections that match the
+/// `review-route-panel` + `review-schedule-strip` CSS pattern from
 /// P-03d-route-review.html:
 ///
-/// 1. **Header** — route display name and a "Recurring route" badge.
-/// 2. **Stop panel** — origin and destination rows separated by a vertical
+/// 1. **Stop panel** — origin and destination rows separated by a vertical
 ///    connector line (start dot → dashed connector → end dot). If a pickup /
 ///    dropoff node is available in the draft, its title is appended as a
 ///    secondary line below the address.
-/// 3. **Schedule strip** — three bordered metric cells:
+/// 2. **Schedule strip** — three bordered metric cells:
 ///    Days · Window · Departure.
 ///
 /// Usage:
@@ -53,9 +52,10 @@ public struct BIRGERouteReviewTicket: View {
     private var weekdaysSummary: String {
         let days = draft.schedule.weekdays
         guard !days.isEmpty else { return "—" }
-        return days
-            .map { $0.prefix(3).capitalized }
-            .joined(separator: "·")
+        if days.map({ $0.lowercased() }) == ["mon", "tue", "wed", "thu", "fri"] {
+            return "Пн–Пт"
+        }
+        return days.map(displayWeekday).joined(separator: "·")
     }
 
     /// Departure window formatted as "HH:mm–HH:mm".
@@ -75,79 +75,43 @@ public struct BIRGERouteReviewTicket: View {
     // MARK: - Body
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            headerSection
-                .padding(BIRGELayout.s)
-
-            Divider()
-                .background(BIRGEColors.borderSubtle)
-
-            stopPanel
-                .padding(BIRGELayout.s)
-
+        VStack(alignment: .leading, spacing: BIRGELayout.s) {
+            routePanel
             scheduleStrip
         }
-        // Card shape — matches `review-route-panel` + `box-shadow`
-        .background(cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: BIRGELayout.radiusL))
-        .overlay(
-            RoundedRectangle(cornerRadius: BIRGELayout.radiusL)
-                .stroke(BIRGEColors.brandPrimary.opacity(0.18), lineWidth: 1)
-        )
-        .shadow(
-            color: Color(red: 0.06, green: 0.09, blue: 0.16).opacity(0.07),
-            radius: 14, y: 6
-        )
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Route review — \(draft.displayName)")
     }
 
-    // MARK: - Card background
+    // MARK: - Route panel
 
-    /// Subtle brand-tinted gradient matching `review-route-panel` background:
-    /// `linear-gradient(145deg, accent 6% → white 70%)`.
-    private var cardBackground: some View {
-        ZStack {
-            Color.white
-            LinearGradient(
-                colors: [
-                    BIRGEColors.brandPrimary.opacity(0.06),
-                    Color.clear
-                ],
-                startPoint: UnitPoint(x: 0.0, y: 0.0),
-                endPoint: UnitPoint(x: 0.7, y: 1.0)
+    private var routePanel: some View {
+        stopPanel
+            .padding(.horizontal, 15)
+            .padding(.vertical, BIRGELayout.s)
+            .background(routePanelBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(BIRGEColors.brandPrimary.opacity(0.18), lineWidth: 1)
             )
-        }
+            .shadow(
+                color: BIRGEColors.textPrimary.opacity(0.07),
+                radius: 14,
+                y: 6
+            )
     }
 
-    // MARK: - Header section
-
-    private var headerSection: some View {
-        HStack(alignment: .center, spacing: BIRGELayout.xs) {
-            VStack(alignment: .leading, spacing: BIRGELayout.xxxs) {
-                Text(draft.displayName)
-                    .font(BIRGEFonts.sectionTitle)
-                    .foregroundStyle(BIRGEColors.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-
-                Text("Recurring route")
-                    .font(BIRGEFonts.caption)
-                    .foregroundStyle(BIRGEColors.textSecondary)
-            }
-
-            Spacer(minLength: BIRGELayout.xs)
-
-            // Recurring badge pill
-            Image(systemName: "arrow.trianglehead.2.clockwise")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(BIRGEColors.brandPrimary)
-                .padding(BIRGELayout.xxs)
-                .background(BIRGEColors.brandPrimary.opacity(0.08))
-                .clipShape(Circle())
-                .accessibilityHidden(true)
-        }
+    /// Subtle brand-tinted gradient matching `review-route-panel`.
+    private var routePanelBackground: some View {
+        LinearGradient(
+            colors: [
+                BIRGEColors.brandPrimary.opacity(0.06),
+                BIRGEColors.surfacePrimary
+            ],
+            startPoint: .topLeading,
+            endPoint: UnitPoint(x: 0.7, y: 1)
+        )
     }
 
     // MARK: - Stop panel
@@ -202,7 +166,7 @@ public struct BIRGERouteReviewTicket: View {
         VStack(alignment: .leading, spacing: 0) {
             // Origin stop
             stopCell(
-                metaLabel: "Pickup",
+                metaLabel: "Посадка",
                 primaryText: draft.originAddress,
                 nodeText: pickupNodeTitle
             )
@@ -210,7 +174,7 @@ public struct BIRGERouteReviewTicket: View {
 
             // Destination stop
             stopCell(
-                metaLabel: "Dropoff",
+                metaLabel: "Высадка",
                 primaryText: draft.destinationAddress,
                 nodeText: dropoffNodeTitle
             )
@@ -257,22 +221,16 @@ public struct BIRGERouteReviewTicket: View {
     /// Matches `.review-schedule-strip` grid: `1fr  1.25fr  1fr` with left borders.
     private var scheduleStrip: some View {
         HStack(spacing: 0) {
-            scheduleCell(label: "Days",      value: weekdaysSummary,   isFirst: true)
-            scheduleCell(label: "Window",    value: windowSummary,     isFirst: false)
-            scheduleCell(label: "Departure", value: departureSummary,  isFirst: false)
+            scheduleCell(label: "Дни",   value: weekdaysSummary,  isFirst: true)
+            scheduleCell(label: "Окно",  value: windowSummary,    isFirst: false)
+            scheduleCell(label: "Выезд", value: departureSummary, isFirst: false)
         }
         .frame(maxWidth: .infinity)
         .background(BIRGEColors.surfacePrimary)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(BIRGEColors.borderSubtle)
-                .frame(height: 1)
-        }
-        .clipShape(
-            UnevenRoundedRectangle(
-                bottomLeadingRadius: BIRGELayout.radiusL,
-                bottomTrailingRadius: BIRGELayout.radiusL
-            )
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(BIRGEColors.borderSubtle, lineWidth: 1)
         )
     }
 
@@ -302,6 +260,19 @@ public struct BIRGERouteReviewTicket: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label): \(value)")
+    }
+
+    private func displayWeekday(_ weekday: String) -> String {
+        switch weekday.lowercased() {
+        case "mon": return "Пн"
+        case "tue": return "Вт"
+        case "wed": return "Ср"
+        case "thu": return "Чт"
+        case "fri": return "Пт"
+        case "sat": return "Сб"
+        case "sun": return "Вс"
+        default: return String(weekday.prefix(2)).capitalized
+        }
     }
 }
 
