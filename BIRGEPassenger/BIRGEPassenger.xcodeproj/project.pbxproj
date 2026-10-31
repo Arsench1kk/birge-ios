@@ -274,6 +274,7 @@
 				AA000012AAAA001200000001 /* XCRemoteSwiftPackageReference "swift-concurrency-extras" */,
 				AA000018AAAA001800000001 /* XCRemoteSwiftPackageReference "swift-navigation" */,
 				AA00001DAAAA001D00000001 /* XCRemoteSwiftPackageReference "swift-perception" */,
+				B1A2C3D4E5F60718293A4B5C /* XCRemoteSwiftPackageReference "swift-sharing" */,
 				04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -686,12 +687,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		B1A2C3D4E5F60718293A4B5C /* XCRemoteSwiftPackageReference "swift-sharing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-sharing";
+			requirement = {
+				kind = exactVersion;
+				version = 2.8.2;
+			};
+		};
 		04F2965C2F991EC50067DB5A /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.25.5;
+				kind = exactVersion;
+				version = 1.26.1;
 			};
 		};
 		04F2965D2F992F730067DB5A /* XCRemoteSwiftPackageReference "GRDB" */ = {
