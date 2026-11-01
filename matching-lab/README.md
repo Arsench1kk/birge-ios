@@ -50,3 +50,16 @@ PYTHONPATH=src .venv/bin/python -m matching_lab.runner --configs configs/scale/*
 ## Фиксированный baseline
 
 Заявки сортируются по `(earliest window, preferred time, date, corridor, request template ID, instance ID)`. Solver сначала присоединяет заявку к совместимому существующему рейсу с минимальным отклонением, затем открывает новый на лучшем допустимом driver-slot; tie-break использует время и стабильные IDs. Полное правило записано в design document и не должно меняться после сравнительных запусков без версии нового протокола.
+
+## CP-SAT: экспериментальный кандидат
+
+`ilp_cpsat` — [гипотеза] [TBD — решить с руководителем], не утверждённый основной решатель; ADR-006 остаётся Proposed. Формальная модель и доказательство приоритетов: `docs/ilp_formulation.md`. Установка в локальное окружение: `.venv/bin/pip install '.[ilp]'`.
+
+Предварительно зафиксированные параметры — PLACEHOLDER: `configs/experiments/stage2.yaml`, 20 seed и 16 семейств в `configs/cpsat_families/`. Уровни 25/50/75/100% означают долю от ориентира в 8 водителей, а не измеренное покрытие спроса. Запуск и статистика:
+
+```sh
+PYTHONPATH=src .venv/bin/python -m matching_lab.runner --configs configs/cpsat_families/*.yaml --experiment-config configs/experiments/stage2.yaml --solvers baseline_greedy ilp_cpsat --output results/stage2
+PYTHONPATH=src .venv/bin/python -m matching_lab.summary results/stage2/results.json --output results/stage2-summary
+```
+
+Каждый результат проверяется валидатором перед сохранением. `UNKNOWN`/`INFEASIBLE` не включаются в метрики качества; `FEASIBLE` не доказывает оптимальность. Сетка ограничивает множество допустимых времён, лимит CP-SAT не включает построение модели; полное время решателя записано отдельно. Все данные synthetic.

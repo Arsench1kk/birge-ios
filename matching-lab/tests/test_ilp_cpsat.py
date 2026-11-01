@@ -69,3 +69,22 @@ def test_zero_time_limit_is_unknown_or_feasible_and_valid(small_scenario):
     if result.diagnostics["status"] == "UNKNOWN":
         assert not result.assignments
         assert result.diagnostics["relative_gap"] is None
+
+
+def test_runner_saves_status_and_rejects_invalid_result(tmp_path, monkeypatch):
+    import csv
+    from pathlib import Path
+    from matching_lab.runner import run_experiments
+    from matching_lab.model import SolverResult
+
+    config = Path(__file__).resolve().parents[1] / "configs/reference/coincident_windows.yaml"
+    options = {"grid_minutes": 5, "time_limit_seconds": 2, "workers": 1}
+    rows = run_experiments([config], [17], tmp_path / "valid", ["ilp_cpsat"], cpsat_options=options)
+    assert rows[0]["metadata"]["solver_status"] in ("OPTIMAL", "FEASIBLE")
+    with (tmp_path / "valid" / "metrics.csv").open() as handle:
+        assert next(csv.DictReader(handle))["solver_status"] == rows[0]["metadata"]["solver_status"]
+    monkeypatch.setattr(ILPCPSAT, "solve", lambda self, scenario: SolverResult((), (), ()))
+    with pytest.raises(RuntimeError, match="produced invalid result"):
+        run_experiments([config], [17], tmp_path / "invalid", ["ilp_cpsat"], cpsat_options=options)
+    assert not (tmp_path / "invalid" / "results.json").exists()
+    assert not (tmp_path / "invalid" / "metrics.csv").exists()
