@@ -116,3 +116,14 @@ def test_warm_returns_baseline_if_search_has_no_time(small_scenario):
     assert objective(warm) <= objective(baseline)
     assert warm.diagnostics['status'] == 'FEASIBLE'
     assert warm.diagnostics['fallback_days'] > 0
+
+
+@pytest.mark.parametrize('seed', range(20))
+def test_warm_never_worse_than_baseline_on_small_cases(small_scenario, seed):
+    from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm
+    scenario = scenario_for_seed(small_scenario, seed)
+    baseline = GreedyBaseline().solve(scenario)
+    warm = ILPCPSATWarm(grid_minutes=15, time_limit_seconds=0.02, workers=1).solve(scenario)
+    assert warm.diagnostics['status'] in ('OPTIMAL', 'FEASIBLE')
+    assert validate(scenario, warm) == []
+    assert objective(warm) <= objective(baseline)
