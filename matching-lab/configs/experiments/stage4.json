@@ -1,0 +1,18 @@
+{
+  "placeholder_note": "PLACEHOLDER: не откалибровано, согласовать с руководителем",
+  "dev_seeds": [1000,1001,1002,1003,1004,1005,1006,1007,1008,1009],
+  "evaluation_seeds": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
+  "scale_seeds": [1,2,3],
+  "heuristic_max_iterations": 20,
+  "ilp_grid_minutes": 10,
+  "ilp_workers": 1,
+  "ilp_budget_per_date_seconds": 10,
+  "bootstrap_resamples": 2000,
+  "bootstrap_seed": 451,
+  "bootstrap_confidence": 0.95,
+  "wilcoxon": "exact two-sided sign permutation of nonzero paired differences, midranks for ties; all-zero differences p=1",
+  "reuse_stage3_w": true,
+  "scale_source": "configs/stage3/stage3_medium_many.yaml",
+  "execution": "sequential",
+  "data_kind": "synthetic"
+}
