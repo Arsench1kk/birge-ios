@@ -1,0 +1,9 @@
+{
+  "placeholder_note": "PLACEHOLDER: не откалибровано, согласовать с руководителем",
+  "description": "Re-run unchanged stage-2 model once per existing family and scale config. Build time includes hint preparation and Python model construction; search is the Solve call.",
+  "seed": 1,
+  "grid_minutes": 10,
+  "time_limit_seconds": 0.5,
+  "workers": 1,
+  "config_globs": ["configs/cpsat_families/*.yaml", "configs/families/*.yaml", "configs/scale/*.yaml"]
+}
