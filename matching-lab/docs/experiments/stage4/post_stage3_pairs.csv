@@ -1,0 +1,15 @@
+scenario,solver,assigned_better,trips_better,deviation_better,equal,worse,no_solution,wilcoxon_p
+stage3_control,ilp_cpsat+decomposed,3,0,0,0,17,0,1.0
+stage3_control,ilp_cpsat+warm,4,16,0,0,0,0,0.125
+stage3_high_few,ilp_cpsat+decomposed,15,1,0,0,4,0,0.002288818359375
+stage3_high_few,ilp_cpsat+warm,20,0,0,0,0,0,1.9073486328125e-06
+stage3_high_many,ilp_cpsat+decomposed,19,0,1,0,0,0,3.814697265625e-06
+stage3_high_many,ilp_cpsat+warm,19,0,1,0,0,0,3.814697265625e-06
+stage3_low_few,ilp_cpsat+decomposed,20,0,0,0,0,0,1.9073486328125e-06
+stage3_low_few,ilp_cpsat+warm,20,0,0,0,0,0,1.9073486328125e-06
+stage3_low_many,ilp_cpsat+decomposed,20,0,0,0,0,0,1.9073486328125e-06
+stage3_low_many,ilp_cpsat+warm,20,0,0,0,0,0,1.9073486328125e-06
+stage3_medium_few,ilp_cpsat+decomposed,17,1,0,0,2,0,7.2479248046875e-05
+stage3_medium_few,ilp_cpsat+warm,20,0,0,0,0,0,1.9073486328125e-06
+stage3_medium_many,ilp_cpsat+decomposed,19,0,1,0,0,0,3.814697265625e-06
+stage3_medium_many,ilp_cpsat+warm,19,0,1,0,0,0,3.814697265625e-06
