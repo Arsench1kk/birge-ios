@@ -9,7 +9,7 @@ from matching_lab.generator import _canonical_hash, generate_scenario, load_conf
 from matching_lab.metrics import calculate_metrics
 from matching_lab.solvers.baseline_greedy import GreedyBaseline
 from matching_lab.solvers.ilp_cpsat import ILPCPSAT
-from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm
+from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm, ILPCPSATDecomposed
 from matching_lab.supply import supply_ratio
 from matching_lab.validator import validate
 
@@ -17,8 +17,9 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('phase', choices=['families', 'scale', 'sensitivity'])
 parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--protocol', type=Path, default=root / 'configs/experiments/stage25.json')
 args = parser.parse_args()
-protocol = json.loads((root / 'configs/experiments/stage25.json').read_text())
+protocol = json.loads(args.protocol.read_text())
 if args.phase == 'families':
     paths = sorted(root.glob(protocol['family_glob']))
     seeds = range(protocol['seed_start'], protocol['seed_start'] + protocol['seed_count'])
@@ -42,7 +43,7 @@ with args.output.open('x', encoding='utf-8') as output:
                     modes = ['baseline_greedy', 'ilp_cpsat+warm', 'ilp_cpsat']
                 for mode in modes:
                     opts = dict(grid_minutes=protocol['grid_minutes'], workers=protocol['workers'], time_limit_seconds=budget)
-                    solver = GreedyBaseline() if mode == 'baseline_greedy' else ILPCPSAT(**opts) if mode == 'ilp_cpsat' else ILPCPSATWarm(**opts)
+                    solver = (GreedyBaseline() if mode == 'baseline_greedy' else ILPCPSAT(**opts) if mode == 'ilp_cpsat' else ILPCPSATDecomposed(**opts) if mode == 'ilp_cpsat+decomposed' else ILPCPSATWarm(**opts))
                     start = time.perf_counter()
                     result = solver.solve(scenario)
                     elapsed = time.perf_counter() - start

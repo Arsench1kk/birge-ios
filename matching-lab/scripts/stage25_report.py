@@ -38,7 +38,7 @@ def summarize(records):
         if not baseline:
             continue
         b = baseline['metrics']
-        for mode in ('ilp_cpsat', 'ilp_cpsat+warm'):
+        for mode in ('ilp_cpsat', 'ilp_cpsat+decomposed', 'ilp_cpsat+warm'):
             candidate = runs.get(mode)
             if not candidate:
                 continue
