@@ -167,3 +167,19 @@ def test_indexed_model_matches_frozen_reference_example(small_scenario):
     after = ILPCPSAT(grid_minutes=5, time_limit_seconds=5, workers=1).solve(scenario)
     assert before.diagnostics['status'] == after.diagnostics['status'] == 'OPTIMAL'
     assert objective(before) == objective(after) == (-2, 1, 51)
+
+
+def test_indexed_model_matches_frozen_coincident_windows_reference():
+    import importlib.util
+    from pathlib import Path
+    from matching_lab.generator import generate_scenario, load_config
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location('frozen_stage25_coincident', root / 'tests/reference/ilp_cpsat_v020.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    scenario = generate_scenario(load_config(root / 'configs/reference/coincident_windows.yaml'), 17)
+    before = module.ILPCPSAT(grid_minutes=1, time_limit_seconds=5, workers=1).solve(scenario)
+    after = ILPCPSAT(grid_minutes=1, time_limit_seconds=5, workers=1).solve(scenario)
+    assert before.diagnostics['status'] == after.diagnostics['status'] == 'OPTIMAL'
+    assert validate(scenario, before) == validate(scenario, after) == []
+    assert objective(before) == objective(after) == objective(ExactTiny().solve(scenario))

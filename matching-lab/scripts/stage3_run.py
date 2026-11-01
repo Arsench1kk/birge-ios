@@ -24,6 +24,7 @@ registration=(root/'docs/experiments/stage3/preregistration_2026-11-02.md').read
 hashes=re.findall(r'\| `([^`]+)` \| `([0-9a-f]{64})` \|',registration)
 if len(hashes) != 11:
     raise RuntimeError(f'expected 11 preregistered config hashes, got {len(hashes)}')
+registered_hashes=dict(hashes)
 for file, expected in hashes:
     actual=hashlib.sha256((root/file).read_bytes()).hexdigest()
     if actual != expected:
@@ -61,6 +62,11 @@ def jobs():
 
 with output.open('a' if args.resume else 'x',encoding='utf-8') as handle:
     for phase,path,seed,budget,modes in jobs():
+        relative=str(path.relative_to(root))
+        if hashlib.sha256(path.read_bytes()).hexdigest() != registered_hashes[relative]:
+            raise RuntimeError(f'preregistered config changed during study: {relative}')
+        if hashlib.sha256((root/'configs/experiments/stage3.json').read_bytes()).hexdigest() != registered_hashes['configs/experiments/stage3.json']:
+            raise RuntimeError('preregistered protocol changed during study')
         scenario=generate_scenario(load_config(path),seed)
         days=len({r.service_date for r in scenario.request_instances if not r.cancelled})
         for mode in modes:
