@@ -64,3 +64,15 @@ def calculate_metrics(scenario: Scenario, result: SolverResult, runtime_seconds:
         "max_distinct_drivers_per_template": max(driver_counts) if driver_counts else None,
         "runtime_seconds": runtime_seconds,
     }
+
+
+def compatible_request_fraction(scenario: Scenario) -> float | None:
+    """Share individually compatible with a driver slot, ignoring other demand."""
+    active = [r for r in scenario.request_instances if not r.cancelled]
+    if not active:
+        return None
+    possible = sum(any(r.corridor_id in d.corridor_ids and any(
+        r.service_date.weekday() in s.days_of_week and
+        max(r.earliest_departure, s.start_minute) <= min(r.latest_departure, s.end_minute-scenario.trip_duration_minutes)
+        for s in d.availability) for d in scenario.drivers) for r in active)
+    return possible / len(active)

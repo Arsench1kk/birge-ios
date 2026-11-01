@@ -91,3 +91,11 @@ def test_invalid_stub_solver_result_is_rejected_by_validator(small_scenario):
 
     result = BadStubSolver().solve(small_scenario)
     assert "time_window" in {item.code for item in validate(small_scenario, result)}
+
+
+def test_individual_compatibility_respects_corridor_and_slot(small_scenario):
+    from dataclasses import replace
+    from matching_lab.metrics import compatible_request_fraction
+    assert compatible_request_fraction(small_scenario)==1
+    driver=replace(small_scenario.drivers[0],corridor_ids=frozenset())
+    assert compatible_request_fraction(replace(small_scenario,drivers=(driver,)))==0
