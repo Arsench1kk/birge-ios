@@ -1,0 +1,13 @@
+scenario,budget,solver,assigned_better,secondary_better,equal,worse,no_solution
+high_narrow_scarce,1,ilp_cpsat+warm,1,0,0,0,0
+high_narrow_scarce,5,ilp_cpsat+warm,1,0,0,0,0
+high_narrow_scarce,30,ilp_cpsat+warm,1,0,0,0,0
+high_narrow_scarce,120,ilp_cpsat+warm,1,0,0,0,0
+low_narrow_scarce,1,ilp_cpsat+warm,1,0,0,0,0
+low_narrow_scarce,5,ilp_cpsat+warm,1,0,0,0,0
+low_narrow_scarce,30,ilp_cpsat+warm,1,0,0,0,0
+low_narrow_scarce,120,ilp_cpsat+warm,1,0,0,0,0
+low_wide_scarce,1,ilp_cpsat+warm,0,0,1,0,0
+low_wide_scarce,5,ilp_cpsat+warm,0,0,1,0,0
+low_wide_scarce,30,ilp_cpsat+warm,0,0,1,0,0
+low_wide_scarce,120,ilp_cpsat+warm,0,0,1,0,0
