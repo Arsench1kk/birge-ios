@@ -63,3 +63,17 @@ PYTHONPATH=src .venv/bin/python -m matching_lab.summary results/stage2/results.j
 ```
 
 Каждый результат проверяется валидатором перед сохранением. `UNKNOWN`/`INFEASIBLE` не включаются в метрики качества; `FEASIBLE` не доказывает оптимальность. Сетка ограничивает множество допустимых времён, лимит CP-SAT не включает построение модели; полное время решателя записано отдельно. Все данные synthetic.
+
+### Этап 2.5
+
+`ilp_cpsat` версии 0.2.0 — чистая общая модель; `ilp_cpsat+decomposed` — чистые дневные модели; `ilp_cpsat+warm` добавляет проверенный baseline hint и при необходимости возвращает baseline. См. `docs/ilp_formulation.md`. Дневные лимиты в сумме равны заданному общему бюджету поиска; построение моделей в него не входит. Ограничения данных — synthetic и PLACEHOLDER; выбранным дипломным решателем кандидат не считается. [гипотеза] [TBD — решить с руководителем]
+
+Предварительные протоколы: `configs/experiments/stage25*.json`, конфиги с измеримым R — `configs/stage25/`. Запуски сохраняются построчно после валидации, что позволяет сохранить завершённые измерения при прерывании:
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/stage25_run.py families --output results/stage25/families.jsonl
+PYTHONPATH=src .venv/bin/python scripts/stage25_run.py scale --output results/stage25/scale.jsonl
+PYTHONPATH=src .venv/bin/python scripts/stage25_run.py sensitivity --output results/stage25/sensitivity.jsonl
+```
+
+Не повторяйте команды в уже существующий файл: скрипт специально не перезаписывает результаты. Шаги диагностики исходной модели и отчёты хранятся в `docs/experiments/stage2_5/`.
