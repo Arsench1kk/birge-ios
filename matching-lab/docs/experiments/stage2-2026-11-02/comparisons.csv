@@ -1,0 +1,17 @@
+scenario,ilp_better,equal,ilp_worse,not_comparable
+high_narrow_supply_025,7,0,13,0
+high_narrow_supply_050,0,3,17,0
+high_narrow_supply_075,0,0,0,20
+high_narrow_supply_100,0,0,0,20
+high_wide_supply_025,0,0,0,20
+high_wide_supply_050,0,0,0,20
+high_wide_supply_075,0,0,0,20
+high_wide_supply_100,0,0,0,20
+low_narrow_supply_025,5,15,0,0
+low_narrow_supply_050,3,17,0,0
+low_narrow_supply_075,3,17,0,0
+low_narrow_supply_100,3,17,0,0
+low_wide_supply_025,6,14,0,0
+low_wide_supply_050,6,14,0,0
+low_wide_supply_075,6,14,0,0
+low_wide_supply_100,6,14,0,0

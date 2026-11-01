@@ -1,0 +1,9 @@
+scenario,ilp_better,equal,ilp_worse,not_comparable
+high_narrow_scarce,19,0,1,0
+high_narrow_surplus,0,0,0,20
+high_wide_scarce,0,0,19,1
+high_wide_surplus,0,0,0,20
+low_narrow_scarce,6,13,1,0
+low_narrow_surplus,3,17,0,0
+low_wide_scarce,16,3,1,0
+low_wide_surplus,6,14,0,0
