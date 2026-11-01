@@ -127,3 +127,43 @@ def test_warm_never_worse_than_baseline_on_small_cases(small_scenario, seed):
     assert warm.diagnostics['status'] in ('OPTIMAL', 'FEASIBLE')
     assert validate(scenario, warm) == []
     assert objective(warm) <= objective(baseline)
+
+
+@pytest.mark.parametrize('seed', range(20))
+def test_indexed_model_matches_frozen_unoptimized_model(small_scenario, seed):
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).parent / 'reference/ilp_cpsat_v020.py'
+    spec = importlib.util.spec_from_file_location('frozen_stage25_solver', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    scenario = scenario_for_seed(small_scenario, seed)
+    # Force a pair of indistinguishable drivers to exercise symmetry ordering.
+    driver = scenario.drivers[0]
+    scenario = replace(scenario, drivers=(driver, replace(driver, driver_id='identical-driver')))
+    old = module.ILPCPSAT(grid_minutes=1, time_limit_seconds=5, workers=1).solve(scenario)
+    new = ILPCPSAT(grid_minutes=1, time_limit_seconds=5, workers=1).solve(scenario)
+    assert old.diagnostics['status'] == new.diagnostics['status'] == 'OPTIMAL'
+    assert new.diagnostics['symmetry_constraints'] == 1
+    assert validate(scenario, new) == []
+    assert objective(old) == objective(new)
+
+
+def test_indexed_model_matches_frozen_reference_example(small_scenario):
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location('frozen_stage25_reference', Path(__file__).parent / 'reference/ilp_cpsat_v020.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    day = date(2026, 11, 2)
+    templates = (PassengerRequest('p1', 'ab', frozenset({0}), 446, 501, 473),
+                 PassengerRequest('p2', 'ab', frozenset({0}), 498, 551, 524))
+    instances = tuple(RequestInstance(t.request_id, t.request_id, 'ab', day, t.earliest_departure,
+                                      t.latest_departure, t.preferred_departure) for t in templates)
+    driver = Driver('d', 2, frozenset({'ab'}), (DriverAvailabilitySlot(frozenset({0}), 400, 600),))
+    scenario = replace(small_scenario, requests=templates, request_instances=instances,
+                       drivers=(driver,), trip_duration_minutes=20)
+    before = module.ILPCPSAT(grid_minutes=5, time_limit_seconds=5, workers=1).solve(scenario)
+    after = ILPCPSAT(grid_minutes=5, time_limit_seconds=5, workers=1).solve(scenario)
+    assert before.diagnostics['status'] == after.diagnostics['status'] == 'OPTIMAL'
+    assert objective(before) == objective(after) == (-2, 1, 51)

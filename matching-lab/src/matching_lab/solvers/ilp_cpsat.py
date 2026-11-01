@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from bisect import bisect_left, bisect_right
 from datetime import date
 from math import isfinite
 import time
@@ -11,7 +12,7 @@ from matching_lab.model import Assignment, Scenario, SolverResult, Trip
 
 class ILPCPSAT:
     name = "ilp_cpsat"
-    version = "0.2.0"
+    version = "0.3.0"
 
     def __init__(self, *, grid_minutes: int, time_limit_seconds: float, workers: int):
         if not isinstance(grid_minutes, int) or not 1 <= grid_minutes <= 1440:
@@ -62,6 +63,8 @@ class ILPCPSAT:
         xs_by_request = defaultdict(list)
         xs_by_template = defaultdict(list)
         intervals = defaultdict(list)
+        trips_by_driver_day = defaultdict(list)
+        objective_vars, objective_coeffs = [], []
         candidates = []
         edge_count = 0
         duration = scenario.trip_duration_minutes
@@ -77,21 +80,36 @@ class ILPCPSAT:
                             minutes.add(minute)
             if hint_result is not None:
                 minutes.update(t.departure_minute for t in hint_result.trips if t.service_date == day and t.corridor_id == corridor)
+            # Index each window against unique candidate minutes once per group;
+            # every driver serving this corridor shares these eligibility lists.
+            ordered_minutes = sorted(minutes)
+            eligible = [[] for _ in ordered_minutes]
+            for request in requests:
+                first = bisect_left(ordered_minutes, request.earliest_departure)
+                last = bisect_right(ordered_minutes, request.latest_departure)
+                for position in range(first, last):
+                    eligible[position].append(request)
             for driver in sorted(scenario.drivers, key=lambda item: item.driver_id):
                 if corridor not in driver.corridor_ids:
                     continue
-                for minute in sorted(minutes):
+                for minute, allowed in zip(ordered_minutes, eligible):
+                    if not allowed:
+                        continue
                     if not any(day.weekday() in slot.days_of_week and slot.start_minute <= minute
                                and minute + duration <= slot.end_minute for slot in driver.availability):
                         continue
-                    allowed = [r for r in requests if r.earliest_departure <= minute <= r.latest_departure]
-                    if not allowed:
-                        continue
                     index = len(candidates)
-                    y = model.NewBoolVar(f"trip_{index}")
+                    y = model.new_bool_var(f"trip_{index}")
+                    trips_by_driver_day[(day, driver.driver_id)].append(y)
+                    objective_vars.append(y)
+                    objective_coeffs.append(trip_weight)
                     edges = []
                     for request in allowed:
-                        x = model.NewBoolVar(f"x_{index}_{len(edges)}")
+                        x = model.new_bool_var(f"x_{index}_{len(edges)}")
+                        deviation = abs(minute - request.preferred_departure)
+                        if deviation:
+                            objective_vars.append(x)
+                            objective_coeffs.append(deviation)
                         edges.append((request, x))
                         xs_by_request[request.instance_id].append(x)
                         xs_by_template[(request.request_id, day, corridor)].append(x)
@@ -103,11 +121,27 @@ class ILPCPSAT:
                     edge_count += len(edges)
         for interval_group in intervals.values():
             model.AddNoOverlap(interval_group)
+        # Identical drivers can exchange their entire schedule for a date.
+        # Order by trip count only in the clean mode; a baseline hint may use
+        # a different symmetric labelling and is kept intact in warm mode.
+        symmetry_count = 0
+        if hint_result is None:
+            classes = defaultdict(list)
+            for driver in sorted(scenario.drivers, key=lambda d: d.driver_id):
+                classes[(driver.capacity, driver.corridor_ids, driver.availability)].append(driver.driver_id)
+            for day in sorted({r.service_date for r in active}):
+                for driver_ids in classes.values():
+                    for first, second in zip(driver_ids, driver_ids[1:]):
+                        model.Add(cp_model.LinearExpr.Sum(trips_by_driver_day[(day, first)]) >=
+                                  cp_model.LinearExpr.Sum(trips_by_driver_day[(day, second)]))
+                        symmetry_count += 1
         for variables in xs_by_template.values():
             model.Add(sum(variables) <= 1)
         unassigned_vars = []
         for index, request in enumerate(active):
-            unassigned = model.NewBoolVar(f"unassigned_{index}")
+            unassigned = model.new_bool_var(f"unassigned_{index}")
+            objective_vars.append(unassigned)
+            objective_coeffs.append(unassigned_weight)
             model.Add(sum(xs_by_request[request.instance_id]) + unassigned == 1)
             unassigned_vars.append(unassigned)
         if count * (unassigned_weight + trip_weight) + edge_count * 1439 >= 2**62:
@@ -133,9 +167,8 @@ class ILPCPSAT:
             for request, unassigned in zip(active, unassigned_vars):
                 model.AddHint(unassigned, int(request.instance_id not in hint_assigned))
         diagnostics["hint"] = "baseline" if hint_result is not None else "none"
-        model.Minimize(unassigned_weight * sum(unassigned_vars) + trip_weight * sum(c[4] for c in candidates)
-                       + sum(abs(minute - request.preferred_departure) * x
-                             for _, _, _, minute, _, edges in candidates for request, x in edges))
+        model.Minimize(cp_model.LinearExpr.WeightedSum(objective_vars, objective_coeffs))
+        diagnostics["symmetry_constraints"] = symmetry_count
         diagnostics.update(candidate_trips=len(candidates), assignment_variables=edge_count)
         diagnostics["variables_total"] = len(model.Proto().variables)
         diagnostics["constraints_total"] = len(model.Proto().constraints)
