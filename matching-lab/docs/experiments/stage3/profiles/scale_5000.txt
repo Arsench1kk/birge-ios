@@ -1,0 +1,43 @@
+         41050262 function calls in 42.455 seconds
+
+   Ordered by: cumulative time
+   List reduced from 67 to 35 due to restriction <35>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    7.027    7.027   42.454   42.454 ilp_cpsat.py:27(solve)
+  3238961    0.667    0.000   21.236    0.000 cp_model.py:213(deprecated_func)
+    85163    8.955    0.000   12.997    0.000 {built-in method builtins.sum}
+  3116080    7.900    0.000   10.168    0.000 cp_model.py:372(new_bool_var)
+        1    0.057    0.057   10.015   10.015 cp_model.py:1571(minimize)
+        1    7.936    7.936    9.958    9.958 cp_model.py:1537(_set_objective)
+  3073501    3.513    0.000    3.687    0.000 ilp_cpsat.py:137(<genexpr>)
+        1    1.339    1.339    1.339    1.339 {built-in method ortools.sat.python.cp_model_helper.is_integer}
+  3116080    1.199    0.000    1.199    0.000 {built-in method ortools.sat.python.cp_model_helper.with_domain}
+  3116080    1.069    0.000    1.069    0.000 {built-in method ortools.sat.python.cp_model_helper.with_name}
+  9305660    0.943    0.000    0.943    0.000 {method 'append' of 'list' objects}
+  3016080    0.642    0.000    0.642    0.000 {built-in method ortools.sat.python.cp_model_helper.append}
+    85160    0.031    0.000    0.283    0.000 cp_model.py:509(add)
+    85160    0.244    0.000    0.244    0.000 {built-in method ortools.sat.python.cp_model_helper._add_bounded_linear_expression}
+  3148670    0.216    0.000    0.216    0.000 {built-in method builtins.len}
+  3111080    0.180    0.000    0.180    0.000 ilp_cpsat.py:98(<genexpr>)
+  3073500    0.174    0.000    0.174    0.000 {built-in method builtins.abs}
+  3111080    0.171    0.000    0.171    0.000 ilp_cpsat.py:99(<genexpr>)
+    37580    0.012    0.000    0.093    0.000 cp_model.py:1329(new_optional_fixed_size_interval_var)
+    37580    0.081    0.000    0.081    0.000 {built-in method ortools.sat.python.cp_model_helper._new_interval_var}
+        1    0.041    0.041    0.041    0.041 {built-in method ortools.sat.python.cp_model_helper.extend}
+    75160    0.019    0.000    0.024    0.000 ilp_cpsat.py:84(<genexpr>)
+      140    0.000    0.000    0.010    0.000 cp_model.py:1411(add_no_overlap)
+      140    0.010    0.000    0.010    0.000 {built-in method ortools.sat.python.cp_model_helper._add_no_overlap}
+    85165    0.008    0.000    0.008    0.000 {built-in method builtins.isinstance}
+    37580    0.005    0.000    0.005    0.000 {method 'weekday' of 'datetime.date' objects}
+    37581    0.004    0.000    0.004    0.000 ilp_cpsat.py:136(<genexpr>)
+    35000    0.003    0.000    0.003    0.000 {method 'add' of 'set' objects}
+      296    0.002    0.000    0.003    0.000 {built-in method builtins.sorted}
+        1    0.002    0.002    0.002    0.002 {method 'disable' of '_lsprof.Profiler' objects}
+        1    0.001    0.001    0.001    0.001 cp_model.py:1744(__init__)
+     5000    0.001    0.000    0.001    0.000 {method 'update' of 'set' objects}
+        1    0.001    0.001    0.001    0.001 {method 'update' of 'dict' objects}
+        1    0.000    0.000    0.001    0.001 cp_model.py:315(__init__)
+        1    0.000    0.000    0.001    0.001 cp_model.py:1684(_add_pre_pep8_methods)
+
+
