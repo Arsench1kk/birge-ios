@@ -1,0 +1,16 @@
+scenario,candidate,reference,assigned_better,trip_better,deviation_better,equal,worse,no_solution,wilcoxon_assigned_p
+stage4_scale_1200,baseline_v2,baseline_greedy,2,0,0,0,1,0,0.5
+stage4_scale_1200,greedy_retiming,baseline_greedy,2,0,0,0,1,0,0.5
+stage4_scale_1200,ilp_cpsat+warm,baseline_greedy,3,0,0,0,0,0,0.25
+stage4_scale_1200,ilp_cpsat+warm,baseline_v2,2,0,1,0,0,0,0.5
+stage4_scale_1200,ilp_cpsat+warm,greedy_retiming,2,0,1,0,0,0,0.5
+stage4_scale_240,baseline_v2,baseline_greedy,2,0,0,0,1,0,0.75
+stage4_scale_240,greedy_retiming,baseline_greedy,2,0,0,0,1,0,0.5
+stage4_scale_240,ilp_cpsat+warm,baseline_greedy,3,0,0,0,0,0,0.25
+stage4_scale_240,ilp_cpsat+warm,baseline_v2,2,0,1,0,0,0,0.5
+stage4_scale_240,ilp_cpsat+warm,greedy_retiming,2,0,1,0,0,0,0.5
+stage4_scale_5000,baseline_v2,baseline_greedy,2,0,0,0,1,0,0.5
+stage4_scale_5000,greedy_retiming,baseline_greedy,2,0,0,0,1,0,0.5
+stage4_scale_5000,ilp_cpsat+warm,baseline_greedy,3,0,0,0,0,0,0.25
+stage4_scale_5000,ilp_cpsat+warm,baseline_v2,2,0,1,0,0,0,0.5
+stage4_scale_5000,ilp_cpsat+warm,greedy_retiming,2,0,1,0,0,0,0.5
