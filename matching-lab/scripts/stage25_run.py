@@ -17,11 +17,16 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('phase', choices=['families', 'scale', 'sensitivity'])
 parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--family-name', help='run one predeclared family, for distributed execution')
 parser.add_argument('--protocol', type=Path, default=root / 'configs/experiments/stage25.json')
 args = parser.parse_args()
 protocol = json.loads(args.protocol.read_text())
 if args.phase == 'families':
     paths = sorted(root.glob(protocol['family_glob']))
+    if args.family_name:
+        paths = [path for path in paths if path.stem == args.family_name]
+        if len(paths) != 1:
+            raise ValueError('family name must identify exactly one predefined config')
     seeds = range(protocol['seed_start'], protocol['seed_start'] + protocol['seed_count'])
     budgets = protocol['search_budgets_seconds']
 elif args.phase == 'scale':
