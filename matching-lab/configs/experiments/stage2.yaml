@@ -1,0 +1,16 @@
+placeholder_note: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+seed_start:
+  value: 1
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+seed_count:
+  value: 20
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+grid_minutes:
+  value: 10
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+time_limit_seconds:
+  value: 0.5
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
+workers:
+  value: 1
+  status: 'PLACEHOLDER: не откалибровано, согласовать с руководителем'
