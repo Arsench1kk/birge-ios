@@ -12,7 +12,7 @@ from matching_lab.model import Assignment, Scenario, SolverResult, Trip
 
 class ILPCPSAT:
     name = "ilp_cpsat"
-    version = "0.3.0"
+    version = "0.4.0"
 
     def __init__(self, *, grid_minutes: int, time_limit_seconds: float, workers: int):
         if not isinstance(grid_minutes, int) or not 1 <= grid_minutes <= 1440:
@@ -68,6 +68,20 @@ class ILPCPSAT:
         candidates = []
         edge_count = 0
         duration = scenario.trip_duration_minutes
+        # A driver/date with at most one individually feasible request can
+        # operate at most one nonempty trip; farther departures are dominated.
+        feasible_requests = defaultdict(set)
+        for request in active:
+            for driver in scenario.drivers:
+                key = (request.service_date, driver.driver_id)
+                if len(feasible_requests[key]) > 1 or request.corridor_id not in driver.corridor_ids:
+                    continue
+                if any(request.service_date.weekday() in slot.days_of_week and
+                       max(request.earliest_departure, slot.start_minute) <=
+                       min(request.latest_departure, slot.end_minute-duration)
+                       for slot in driver.availability):
+                    feasible_requests[key].add(request.instance_id)
+        dominated_count = 0
         for (day, corridor), requests in sorted(groups.items()):
             minutes = set()
             for request in requests:
@@ -92,12 +106,18 @@ class ILPCPSAT:
             for driver in sorted(scenario.drivers, key=lambda item: item.driver_id):
                 if corridor not in driver.corridor_ids:
                     continue
-                for minute, allowed in zip(ordered_minutes, eligible):
-                    if not allowed:
-                        continue
-                    if not any(day.weekday() in slot.days_of_week and slot.start_minute <= minute
-                               and minute + duration <= slot.end_minute for slot in driver.availability):
-                        continue
+                available = [(minute, allowed) for minute, allowed in zip(ordered_minutes, eligible)
+                             if allowed and any(day.weekday() in slot.days_of_week and slot.start_minute <= minute
+                             and minute + duration <= slot.end_minute for slot in driver.availability)]
+                if len(feasible_requests[(day, driver.driver_id)]) == 1 and available:
+                    request = available[0][1][0]
+                    best = min(available, key=lambda pair: (abs(pair[0]-request.preferred_departure),pair[0]))[0]
+                    hinted = {t.departure_minute for t in hint_result.trips
+                              if t.service_date == day and t.driver_id == driver.driver_id and t.corridor_id == corridor} if hint_result is not None else set()
+                    filtered = [(minute, allowed) for minute, allowed in available if minute == best or minute in hinted]
+                    dominated_count += len(available) - len(filtered)
+                    available = filtered
+                for minute, allowed in available:
                     index = len(candidates)
                     y = model.new_bool_var(f"trip_{index}")
                     trips_by_driver_day[(day, driver.driver_id)].append(y)
@@ -169,6 +189,7 @@ class ILPCPSAT:
         diagnostics["hint"] = "baseline" if hint_result is not None else "none"
         model.Minimize(cp_model.LinearExpr.WeightedSum(objective_vars, objective_coeffs))
         diagnostics["symmetry_constraints"] = symmetry_count
+        diagnostics["dominated_candidates_removed"] = dominated_count
         diagnostics.update(candidate_trips=len(candidates), assignment_variables=edge_count)
         diagnostics["variables_total"] = len(model.Proto().variables)
         diagnostics["constraints_total"] = len(model.Proto().constraints)

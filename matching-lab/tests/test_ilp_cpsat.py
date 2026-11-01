@@ -183,3 +183,19 @@ def test_indexed_model_matches_frozen_coincident_windows_reference():
     assert before.diagnostics['status'] == after.diagnostics['status'] == 'OPTIMAL'
     assert validate(scenario, before) == validate(scenario, after) == []
     assert objective(before) == objective(after) == objective(ExactTiny().solve(scenario))
+
+
+def test_single_request_dominance_reduces_domain_and_preserves_objective(small_scenario):
+    import importlib.util
+    from pathlib import Path
+    from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm
+    spec=importlib.util.spec_from_file_location('before_reductions',Path(__file__).parent/'reference/ilp_cpsat_v020.py')
+    old=importlib.util.module_from_spec(spec);spec.loader.exec_module(old)
+    before=old.ILPCPSAT(grid_minutes=1,time_limit_seconds=5,workers=1).solve(small_scenario)
+    after=ILPCPSAT(grid_minutes=1,time_limit_seconds=5,workers=1).solve(small_scenario)
+    warm=ILPCPSATWarm(grid_minutes=10,time_limit_seconds=5,workers=1).solve(small_scenario)
+    assert before.diagnostics['status']==after.diagnostics['status']=='OPTIMAL'
+    assert after.diagnostics['dominated_candidates_removed']>0
+    assert after.diagnostics['candidate_trips']<before.diagnostics['candidate_trips']
+    assert objective(before)==objective(after)
+    assert validate(small_scenario,warm)==[]
