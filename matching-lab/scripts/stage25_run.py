@@ -38,6 +38,8 @@ with args.output.open('x', encoding='utf-8') as output:
             scenario = generate_scenario(raw, seed)
             for budget in budgets:
                 modes = protocol['modes'] if args.phase != 'sensitivity' else ['baseline_greedy', 'ilp_cpsat+warm']
+                if args.phase == 'scale':
+                    modes = ['baseline_greedy', 'ilp_cpsat+warm', 'ilp_cpsat']
                 for mode in modes:
                     opts = dict(grid_minutes=protocol['grid_minutes'], workers=protocol['workers'], time_limit_seconds=budget)
                     solver = GreedyBaseline() if mode == 'baseline_greedy' else ILPCPSAT(**opts) if mode == 'ilp_cpsat' else ILPCPSATWarm(**opts)
