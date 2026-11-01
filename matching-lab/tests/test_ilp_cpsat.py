@@ -88,3 +88,31 @@ def test_runner_saves_status_and_rejects_invalid_result(tmp_path, monkeypatch):
         run_experiments([config], [17], tmp_path / "invalid", ["ilp_cpsat"], cpsat_options=options)
     assert not (tmp_path / "invalid" / "results.json").exists()
     assert not (tmp_path / "invalid" / "metrics.csv").exists()
+
+
+@pytest.mark.parametrize('seed', range(10))
+def test_decomposition_matches_whole_model(small_scenario, seed):
+    from datetime import timedelta
+    from matching_lab.solvers.ilp_decomposed import ILPCPSATDecomposed
+
+    day_one = scenario_for_seed(small_scenario, seed)
+    other_day = day_one.start_date + timedelta(days=7)
+    extras = tuple(replace(r, instance_id=f'{r.instance_id}-next', service_date=other_day)
+                   for r in day_one.request_instances)
+    scenario = replace(day_one, horizon_days=8, request_instances=(*day_one.request_instances, *extras))
+    whole = ILPCPSAT(grid_minutes=1, time_limit_seconds=5, workers=1).solve(scenario)
+    daily = ILPCPSATDecomposed(grid_minutes=1, time_limit_seconds=5, workers=1).solve(scenario)
+    assert whole.diagnostics['status'] == daily.diagnostics['status'] == 'OPTIMAL'
+    assert validate(scenario, daily) == []
+    assert objective(whole) == objective(daily)
+
+
+def test_warm_returns_baseline_if_search_has_no_time(small_scenario):
+    from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm
+    scenario = scenario_for_seed(small_scenario, 12)
+    baseline = GreedyBaseline().solve(scenario)
+    warm = ILPCPSATWarm(grid_minutes=10, time_limit_seconds=0, workers=1).solve(scenario)
+    assert validate(scenario, warm) == []
+    assert objective(warm) <= objective(baseline)
+    assert warm.diagnostics['status'] == 'FEASIBLE'
+    assert warm.diagnostics['fallback_days'] > 0

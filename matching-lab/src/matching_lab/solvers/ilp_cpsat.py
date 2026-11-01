@@ -4,13 +4,14 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from math import isfinite
+import time
 
 from matching_lab.model import Assignment, Scenario, SolverResult, Trip
 
 
 class ILPCPSAT:
     name = "ilp_cpsat"
-    version = "0.1.0"
+    version = "0.2.0"
 
     def __init__(self, *, grid_minutes: int, time_limit_seconds: float, workers: int):
         if not isinstance(grid_minutes, int) or not 1 <= grid_minutes <= 1440:
@@ -23,7 +24,8 @@ class ILPCPSAT:
         self.time_limit_seconds = time_limit_seconds
         self.workers = workers
 
-    def solve(self, scenario: Scenario) -> SolverResult:
+    def solve(self, scenario: Scenario, *, hint_result: SolverResult | None = None) -> SolverResult:
+        started = time.perf_counter()
         try:
             import ortools
             from ortools.sat.python import cp_model
@@ -73,6 +75,8 @@ class ILPCPSAT:
                         minute = base + offset
                         if lo <= minute <= hi:
                             minutes.add(minute)
+            if hint_result is not None:
+                minutes.update(t.departure_minute for t in hint_result.trips if t.service_date == day and t.corridor_id == corridor)
             for driver in sorted(scenario.drivers, key=lambda item: item.driver_id):
                 if corridor not in driver.corridor_ids:
                     continue
@@ -108,36 +112,41 @@ class ILPCPSAT:
             unassigned_vars.append(unassigned)
         if count * (unassigned_weight + trip_weight) + edge_count * 1439 >= 2**62:
             raise ValueError("scenario exceeds safe CP-SAT expression bounds")
-        # A fixed, validated hint helps the time-limited solver. Never expand
-        # the candidate domain to fit the heuristic; fall back to an empty plan.
-        from matching_lab.solvers.baseline_greedy import GreedyBaseline
-        from matching_lab.validator import validate
-        baseline = GreedyBaseline().solve(scenario)
-        indices = {(day, corridor, driver_id, minute): index
-                   for index, (day, corridor, driver_id, minute, _, _) in enumerate(candidates)}
-        hint_keys = {(trip.service_date, trip.corridor_id, trip.driver_id, trip.departure_minute): trip
-                     for trip in baseline.trips}
-        use_baseline = not validate(scenario, baseline) and all(key in indices for key in hint_keys)
-        hint_trips = hint_keys if use_baseline else {}
-        hint_assigned = {assignment.request_instance_id for assignment in baseline.assignments} if use_baseline else set()
-        for day, corridor, driver_id, minute, y, edges in candidates:
-            trip = hint_trips.get((day, corridor, driver_id, minute))
-            members = set(trip.passenger_instance_ids) if trip else set()
-            model.AddHint(y, int(trip is not None))
-            for request, x in edges:
-                model.AddHint(x, int(request.instance_id in members))
-        for request, unassigned in zip(active, unassigned_vars):
-            model.AddHint(unassigned, int(request.instance_id not in hint_assigned))
-        diagnostics["hint"] = "baseline" if use_baseline else "empty"
+        # Hints are optional: the clean mode never invokes the baseline.
+        if hint_result is not None:
+            from matching_lab.validator import validate
+            if validate(scenario, hint_result):
+                raise ValueError("warm hint is not a valid solution")
+            indices = {(day, corridor, driver_id, minute)
+                       for day, corridor, driver_id, minute, _, _ in candidates}
+            hint_trips = {(t.service_date, t.corridor_id, t.driver_id, t.departure_minute): t
+                          for t in hint_result.trips}
+            if not set(hint_trips).issubset(indices):
+                raise ValueError("valid warm hint is outside candidate domain")
+            hint_assigned = {a.request_instance_id for a in hint_result.assignments}
+            for day, corridor, driver_id, minute, y, edges in candidates:
+                trip = hint_trips.get((day, corridor, driver_id, minute))
+                members = set(trip.passenger_instance_ids) if trip else set()
+                model.AddHint(y, int(trip is not None))
+                for request, x in edges:
+                    model.AddHint(x, int(request.instance_id in members))
+            for request, unassigned in zip(active, unassigned_vars):
+                model.AddHint(unassigned, int(request.instance_id not in hint_assigned))
+        diagnostics["hint"] = "baseline" if hint_result is not None else "none"
         model.Minimize(unassigned_weight * sum(unassigned_vars) + trip_weight * sum(c[4] for c in candidates)
                        + sum(abs(minute - request.preferred_departure) * x
                              for _, _, _, minute, _, edges in candidates for request, x in edges))
         diagnostics.update(candidate_trips=len(candidates), assignment_variables=edge_count)
+        diagnostics["variables_total"] = len(model.Proto().variables)
+        diagnostics["constraints_total"] = len(model.Proto().constraints)
+        diagnostics["build_seconds"] = time.perf_counter() - started
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = self.time_limit_seconds
         solver.parameters.num_search_workers = self.workers
         solver.parameters.random_seed = 0
+        search_started = time.perf_counter()
         status = solver.Solve(model)
+        diagnostics["search_seconds"] = time.perf_counter() - search_started
         status_name = solver.StatusName(status)
         diagnostics["status"] = status_name
         if status_name == "MODEL_INVALID":
