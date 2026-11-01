@@ -105,6 +105,7 @@ class SolverResult:
     trips: tuple[Trip, ...]
     assignments: tuple[Assignment, ...]
     unassigned_request_instance_ids: tuple[str, ...]
+    diagnostics: dict[str, object] | None = None
 
 
 class Solver(Protocol):

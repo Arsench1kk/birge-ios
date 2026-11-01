@@ -13,11 +13,12 @@ from pathlib import Path
 from typing import Any
 
 from matching_lab import __version__
-from matching_lab.generator import generate_scenario, load_config
+from matching_lab.generator import _canonical_hash, generate_scenario, load_config
 from matching_lab.metrics import calculate_metrics
 from matching_lab.model import Scenario
 from matching_lab.solvers.baseline_greedy import GreedyBaseline
 from matching_lab.solvers.exact_tiny import ExactTiny
+from matching_lab.solvers.ilp_cpsat import ILPCPSAT
 from matching_lab.validator import validate
 
 
@@ -55,8 +56,12 @@ def _git_dirty() -> bool | None:
         return None
 
 
-def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path, solver_names: list[str], exact_max_states: int = 100_000, exact_max_requests_per_day: int = 8) -> list[dict]:
-    registry = {"baseline_greedy": GreedyBaseline, "exact_tiny": lambda: ExactTiny(max_requests_per_day=exact_max_requests_per_day, max_states=exact_max_states)}
+def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path, solver_names: list[str], exact_max_states: int = 100_000, exact_max_requests_per_day: int = 8, cpsat_options: dict | None = None, experiment_metadata: dict | None = None) -> list[dict]:
+    def cpsat_factory():
+        if cpsat_options is None:
+            raise ValueError("ilp_cpsat requires explicit grid_minutes, time_limit_seconds and workers")
+        return ILPCPSAT(**cpsat_options)
+    registry = {"baseline_greedy": GreedyBaseline, "exact_tiny": lambda: ExactTiny(max_requests_per_day=exact_max_requests_per_day, max_states=exact_max_states), "ilp_cpsat": cpsat_factory}
     unknown = sorted(set(solver_names) - set(registry))
     if unknown:
         raise ValueError(f"unknown solver(s): {', '.join(unknown)}")
@@ -96,6 +101,10 @@ def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path
                             "solver_version": solver.version,
                             "exact_max_states": exact_max_states if solver.name == "exact_tiny" else None,
                             "exact_max_requests_per_day": exact_max_requests_per_day if solver.name == "exact_tiny" else None,
+                            "solver_status": result.diagnostics.get("status") if result.diagnostics else None,
+                            "solver_relative_gap": result.diagnostics.get("relative_gap") if result.diagnostics else None,
+                            "solver_diagnostics": result.diagnostics,
+                            "experiment_config": experiment_metadata,
                         },
                         "scenario": _jsonable(scenario),
                         "result": _jsonable(result),
@@ -122,8 +131,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     default_configs = sorted((Path(__file__).resolve().parents[2] / "configs").glob("*.yaml"))
     parser = argparse.ArgumentParser(description="Run synthetic BIRGE matching-lab experiments")
     parser.add_argument("--configs", nargs="+", type=Path, default=default_configs)
-    parser.add_argument("--seeds", default="1,2,3", help="comma-separated deterministic seeds")
-    parser.add_argument("--solvers", nargs="+", choices=["baseline_greedy"], default=["baseline_greedy"])
+    parser.add_argument("--seeds", help="comma-separated seeds; overrides experiment config")
+    parser.add_argument("--experiment-config", type=Path, help="PLACEHOLDER experiment config with seed count and CP-SAT parameters")
+    parser.add_argument("--solvers", nargs="+", choices=["baseline_greedy", "ilp_cpsat"], default=["baseline_greedy"])
     parser.add_argument("--exact", action="store_true", help="add exact_tiny reference for instances with at most 8 active requests per day")
     parser.add_argument("--exact-max-states", type=int, default=100_000, help="maximum exact solver states per day; failure is not an optimum")
     parser.add_argument("--exact-max-requests-per-day", type=int, default=8, help="maximum active requests across all corridors per day")
@@ -134,11 +144,27 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        seeds = [int(value.strip()) for value in args.seeds.split(",") if value.strip()]
+        options = None
+        experiment = load_config(args.experiment_config) if args.experiment_config else None
+        if experiment:
+            from matching_lab.generator import _unbox
+            values = {key: _unbox(value) for key, value in experiment.items() if key != "placeholder_note"}
+            count = int(values["seed_count"])
+            if count < 1:
+                raise ValueError("seed_count must be positive")
+            start = int(values["seed_start"])
+            seeds = list(range(start, start + count))
+            options = {"grid_minutes": int(values["grid_minutes"]), "time_limit_seconds": float(values["time_limit_seconds"]), "workers": int(values["workers"])}
+        else:
+            seeds = [1, 2, 3]
+        if args.seeds is not None:
+            seeds = [int(value.strip()) for value in args.seeds.split(",") if value.strip()]
         if not seeds:
             raise ValueError("at least one seed is required")
         solver_names = [*args.solvers, *(["exact_tiny"] if args.exact else [])]
-        records = run_experiments(args.configs, seeds, args.output, solver_names, args.exact_max_states, args.exact_max_requests_per_day)
+        experiment_metadata = ({"file": str(args.experiment_config), "sha256": _canonical_hash(experiment),
+                                "parameters": values, "actual_seeds": seeds} if experiment else None)
+        records = run_experiments(args.configs, seeds, args.output, solver_names, args.exact_max_states, args.exact_max_requests_per_day, options, experiment_metadata)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
@@ -147,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Runs: {len(records)}")
     print(f"Raw JSON: {args.output / 'results.json'}")
     print(f"Metrics CSV: {args.output / 'metrics.csv'}")
-    columns = ("scenario_name", "seed", "solver", "active_requests", "assignment_rate", "trip_count", "mean_passengers_per_trip", "trip_lower_bound", "trips_to_lower_bound", "mean_time_deviation_minutes", "mean_distinct_departures_per_template", "max_distinct_departures_per_template", "mean_distinct_drivers_per_template", "max_distinct_drivers_per_template", "runtime_seconds")
+    columns = ("scenario_name", "seed", "solver", "solver_status", "solver_relative_gap", "active_requests", "assignment_rate", "trip_count", "mean_passengers_per_trip", "trip_lower_bound", "trips_to_lower_bound", "mean_time_deviation_minutes", "mean_distinct_departures_per_template", "max_distinct_departures_per_template", "mean_distinct_drivers_per_template", "max_distinct_drivers_per_template", "runtime_seconds")
     print("\t".join(columns))
     for record in records:
         values = {**record["metadata"], **record["metrics"]}

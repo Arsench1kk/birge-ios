@@ -41,6 +41,7 @@ def calculate_metrics(scenario: Scenario, result: SolverResult, runtime_seconds:
         "assigned_requests": len(assigned_ids),
         "assignment_rate": (len(assigned_ids) / len(active)) if active else None,
         "mean_time_deviation_minutes": (sum(deviations) / len(deviations)) if deviations else None,
+        "total_time_deviation_minutes": sum(deviations),
         "p95_time_deviation_minutes": _nearest_rank(deviations, 0.95),
         "seat_utilization": (assigned_seats / capacity_seats) if capacity_seats else None,
         "assigned_seats": assigned_seats,
