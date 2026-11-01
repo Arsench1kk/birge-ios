@@ -1,0 +1,16 @@
+{
+  "placeholder_note": "PLACEHOLDER: не откалибровано, согласовать с руководителем",
+  "seed_start": 1,
+  "seed_count": 20,
+  "grid_minutes": 10,
+  "workers": 1,
+  "search_budgets_seconds": [1, 10],
+  "sensitivity_budgets_seconds": [1, 5, 30, 120],
+  "sensitivity_configs": ["configs/families/high_narrow_scarce.yaml", "configs/families/low_narrow_scarce.yaml", "configs/families/low_wide_scarce.yaml"],
+  "sensitivity_seeds": [1],
+  "scale_seeds": [1],
+  "family_glob": "configs/stage25/stage25_*.yaml",
+  "scale_configs": ["configs/scale/scale_hundreds.yaml", "configs/scale/scale_thousands.yaml", "configs/stage25/scale_5000.yaml"],
+  "scale_budget_seconds": 10,
+  "modes": ["baseline_greedy", "ilp_cpsat", "ilp_cpsat+warm"]
+}

@@ -35,3 +35,15 @@ def test_family_scenarios_are_deterministic_and_have_recurring_days():
         counts = Counter(request.corridor_id for request in scenario.requests)
         assert set(counts.values()) == ({2} if path.name.startswith("low_") else {16})
         assert validate(scenario, GreedyBaseline().solve(scenario)) == []
+
+
+def test_stage25_supply_levels_are_exact():
+    import pytest
+    from matching_lab.generator import _unbox
+    from matching_lab.supply import supply_ratio
+    for path in sorted((ROOT / 'configs/stage25').glob('stage25_*.yaml')):
+        config = load_config(path)
+        for seed in (1, 19):
+            scenario = generate_scenario(config, seed)
+            assert supply_ratio(scenario) == pytest.approx(_unbox(config['target_supply_ratio']))
+            assert sum(not r.cancelled for r in scenario.request_instances) == 224
