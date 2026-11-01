@@ -38,6 +38,12 @@ def summarize_section(title, records):
 
 args.output.mkdir(parents=True, exist_ok=True)
 families=load(args.families); scale=load([args.scale]); sensitivity=load([args.sensitivity])
+for label, records, expected in (('families', families, 1600), ('scale', scale, 9), ('sensitivity', sensitivity, 24)):
+    keys = {(r['scenario'], r['seed'], r['search_budget_seconds'], r['solver']) for r in records}
+    if len(records) != expected or len(keys) != expected:
+        raise ValueError(f'{label}: expected {expected} unique runs, got {len(records)} records and {len(keys)} unique')
+    if any(r['solver'] == 'ilp_cpsat+warm' and r['solver_status'] not in ('OPTIMAL', 'FEASIBLE') for r in records):
+        raise ValueError(f'{label}: warm mode returned no valid solution')
 text=['# Этап 2.5 — synthetic результаты', '', 'Все параметры PLACEHOLDER; кандидат `ilp_cpsat` [гипотеза] [TBD — решить с руководителем], ADR-006 Proposed. Протоколы и хеши конфигов записаны в сырых данных. Для основных семейств задано по 20 seed, бюджеты поиска 1 и 10 с. Время — wall-clock с построением; модель строится вне лимита поиска. Отдельные экспериментальные процессы выполнялись одновременно на одной машине, поэтому нагрузка влияет на время.', '', 'R — оптимистическая вместимость непересекающихся слотов / активный спрос, не фактическая доля обслуженных заявок; среднее ± выборочное стандартное отклонение. UNKNOWN/INFEASIBLE не включены в метрики качества, но указаны отдельно; время включает все попытки. Дневные исходы и fallback доступны в CSV и сырых данных. Warm может иметь более широкий кандидатный домен и гарантирует план не хуже проверенного baseline. Чистая декомпозиция позволяет отдельно оценить декомпозицию и вклад warm в сравнении с ней.', '',f'Число записей: семейства {len(families)}, масштаб {len(scale)}, чувствительность {len(sensitivity)}. Ожидается 1600 / 9 / 24 соответственно (включая дополнительный режим чистой декомпозиции).', '']
 text += summarize_section('families',families)
 text += summarize_section('sensitivity',sensitivity)
