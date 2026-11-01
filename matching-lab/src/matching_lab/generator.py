@@ -61,6 +61,9 @@ def generate_scenario(config: dict, seed: int) -> Scenario:
         raise ValueError(f"config must declare {PLACEHOLDER!r}")
     rng = random.Random(seed)
     params = {key: _unbox(value) for key, value in config.items() if key != "placeholder_note"}
+    if "structural" in params:
+        from matching_lab.structural_generator import generate_structural
+        return generate_structural(config, params, seed)
     start_date = date.fromisoformat(str(params["start_date"]))
     horizon_days = int(params["horizon_days"])
     if horizon_days <= 0:

@@ -1,0 +1,62 @@
+{
+  "placeholder_note": "PLACEHOLDER: не откалибровано, согласовать с руководителем",
+  "family_seeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "family_modes": [
+    "baseline_greedy",
+    "ilp_cpsat+warm",
+    "ilp_cpsat+decomposed"
+  ],
+  "budget_per_date_seconds": 10,
+  "sensitivity_seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "sensitivity_modes": [
+    "ilp_cpsat+warm"
+  ],
+  "sensitivity_budgets_per_date_seconds": [
+    1,
+    5,
+    30,
+    120
+  ],
+  "scale_configs": [
+    "configs/scale/scale_hundreds.yaml",
+    "configs/scale/scale_thousands.yaml",
+    "configs/stage25/scale_5000.yaml"
+  ],
+  "scale_seeds": [
+    1,
+    2,
+    3
+  ],
+  "grid_minutes": 10,
+  "workers": 1,
+  "execution": "strictly_sequential",
+  "profile_seed": 1,
+  "profile_time_limit_seconds": 0
+}

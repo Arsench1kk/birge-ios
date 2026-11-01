@@ -29,6 +29,7 @@ class PassengerRequest:
     earliest_departure: int
     latest_departure: int
     preferred_departure: int
+    passenger_id: str | None = None
 
 
 @dataclass(frozen=True)
