@@ -6,7 +6,7 @@ import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 
-METRICS = ('assigned_requests', 'trip_count', 'total_time_deviation_minutes', 'mean_passengers_per_trip', 'runtime_seconds')
+METRICS = ('assigned_requests', 'assignment_rate', 'trip_count', 'total_time_deviation_minutes', 'mean_passengers_per_trip', 'runtime_seconds')
 
 
 def summarize(records):
@@ -22,6 +22,9 @@ def summarize(records):
         row = {'scenario': name, 'budget': budget, 'solver': solver, 'runs': len(group), 'solutions': len(feasible),
                'no_solution': len(group)-len(feasible), 'R_mean': statistics.mean(r['supply_ratio'] for r in group),
                **{s: status[s] for s in ('OPTIMAL', 'FEASIBLE', 'UNKNOWN', 'INFEASIBLE')}}
+        daily = Counter(d['status'] for r in group for d in (r.get('diagnostics') or {}).get('days', []))
+        row.update({f'day_{s}': daily[s] for s in ('OPTIMAL', 'FEASIBLE', 'UNKNOWN', 'INFEASIBLE')})
+        row['fallback_days'] = sum((r.get('diagnostics') or {}).get('fallback_days', 0) for r in group)
         for metric in METRICS:
             source = group if metric == 'runtime_seconds' else feasible
             values = [r['metrics'][metric] for r in source if r['metrics'].get(metric) is not None]

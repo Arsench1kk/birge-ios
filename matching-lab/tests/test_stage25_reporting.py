@@ -10,7 +10,7 @@ def test_unknown_and_lexicographic_categories_are_separate():
     def row(seed, solver, status, assigned, trips, deviation):
         return {'scenario':'s', 'search_budget_seconds':1, 'seed':seed, 'solver':solver,
                 'solver_status':status, 'supply_ratio':0.5, 'metrics':{
-                    'assigned_requests':assigned, 'trip_count':trips,
+                    'assigned_requests':assigned, 'assignment_rate':assigned/4, 'trip_count':trips,
                     'total_time_deviation_minutes':deviation,
                     'mean_passengers_per_trip':1, 'runtime_seconds':1}}
     records=[]
