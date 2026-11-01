@@ -85,3 +85,21 @@ def test_structural_multi_corridor_driver_conflicts():
                 if found: break
             if found: break
         assert found, path
+
+
+def test_stage4_scale_extends_weekly_structure_on_dev_seed():
+    import json
+    from collections import Counter
+    from matching_lab.stage4_scale import make_scale
+    from matching_lab.supply import supply_ratio
+    base=generate_scenario(load_config(ROOT/'configs/stage3/stage3_medium_many.yaml'),1000)
+    for target in (240,1200,5000):
+        cfg=json.loads((ROOT/f'configs/stage4/scale_{target}.json').read_text())
+        s=make_scale(cfg,1000,ROOT)
+        assert len(s.request_instances)==target
+        assert s.requests==base.requests and s.drivers==base.drivers
+        assert len({r.instance_id for r in s.request_instances})==target
+        assert supply_ratio(s)>0
+        original=Counter((r.service_date,r.corridor_id) for r in base.request_instances)
+        extended=Counter((r.service_date,r.corridor_id) for r in s.request_instances)
+        assert all(extended[k]==v for k,v in original.items())
