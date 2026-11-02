@@ -19,7 +19,7 @@ out=root/'docs/experiments/stage5/runs.jsonl'
 existing=[json.loads(line) for line in out.read_text().splitlines()] if out.exists() else []
 done={(r['phase'],r['config'],r['seed'],r['solver']) for r in existing}
 with out.open('a') as f:
- for phase,paths,seeds,modes in [('families',sorted((root/'configs/stage3').glob('*.yaml')),p['evaluation_seeds'],['ilp_cpsat+warm2']),('scale',sorted((root/'configs/stage5').glob('*.yaml'),key=lambda x:(int(x.stem.split('_')[1]),x.stem)),p['scale_seeds'],['baseline_v2','greedy_retiming','ilp_cpsat+warm','ilp_cpsat+warm2'])]:
+ for phase,paths,seeds,modes in [('families',sorted((root/'configs/stage3').glob('*.yaml'),key=lambda x:(x.stem.endswith('control'),x.stem)),p['evaluation_seeds'],['ilp_cpsat+warm2']),('scale',sorted((root/'configs/stage5').glob('*.yaml'),key=lambda x:(int(x.stem.split('_')[1]),x.stem)),p['scale_seeds'],['baseline_v2','greedy_retiming','ilp_cpsat+warm','ilp_cpsat+warm2'])]:
   for path in paths:
    for seed in seeds:
     s=generate_scenario(load_config(path),seed)
