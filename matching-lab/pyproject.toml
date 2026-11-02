@@ -12,6 +12,7 @@ dependencies = ["PyYAML>=6.0"]
 [project.optional-dependencies]
 test = ["pytest>=8.0"]
 ilp = ["ortools>=9.15,<9.16"]
+analysis = ["matplotlib>=3.11,<3.12", "scipy>=1.18,<1.19"]
 
 [project.scripts]
 matching-lab = "matching_lab.runner:main"
