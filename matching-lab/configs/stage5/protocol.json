@@ -1,0 +1,58 @@
+{
+  "placeholder_note": "PLACEHOLDER synthetic assumptions, not calibrated",
+  "dev_seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009
+  ],
+  "evaluation_seeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "scale_seeds": [
+    1,
+    2,
+    3
+  ],
+  "sizes": [
+    50,
+    100,
+    200,
+    400,
+    800
+  ],
+  "budget_seconds_per_date": 10,
+  "grid_minutes": 10,
+  "workers": 1,
+  "bootstrap_resamples": 2000,
+  "bootstrap_seed": 451,
+  "optimal_threshold": 0.8,
+  "retiming_iterations": 20,
+  "retiming_neighbor_checks": 2000,
+  "execution": "strictly_sequential"
+}

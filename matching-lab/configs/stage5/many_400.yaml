@@ -1,0 +1,77 @@
+name: stage5_medium_many_400
+placeholder_note: "PLACEHOLDER: \u043D\u0435 \u043E\u0442\u043A\u0430\u043B\u0438\u0431\
+  \u0440\u043E\u0432\u0430\u043D\u043E, \u0441\u043E\u0433\u043B\u0430\u0441\u043E\
+  \u0432\u0430\u0442\u044C \u0441 \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\
+  \u0442\u0435\u043B\u0435\u043C"
+start_date:
+  value: '2026-11-02'
+  status: "PLACEHOLDER: \u043D\u0435 \u043E\u0442\u043A\u0430\u043B\u0438\u0431\u0440\
+    \u043E\u0432\u0430\u043D\u043E, \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\
+    \u0430\u0442\u044C \u0441 \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\u0442\
+    \u0435\u043B\u0435\u043C"
+horizon_days:
+  value: 1
+  status: "PLACEHOLDER: \u043D\u0435 \u043E\u0442\u043A\u0430\u043B\u0438\u0431\u0440\
+    \u043E\u0432\u0430\u043D\u043E, \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\
+    \u0430\u0442\u044C \u0441 \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\u0442\
+    \u0435\u043B\u0435\u043C"
+trip_duration_minutes:
+  value: 30
+  status: "PLACEHOLDER: \u043D\u0435 \u043E\u0442\u043A\u0430\u043B\u0438\u0431\u0440\
+    \u043E\u0432\u0430\u043D\u043E, \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\
+    \u0430\u0442\u044C \u0441 \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\u0442\
+    \u0435\u043B\u0435\u043C"
+structural:
+  value:
+    passenger_count: 200
+    weekday_pool:
+    - 0
+    days_per_template: 1
+    morning_peak: 08:15
+    evening_peak: '17:30'
+    preferred_sigma_minutes: 25
+    window_width_choices_minutes:
+    - 15
+    - 30
+    - 60
+    driver_jitter_minutes:
+    - -10
+    - -5
+    - 0
+    - 5
+    - 10
+  status: "PLACEHOLDER: \u043D\u0435 \u043E\u0442\u043A\u0430\u043B\u0438\u0431\u0440\
+    \u043E\u0432\u0430\u043D\u043E, \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\
+    \u0430\u0442\u044C \u0441 \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\u0442\
+    \u0435\u043B\u0435\u043C"
+hubs:
+- id: a
+  name: Synthetic A
+- id: b
+  name: Synthetic B
+corridors:
+- id: ab
+  origin: a
+  destination: b
+- id: ba
+  origin: b
+  destination: a
+drivers:
+  value:
+    count: 20
+    capacity_choices:
+    - 3
+    - 4
+    daily_slots:
+    - start: 07:25
+      end: 08:00
+    - start: 08:10
+      end: 08:45
+    - start: '16:55'
+      end: '17:30'
+    - start: '17:40'
+      end: '18:15'
+  status: "PLACEHOLDER: \u043D\u0435 \u043E\u0442\u043A\u0430\u043B\u0438\u0431\u0440\
+    \u043E\u0432\u0430\u043D\u043E, \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\
+    \u0430\u0442\u044C \u0441 \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\u0442\
+    \u0435\u043B\u0435\u043C"
