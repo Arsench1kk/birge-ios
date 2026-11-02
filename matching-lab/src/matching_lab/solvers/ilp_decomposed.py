@@ -17,10 +17,13 @@ class ILPCPSATDecomposed(ILPCPSAT):
     name = 'ilp_cpsat+decomposed'
     warm = False
 
+    def initial_solution(self, scenario):
+        return GreedyBaseline().solve(scenario) if self.warm else None
+
     def solve(self, scenario):
         active = [r for r in scenario.request_instances if not r.cancelled]
         days = sorted({r.service_date for r in active})
-        baseline = GreedyBaseline().solve(scenario) if self.warm else None
+        baseline = self.initial_solution(scenario)
         if baseline is not None and validate(scenario, baseline):
             raise RuntimeError('baseline is not valid; cannot provide a warm guarantee')
         trips, assignments, unassigned = [], [], []
@@ -81,3 +84,26 @@ class ILPCPSATDecomposed(ILPCPSAT):
 class ILPCPSATWarm(ILPCPSATDecomposed):
     name = 'ilp_cpsat+warm'
     warm = True
+
+
+class ILPCPSATWarm2(ILPCPSATDecomposed):
+    """Use the lexicographically best of the two independently validated heuristics."""
+    name = 'ilp_cpsat+warm2'
+    version = '0.1.0'
+
+    def __init__(self, *, grid_minutes, time_limit_seconds, workers,
+                 max_iterations=20, max_neighbor_checks_per_iteration=2000):
+        super().__init__(grid_minutes=grid_minutes, time_limit_seconds=time_limit_seconds, workers=workers)
+        self.max_iterations = max_iterations
+        self.max_neighbor_checks_per_iteration = max_neighbor_checks_per_iteration
+
+    def initial_solution(self, scenario):
+        from matching_lab.solvers.baseline_v2 import BaselineV2
+        from matching_lab.solvers.greedy_retiming import GreedyRetiming
+
+        results = (BaselineV2().solve(scenario),
+                   GreedyRetiming(max_iterations=self.max_iterations,
+                                  max_neighbor_checks_per_iteration=self.max_neighbor_checks_per_iteration).solve(scenario))
+        if any(validate(scenario, result) for result in results):
+            raise RuntimeError('warm2 initial heuristic solution is invalid')
+        return min(results, key=score)

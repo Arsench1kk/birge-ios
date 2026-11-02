@@ -118,6 +118,20 @@ def test_warm_returns_baseline_if_search_has_no_time(small_scenario):
     assert warm.diagnostics['fallback_days'] > 0
 
 
+@pytest.mark.parametrize('seed', range(10))
+def test_warm2_never_worse_than_either_heuristic_without_search(small_scenario, seed):
+    from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm2
+    from matching_lab.solvers.baseline_v2 import BaselineV2
+    from matching_lab.solvers.greedy_retiming import GreedyRetiming
+    scenario = scenario_for_seed(small_scenario, seed)
+    v2 = BaselineV2().solve(scenario)
+    retiming = GreedyRetiming(max_iterations=20, max_neighbor_checks_per_iteration=2000).solve(scenario)
+    result = ILPCPSATWarm2(grid_minutes=10, time_limit_seconds=0, workers=1).solve(scenario)
+    assert validate(scenario, result) == []
+    assert result.diagnostics['status'] == 'FEASIBLE'
+    assert objective(result) <= min(objective(v2), objective(retiming))
+
+
 @pytest.mark.parametrize('seed', range(20))
 def test_warm_never_worse_than_baseline_on_small_cases(small_scenario, seed):
     from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm

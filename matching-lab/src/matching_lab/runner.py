@@ -19,7 +19,7 @@ from matching_lab.model import Scenario
 from matching_lab.solvers.baseline_greedy import GreedyBaseline
 from matching_lab.solvers.exact_tiny import ExactTiny
 from matching_lab.solvers.ilp_cpsat import ILPCPSAT
-from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm, ILPCPSATDecomposed
+from matching_lab.solvers.ilp_decomposed import ILPCPSATWarm, ILPCPSATWarm2, ILPCPSATDecomposed
 from matching_lab.validator import validate
 
 
@@ -62,7 +62,7 @@ def run_experiments(config_paths: list[Path], seeds: list[int], output_dir: Path
         if cpsat_options is None:
             raise ValueError("ilp_cpsat requires explicit grid_minutes, time_limit_seconds and workers")
         return cls(**cpsat_options)
-    registry = {"baseline_greedy": GreedyBaseline, "exact_tiny": lambda: ExactTiny(max_requests_per_day=exact_max_requests_per_day, max_states=exact_max_states), "ilp_cpsat": cpsat_factory, "ilp_cpsat+warm": lambda: cpsat_factory(ILPCPSATWarm), "ilp_cpsat+decomposed": lambda: cpsat_factory(ILPCPSATDecomposed)}
+    registry = {"baseline_greedy": GreedyBaseline, "exact_tiny": lambda: ExactTiny(max_requests_per_day=exact_max_requests_per_day, max_states=exact_max_states), "ilp_cpsat": cpsat_factory, "ilp_cpsat+warm": lambda: cpsat_factory(ILPCPSATWarm), "ilp_cpsat+warm2": lambda: cpsat_factory(ILPCPSATWarm2), "ilp_cpsat+decomposed": lambda: cpsat_factory(ILPCPSATDecomposed)}
     unknown = sorted(set(solver_names) - set(registry))
     if unknown:
         raise ValueError(f"unknown solver(s): {', '.join(unknown)}")
@@ -134,7 +134,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--configs", nargs="+", type=Path, default=default_configs)
     parser.add_argument("--seeds", help="comma-separated seeds; overrides experiment config")
     parser.add_argument("--experiment-config", type=Path, help="PLACEHOLDER experiment config with seed count and CP-SAT parameters")
-    parser.add_argument("--solvers", nargs="+", choices=["baseline_greedy", "ilp_cpsat", "ilp_cpsat+warm", "ilp_cpsat+decomposed"], default=["baseline_greedy"])
+    parser.add_argument("--solvers", nargs="+", choices=["baseline_greedy", "ilp_cpsat", "ilp_cpsat+warm", "ilp_cpsat+warm2", "ilp_cpsat+decomposed"], default=["baseline_greedy"])
     parser.add_argument("--exact", action="store_true", help="add exact_tiny reference for instances with at most 8 active requests per day")
     parser.add_argument("--exact-max-states", type=int, default=100_000, help="maximum exact solver states per day; failure is not an optimum")
     parser.add_argument("--exact-max-requests-per-day", type=int, default=8, help="maximum active requests across all corridors per day")
